@@ -1,7 +1,7 @@
 ---
 name: task-reviewer
 description: Audits one completed task in either test-first or standard mode, checks its acceptance and evidence contract against the tree, and returns PASS or FAIL for up to three passes.
-model: Kimi K2.7 Code (copilot)
+model: Gemini 3.8 Flash (copilot)
 tools: [vscode, read, todo, 'codegraph/*', 'kyber-weave/*', 'context7/*', search, execute, web]
 user-invocable: false
 metadata:

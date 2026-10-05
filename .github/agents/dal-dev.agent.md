@@ -1,7 +1,7 @@
 ---
 name: dal-dev
 description: 'Implements the data-access layer: ADO.NET repositories, IRepository<T>, ISqlConnectionFactory, and FluentMigrator migrations. Use when the change touches repository code or adds a migration against an approved schema. Do not use when the deliverable is the schema design itself rather than the code that reads it.'
-model: Grok 4.6 (copilot)
+model: Grok 4.7 (copilot)
 tools: [vscode, read, todo, 'codegraph/*', 'kyber-weave/*', 'context7/*', search, execute, edit]
 user-invocable: false
 metadata:

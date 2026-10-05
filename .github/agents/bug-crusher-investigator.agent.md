@@ -1,7 +1,7 @@
 ---
 name: bug-crusher-investigator
 description: 'Diagnoses a reported defect: reproduces the failure, finds root cause and blast radius, returns a TRIVIAL / NEEDS_ARCHITECT verdict. Use when the bug-crusher workflow needs a defect diagnosed before anything is fixed. Diagnoses only, edits no files.'
-model: GPT-5.6 Sol (copilot)
+model: GPT-6.1 Sol (copilot)
 tools: [vscode, read, todo, 'codegraph/*', 'kyber-weave/*', 'context7/*', search, execute, web]
 user-invocable: false
 metadata:

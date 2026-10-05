@@ -1,7 +1,7 @@
 ---
 name: code-reviewer
 description: Reviews a change by fanning out a council of review lenses, running the gate suite, and adjudicating findings into APPROVE, REQUEST_CHANGES, or NEEDS_HUMAN. Use once at the end of a run over the whole accumulated change, before a commit, push, or pull request, or whenever a human asks for a review. Do not use when the scope is one finished task rather than the whole run. Review-only, fixes nothing.
-model: Kimi K2.7 Code (copilot)
+model: Gemini 3.8 Flash (copilot)
 tools: [vscode, read, todo, 'codegraph/*', 'kyber-weave/*', 'context7/*', search, execute, web, agent]
 agents: ['azure-reader', 'review-lens', 'review-triage']
 user-invocable: false

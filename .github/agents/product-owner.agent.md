@@ -1,7 +1,7 @@
 ---
 name: product-owner
 description: 'Headless specification specialist: persists requirements, design, and mode-aware tasks for one feature, then returns structured phase and gap digests to conductor. Produces planning artifacts only and never prompts the user.'
-model: Grok 4.6 (copilot)
+model: Grok 4.7 (copilot)
 tools: [vscode, read, todo, 'codegraph/*', 'kyber-weave/*', 'context7/*', search, web, edit, agent]
 agents: ['research-agent']
 user-invocable: false

@@ -1,7 +1,7 @@
 ---
 name: sql-database-architect
 description: 'Designs SQL Server / Azure SQL schema: tables, T-SQL, indexing, security hardening, and dacpac deployment. Use when the change is DDL, a .sql file, or a query that needs tuning. Do not use when the deliverable is application data-access code or a migration rather than the schema itself.'
-model: GPT-5.6 Sol (copilot)
+model: GPT-6.1 Sol (copilot)
 tools: [vscode, read, todo, 'codegraph/*', 'kyber-weave/*', 'context7/*', search, execute, edit]
 user-invocable: false
 metadata:

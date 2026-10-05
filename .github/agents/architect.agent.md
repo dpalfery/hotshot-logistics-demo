@@ -1,7 +1,7 @@
 ---
 name: architect
 description: 'Headless technical planner and intake assessor: recommends plan versus spec, investigates bounded changes, and persists mode-aware implementation plans. Plans only and never prompts the user directly.'
-model: GPT-5.6 Sol (copilot)
+model: GPT-6.1 Sol (copilot)
 tools: [vscode, read, todo, 'codegraph/*', 'kyber-weave/*', 'context7/*', search, execute, web, agent, edit/createDirectory, edit/createFile, edit/editFiles, edit/rename, vscodeGeneral/rename]
 agents: ['azure-reader', 'research-agent']
 user-invocable: false
