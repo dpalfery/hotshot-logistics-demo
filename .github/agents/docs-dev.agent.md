@@ -1,8 +1,8 @@
 ---
 name: docs-dev
-description: 'Technical documentation: READMEs, API docs, ADRs, runbooks, and inline code docs in Markdown/Mermaid. Use when the deliverable is documentation. Does not write implementation code, tests, CI/CD config, or spec-flow documents.'
-model: GPT-5.6 Luna (copilot)
-tools: [vscode, execute/runInTerminal, read, edit, search, 'codegraph/*', 'kyber-weave/*', 'context7/*', azure-mcp/search, todo]
+description: 'Writes technical documentation: READMEs, API docs, ADRs, runbooks, and inline docs in Markdown/Mermaid. Use when the deliverable is a .md file. Do not use when the deliverable is a formal requirements/design/tasks spec rather than reference documentation.'
+model: MAI-Code-1.1-Flash (copilot)
+tools: [vscode, read, todo, 'codegraph/*', 'kyber-weave/*', 'context7/*', search, edit]
 user-invocable: false
 metadata:
   capability-profile: documentation
@@ -97,7 +97,7 @@ archiving before migrating does not make the content stale — it makes it invis
 
 When done, return:
 
-```
+```text
 STATUS: READY_FOR_REVIEW
 ARTIFACTS: <list of documentation file paths>
 SUMMARY: <2–4 sentences: what was written or updated, scope, and any notable gaps>

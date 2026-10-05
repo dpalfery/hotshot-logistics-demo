@@ -46,7 +46,6 @@ If there is no `.codegraph/` directory, skip CodeGraph entirely — indexing is 
 Agents and skills look up the following properties to find the documentation and
 references that belong to this repository.
 
-- **<agent-scratchpad>**: `.agents-scratchpad`
 - **<docs-root>**: `6-Docs`
 - **<documentation-index>**: `6-Docs/README.md`
 - **<documentation-ontology>**: `6-Docs/documentation-ontology.md`

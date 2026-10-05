@@ -22,16 +22,5 @@ Identify your sub-task and read ONLY the relevant reference before proceeding.
 | Directory.Build Organization | `Directory.Build.props`/`.targets`/`Directory.Packages.props`, Central Package Management, multi-level hierarchy | Refer to the path defined by the **Directory.Build Organization** property in the root `AGENTS.md`. |
 | Build Performance | MSBuild parallelism (`-m`), `/graph` mode, RAR slowness, analyzer overhead, bottleneck diagnosis | Refer to the path defined by the **Build Performance** property in the root `AGENTS.md`. |
 | Incremental Build | Fix targets that always rebuild; `Inputs`/`Outputs` attributes; `FileWrites` registration; volatile output paths | Refer to the path defined by the **Incremental Build** property in the root `AGENTS.md`. |
-| ReSharper CLT Analysis | Static code analysis (InspectCode), automatic code formatting (CleanupCode), StyleCop enforcement | [ReSharper CLT](../resharper-clt/SKILL.md) |
 
 **Rule:** Read only the reference(s) relevant to your current task. Do not pre-load all references.
-
-## Completion gate (mandatory)
-
-Before claiming a task complete or returning `READY_FOR_REVIEW`:
-
-1. Run the IDE problems tool (`get_errors`) on every file you edited or created.
-2. Run ReSharper CLT static analysis: `dotnet jb inspectcode HotshotLogistics.sln --output=.agents-scratchpad/dev-inspect.xml --format=Xml`
-3. Fix any diagnostics you introduced (compiler, analyzer, IDE, ReSharper CLT warnings/errors).
-4. Re-run `get_errors` and `inspectcode` until the change set is clean (0 errors, 0 code/logic warnings).
-5. A successful `dotnet build` / test run does **not** replace this gate — both executable validation, `get_errors`, and ReSharper CLT inspection are required.

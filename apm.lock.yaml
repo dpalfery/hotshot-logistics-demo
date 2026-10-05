@@ -3,10 +3,8 @@ generated_at: '2026-08-14T15:36:51.581812+00:00'
 apm_version: 0.23.1
 dependencies:
 - repo_url: dpalfery/kyber-weave
-  name: kyber-weave
   host: github.com
   resolved_commit: c0af5613732b92ca2127918af5e30ff5e5b2ed30
-  version: 0.1.1
   package_type: apm_package
   deployed_files:
   - .agents/skills/kyber-weave-docs
