@@ -19,6 +19,7 @@
     "resharper.build.useResharperBuild": false,
     "resharper.build.customDotnetCliPath": "/usr/local/bin/dotnet",
     "chat.subagents.allowInvocationsFromSubagents": true,
+    "chat.subagents.defaultToAuto": false,
     "chat.useClaudeMdFile": false,
     "chat.agentFilesLocations": {
         ".github/agents": true,
