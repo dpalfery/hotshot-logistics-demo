@@ -42,5 +42,14 @@
     },
     "chat.agent.thinking.collapsedTools": "off",
     "chat.agent.thinking.generateTitles": false,
-    "lmstudio-copilot.autoFixByokUtilityModel": false
+    "lmstudio-copilot.autoFixByokUtilityModel": false,
+  
+    "chat.mcp.discovery.enabled": {
+        "claude-desktop": false,
+        "copilot": true,
+        "windsurf": false,
+        "cursor-global": false,
+        "cursor-workspace": false
+    },
+    "chat.mcp.autoStart": "newAndOutdated"
 }
