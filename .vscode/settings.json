@@ -41,5 +41,6 @@
         "~/.claude/settings.json": false
     },
     "chat.agent.thinking.collapsedTools": "off",
-    "chat.agent.thinking.generateTitles": false
+    "chat.agent.thinking.generateTitles": false,
+    "lmstudio-copilot.autoFixByokUtilityModel": false
 }
