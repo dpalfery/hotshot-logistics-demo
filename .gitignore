@@ -34,6 +34,9 @@ yarn-error.*
 # agent scratchpad
 .agents-scratchpad/
 agent-scratchpad/
+.agents_scratchpad/
+.agent_scratchpad/
+.agent_scratchpad
 
 # typescript
 *.tsbuildinfo
