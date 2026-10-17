@@ -29,7 +29,7 @@ namespace HotshotLogistics.Application.Authorization
             AuthorizationHandlerContext context,
             ResourceOwnerRequirement requirement)
         {
-            if (context.User.Identity is not { IsAuthenticated: true })
+            if (context.User?.Identity is not { IsAuthenticated: true })
             {
                 _logger.LogWarning("Authorization failed: User is null or unauthenticated");
                 return Task.CompletedTask;

@@ -45,7 +45,7 @@ namespace HotshotLogistics.IntegrationTests
             Customer? customer = await response.Content.ReadFromJsonAsync<Customer>();
             Assert.NotNull(customer);
             Assert.Equal(validCustomerId, customer.Id);
-            Assert.Equal("Acme Corporation", customer.CompanyName);
+            Assert.Equal("Seed Customer 001", customer.CompanyName); // SeedLargeTestData
         }
 
         [Fact]
