@@ -30,7 +30,7 @@ namespace HotshotLogistics.Tests.Utils.Infrastructure
             ClaimsPrincipal user = new(new ClaimsIdentity(
             [
                 new Claim("roles", "Admin")
-            ]));
+            ], "Test"));
             AuthorizationHandlerContext context = new(
                 [new ResourceOwnerRequirement("Customer")],
                 user,
@@ -55,7 +55,7 @@ namespace HotshotLogistics.Tests.Utils.Infrastructure
             ClaimsPrincipal user = new(new ClaimsIdentity(
             [
                 new Claim("roles", "Manager")
-            ]));
+            ], "Test"));
             AuthorizationHandlerContext context = new(
                 [new ResourceOwnerRequirement("Customer")],
                 user,
@@ -80,7 +80,7 @@ namespace HotshotLogistics.Tests.Utils.Infrastructure
             ClaimsPrincipal user = new(new ClaimsIdentity(
             [
                 new Claim("roles", "Manager")
-            ]));
+            ], "Test"));
             AuthorizationHandlerContext context = new(
                 [new ResourceOwnerRequirement("System")],
                 user,
@@ -105,6 +105,31 @@ namespace HotshotLogistics.Tests.Utils.Infrastructure
             ClaimsPrincipal user = new(new ClaimsIdentity(
             [
                 new Claim("roles", "Driver")
+            ], "Test"));
+            AuthorizationHandlerContext context = new(
+                [new ResourceOwnerRequirement("Customer")],
+                user,
+                "resource123");
+
+            // Act
+            await handler.HandleAsync(context);
+
+            // Assert
+            context.HasSucceeded.Should().BeFalse();
+        }
+
+        /// <summary>
+        ///     Tests that an unauthenticated identity is denied even when it carries the Admin role.
+        /// </summary>
+        /// <returns>A task representing the asynchronous test.</returns>
+        [Fact]
+        public async Task ResourceOwnerAuthorizationHandler_UnauthenticatedAdmin_DeniesAccess()
+        {
+            // Arrange
+            ResourceOwnerAuthorizationHandler handler = new(_loggerMock.Object);
+            ClaimsPrincipal user = new(new ClaimsIdentity(
+            [
+                new Claim("roles", "Admin")
             ]));
             AuthorizationHandlerContext context = new(
                 [new ResourceOwnerRequirement("Customer")],
