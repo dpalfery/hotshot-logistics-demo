@@ -6,6 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <RollForward>LatestMajor</RollForward>
+    <UserSecretsId>5e715bfe-daf4-4203-9587-57d214ae5719</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
