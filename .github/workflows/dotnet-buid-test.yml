@@ -101,6 +101,11 @@ jobs:
           # For push events, we only need the current commit
           fetch-depth: 0
 
+      # The action already passes --fail and --no-update to the TruffleHog CLI, so the
+      # scan exits 183 on findings and fails the job. Repeating either flag in
+      # extra_args aborts the scan with "flag 'fail' cannot be repeated" before any
+      # secret is detected. --results=verified scopes the built-in --fail to live
+      # secrets so unverified false positives do not fail the build.
       - name: Run TruffleHog (Pull Request)
         if: github.event_name == 'pull_request'
         uses: trufflesecurity/trufflehog@main
@@ -108,14 +113,14 @@ jobs:
           path: ./
           base: ${{ github.event.pull_request.base.sha }}
           head: ${{ github.event.pull_request.head.sha }}
-          extra_args: --only-verified
+          extra_args: --results=verified
 
       - name: Run TruffleHog (Push/Workflow Dispatch)
         if: github.event_name != 'pull_request'
         uses: trufflesecurity/trufflehog@main
         with:
           path: ./
-          extra_args: --only-verified
+          extra_args: --results=verified
 
   dependabot:
     runs-on: ubuntu-latest
