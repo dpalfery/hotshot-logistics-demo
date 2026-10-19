@@ -343,5 +343,3 @@ codeql*/
 
 # APM dependencies
 apm_modules/
-1-Presentation/admin-dashboard/playwright-report/index.html
-1-Presentation/admin-dashboard/test-results/.last-run.json
