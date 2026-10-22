@@ -4,7 +4,7 @@ title: File Organization Rule
 doc-type: rule
 status: current
 owner: unassigned
-last-reviewed: 2026-08-14
+last-reviewed: 2026-10-20
 ---
 
 # File Organization Rule
@@ -24,7 +24,7 @@ When creating, moving, or adding files, place them in the appropriate numbered f
 
 ### 1-Presentation/
 **Presentation layer projects and components**
-- API controllers and endpoints (ASP.NET Core Web API on Azure Container Apps)
+- API controllers and endpoints
 - Web dashboard components (Next.js)
 - HTTP request and response handling, routing, UI rendering
 - Presentation features depend on Application. The API composition root may reference Persistence, Domain contracts, and Core for dependency-injection registration and other focused startup purposes.

@@ -6,7 +6,7 @@ status: current
 component: Api
 source-root: 1-Presentation/HotshotLogistics.Api
 owner: unassigned
-last-reviewed: 2026-08-14
+last-reviewed: 2026-10-20
 code-refs:
   - JobController
   - TestAuthHandler
@@ -17,7 +17,7 @@ code-refs:
 
 ## Overview
 
-`HotshotLogistics.Api` is an ASP.NET Core Web API hosted on Azure Container Apps. It is the HTTP and SignalR edge for jobs, drivers, customers, billing, tracking, and assignments. It depends on Application, Domain, and Persistence; it does not own business invariants.
+`HotshotLogistics.Api` is an ASP.NET Core Web API. Its hosting model is unresolved — see the canonical drift register (DR2) in [deployment architecture](../devops/deployment-architecture.md); the actual deployment path is an Azure App Service plan / Function App provisioned by Terraform, deployed by `API-deploy.yml`. It is the HTTP and SignalR edge for jobs, drivers, customers, billing, tracking, and assignments. It depends on Application, Domain, and Persistence; it does not own business invariants.
 
 ## Architecture
 

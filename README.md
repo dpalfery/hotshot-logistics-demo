@@ -8,7 +8,7 @@ This repository is in **active development**. Cataloged runnables are documentat
 
 | Runnable | What it is | Source README |
 | --- | --- | --- |
-| Api | ASP.NET Core Web API (.NET 8) on Azure Container Apps. Native ADO.NET and FluentMigrator; Entity Framework is prohibited. | [HotshotLogistics.Api](1-Presentation/HotshotLogistics.Api/README.md) |
+| Api | ASP.NET Core Web API (.NET 8), hosting model unresolved (App Service / Function App — see DR2). Native ADO.NET and FluentMigrator; Entity Framework is prohibited. | [HotshotLogistics.Api](1-Presentation/HotshotLogistics.Api/README.md) |
 | admin-dashboard | Next.js app for jobs, drivers, customers, tracking, and billing. | [admin-dashboard](1-Presentation/admin-dashboard/README.md) |
 | DbSetup | .NET CLI that provisions SQL Server databases and application accounts for local and CI use. | [DbSetup](7-Deployment/DbSetup/README.md) |
 

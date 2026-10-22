@@ -4,7 +4,7 @@ title: Hotshot Logistics project overview
 doc-type: reference
 status: current
 owner: unassigned
-last-reviewed: 2026-08-14
+last-reviewed: 2026-10-20
 ---
 
 # Hotshot Logistics Project Overview
@@ -14,8 +14,8 @@ Hotshot Logistics is a full-stack platform for hotshot delivery operations: coor
 ## System Components
 
 - **Admin Dashboard**: Next.js UI for jobs, drivers, customers, tracking, and billing. See [admin-dashboard architecture](admin-dashboard/architecture.md).
-- **Backend API**: ASP.NET Core Web API on Azure Container Apps, SQL Server via native ADO.NET, Clean Architecture. See [API architecture](api/architecture.md).
-- **DbSetup**: Console tool that provisions SQL Server and applies FluentMigrator migrations. See [DbSetup architecture](dbsetup/architecture.md).
+- **Backend API**: ASP.NET Core Web API (hosting model unresolved — see DR2), SQL Server via native ADO.NET, Clean Architecture. See [API architecture](api/architecture.md).
+- **DbSetup**: Console tool that provisions SQL Server databases and application accounts. See [DbSetup architecture](dbsetup/architecture.md).
 
 ## Project Context
 

@@ -1,6 +1,6 @@
 # HotshotLogistics.Api
 
-ASP.NET Core Web API for Hotshot Logistics, hosted on Azure Container Apps.
+ASP.NET Core Web API for Hotshot Logistics. Hosting model unresolved — see `6-Docs/devops/deployment-architecture.md` (DR2).
 
 **Boundary:** HTTP and SignalR only. Business rules live in Application/Domain. Data access is native ADO.NET (Entity Framework is prohibited).
 

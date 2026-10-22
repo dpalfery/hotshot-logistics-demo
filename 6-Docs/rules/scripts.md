@@ -4,7 +4,7 @@ title: Scripts Rule
 doc-type: rule
 status: current
 owner: unassigned
-last-reviewed: 2026-08-14
+last-reviewed: 2026-10-20
 ---
 
 # Scripts Rule
@@ -33,9 +33,9 @@ Use these commands whenever working with the .NET project for development tasks,
 - `dotnet test --filter "Category=Unit"` - Run only unit tests
 - `dotnet test --filter "Category=Integration"` - Run only integration tests
 
-## Database Commands (FluentMigrator)
+## Database Provisioning
 
-Run the supported DbSetup CLI; it applies FluentMigrator migrations in-process when possible and otherwise invokes MigrationRunner. See the [DbSetup onboarding guide](../dbsetup/onboarding.md) for required options and secret-handling rules.
+Run the supported DbSetup CLI; it provisions the SQL Server database, login, and application user and does not run migrations — `MigrationInvoker` is implemented but is dead code, never invoked by `Program`. The deploy pipeline applies schema with `dotnet fm migrate`. See the [DbSetup onboarding guide](../dbsetup/onboarding.md) for required options and secret-handling rules.
 
 ```bash
 dotnet run --project 7-Deployment/DbSetup/HotshotLogistics.DbSetup/HotshotLogistics.DbSetup.csproj -- --server "<sql-server-instance>" --db-name "hotshot_logistics"

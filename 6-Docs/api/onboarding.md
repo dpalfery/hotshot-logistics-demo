@@ -6,7 +6,7 @@ status: current
 component: Api
 source-root: 1-Presentation/HotshotLogistics.Api
 owner: unassigned
-last-reviewed: 2026-08-14
+last-reviewed: 2026-10-20
 ---
 
 # API onboarding
@@ -45,5 +45,5 @@ Launch profile URLs are `https://localhost:5001` and `http://localhost:5000` ([l
 
 ## Non-standard operating procedures
 
-- Entity Framework is prohibited. Schema changes go through FluentMigrator in Persistence; use DbSetup to apply them.
+- Entity Framework is prohibited. Schema changes go through FluentMigrator in Persistence; the deploy pipeline applies them with `dotnet fm migrate`. DbSetup provisions the database and login only.
 - Agents must not run `terraform apply`, Docker builds, or ACR pushes. See the root `AGENTS.md`.

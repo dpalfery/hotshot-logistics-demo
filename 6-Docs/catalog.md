@@ -4,7 +4,7 @@ title: Component and owner catalog
 doc-type: reference
 status: draft
 owner: 'unassigned'
-last-reviewed: 2026-10-09
+last-reviewed: 2026-10-20
 ---
 
 # Component and owner catalog
@@ -25,9 +25,9 @@ instead of mirroring the repository's folder structure.
 
 | Component | Type | Source root | Overview | Detailed documentation | Owner | Last reviewed | Status |
 |---|---|---|---|---|---|---|---|
-| admin-dashboard | Service | `1-Presentation/admin-dashboard` | Next.js admin UI for jobs, drivers, tracking, and billing. | [architecture](admin-dashboard/architecture.md), [onboarding](admin-dashboard/onboarding.md) | unassigned | 2026-08-17 | current |
-| Api | Service | `1-Presentation/HotshotLogistics.Api` | ASP.NET Core HTTP and SignalR edge for the platform. | [architecture](api/architecture.md), [onboarding](api/onboarding.md) | unassigned | 2026-08-17 | current |
-| DbSetup | Tool | `7-Deployment/DbSetup` | Console tool that provisions SQL Server and applies migrations. | [architecture](dbsetup/architecture.md), [onboarding](dbsetup/onboarding.md) | unassigned | 2026-08-17 | current |
+| admin-dashboard | Service | `1-Presentation/admin-dashboard` | Next.js admin UI for jobs, drivers, tracking, and billing. | [architecture](admin-dashboard/architecture.md), [onboarding](admin-dashboard/onboarding.md) | unassigned | 2026-08-14 | current |
+| Api | Service | `1-Presentation/HotshotLogistics.Api` | ASP.NET Core HTTP and SignalR edge for the platform. | [architecture](api/architecture.md), [onboarding](api/onboarding.md) | unassigned | 2026-10-20 | current |
+| DbSetup | Tool | `7-Deployment/DbSetup` | Console tool that provisions the SQL Server database, login, and application user. | [architecture](dbsetup/architecture.md), [onboarding](dbsetup/onboarding.md) | unassigned | 2026-10-19 | current |
 
 ## How the columns are read
 

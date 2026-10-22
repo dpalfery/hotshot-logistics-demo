@@ -2,16 +2,16 @@
 id: plans/devops-deployment-architecture-documentation
 title: Deployment and CLI architecture documentation
 doc-type: plan
-status: draft
+status: superseded
 component: DbSetup
 owner: unassigned
-last-reviewed: 2026-10-19
+last-reviewed: 2026-10-20
 development-mode: test-first
 ---
 
 # Deployment and CLI architecture documentation
 
-Status: Draft
+Status: Archived
 Date: 2026-10-19
 Goal: Author canonical documentation under `6-Docs/devops/` that describes the repository's actual deployment architecture (GitHub Actions workflows, Terraform IaC, docker-compose) and the DbSetup CLI; reconcile the existing `6-Docs/dbsetup/` docs; and explicitly record known drift — without changing any source, workflow, or Terraform.
 
@@ -48,6 +48,7 @@ The repository's deployment and CLI machinery exists and runs, but no canonical 
 | D6 | devops doc-type and catalog component | Use `doc-type: reference` for the three substantive documents and `doc-type: index` for the folder README; no new catalog component. The plan artifact itself carries `component: DbSetup` | Deployment is not a runnable catalog component. The ontology requires `component` (a catalog row) only for `architecture`/`runbook`/`onboarding`/`plan`/`spec`/`todo`/`requirements`; `reference` and `index` carry no `component`/`source-root`/`code-refs`. Terraform HCL, YAML, and docker-compose have no CodeGraph symbols, so the `architecture` doc-type and its `source-root`+`code-refs` pairing invariant do not apply. `owner` stays `unassigned` (matches catalog). The plan's own `doc-type: plan` requires a `component`, so it names `DbSetup` — the only cataloged component whose canonical docs this delivery modifies — while the deployment documents remain component-less `reference` docs | Decided by planner 2026-10-19 (consistent with user D2) |
 | D7 | `technology-stack.md` reconciliation | In scope, documentation-only | Correct the "Azure Container Apps" hosting assertion to match the actual deployment path, and point at the drift register. Do not resolve the underlying hosting ambiguity (out of scope) | Decided by planner 2026-10-19 |
 | D8 | Plan index row | Add a `Draft` row to `6-Docs/plans/README.md` | Plan remains Draft until the conductor's approve-and-execute gate | Planner 2026-10-19 |
+| D9 | Approve-and-execute gate | Approved — execute the plan | Repository owner answered the presented approve-and-execute gate: "use plan 6-Docs/plans/devops-deployment-architecture-documentation.md , it is approved, execute the plan." Plan moves from Draft to Ready and the index row is synchronized | Approved by repository owner 2026-10-19 |
 
 ## Investigation findings
 

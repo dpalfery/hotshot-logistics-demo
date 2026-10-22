@@ -4,7 +4,7 @@ title: Documentation
 doc-type: index
 status: draft
 owner: 'unassigned'
-last-reviewed: 2026-08-17
+last-reviewed: 2026-10-19
 ---
 
 # Documentation
@@ -21,6 +21,7 @@ checked by `kyber-weave docs validate` and `kyber-weave docs drift`.
 | [todo/](todo/README.md) | Work identified but not done now |
 | [adr/](adr/README.md) | Architecture decision records |
 | [rules/](rules/README.md) | Repository-wide rules |
+| [devops/](devops/README.md) | Deployment architecture, CI/CD pipelines, and Terraform infrastructure reference, plus the canonical drift register |
 | [reference/](reference/README.md) | Reference material |
 
 [`catalog.md`](catalog.md) is the authoritative vocabulary for the `component` and
