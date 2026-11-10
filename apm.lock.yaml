@@ -3,8 +3,10 @@ generated_at: '2026-08-14T15:36:51.581812+00:00'
 apm_version: 0.23.1
 dependencies:
 - repo_url: dpalfery/kyber-weave
+  name: kyber-weave
   host: github.com
   resolved_commit: c0af5613732b92ca2127918af5e30ff5e5b2ed30
+  version: 0.1.1
   package_type: apm_package
   deployed_files:
   - .agents/skills/kyber-weave-docs
@@ -16,3 +18,40 @@ dependencies:
     .agents/skills/kyber-weave-docs/references/retrofit.md: sha256:3dc54505f026681f4a89396c84368cc51b111dc9dd972764a56ed3693873e750
     .agents/skills/kyber-weave-docs/references/rules.md: sha256:6f4b1381177d9c55d63a5d386df088bf53afab2eb5f94ee06d6cd0f51027962d
   content_hash: sha256:d77b67ed8e7229694f151ed91c98206583256ccdeab5d4c32a9b8aa9e59ec464
+deployments:
+- kind: project-relative
+  target: agents
+  value: .agents/skills/kyber-weave-docs
+  runtime: null
+  scope: project
+  owners:
+  - dpalfery/kyber-weave
+  active_owner: dpalfery/kyber-weave
+  content_hash: null
+- kind: project-relative
+  target: agents
+  value: .agents/skills/kyber-weave-docs/SKILL.md
+  runtime: null
+  scope: project
+  owners:
+  - dpalfery/kyber-weave
+  active_owner: dpalfery/kyber-weave
+  content_hash: sha256:5b573cbcbb34258688ffcd2aca0fc489a3cd976d00fed27a5c06eac410f91fb3
+- kind: project-relative
+  target: agents
+  value: .agents/skills/kyber-weave-docs/references/retrofit.md
+  runtime: null
+  scope: project
+  owners:
+  - dpalfery/kyber-weave
+  active_owner: dpalfery/kyber-weave
+  content_hash: sha256:3dc54505f026681f4a89396c84368cc51b111dc9dd972764a56ed3693873e750
+- kind: project-relative
+  target: agents
+  value: .agents/skills/kyber-weave-docs/references/rules.md
+  runtime: null
+  scope: project
+  owners:
+  - dpalfery/kyber-weave
+  active_owner: dpalfery/kyber-weave
+  content_hash: sha256:6f4b1381177d9c55d63a5d386df088bf53afab2eb5f94ee06d6cd0f51027962d

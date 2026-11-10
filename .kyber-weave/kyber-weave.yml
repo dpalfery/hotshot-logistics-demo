@@ -1,0 +1,35 @@
+# Kyber-Weave host configuration. Every ontology default is overridable here.
+# Reference: 6-Docs/documentation-ontology.md
+ontology:
+  docs-root: '6-Docs'
+
+  # Product defaults exclude five DevOps paths from the repository the ontology
+  # was first built for. An empty list clears them.
+  excluded-files: []
+
+  # Technologies this repository declares a coding standard for. Adding one and
+  # re-running 'docs init' creates 6-Docs/standards/<technology>/, publishes its
+  # registry property, and legalizes that value in the standard's 'technology' key.
+  technologies: []
+
+mcp:
+  # The MCP servers this repository's agent instructions rely on. `docs init` wires these
+  # into the harnesses it detects; the declaration is host-owned from the moment it exists
+  # and docs init never edits it again.
+  required-servers:
+    kw-docs:
+      command: [kyber-weave-mcp, --repo-root, .]
+      provenance: first-party
+      level: required
+    # A third-party server is declared the same way; its binary is never installed by
+    # Kyber-Weave. Uncomment when the repository's instructions require it:
+    # codegraph:
+    #   command: [codegraph, serve, --mcp]
+    #   provenance: third-party
+    #   level: recommended
+    #   install: codegraph init .   # printed verbatim when the binary is absent
+
+# Additions to the configuration registry rendered into AGENTS.md. Everything
+# 'docs init' creates is already published; name only what is yours.
+# config-reg:
+#   auth-design: 6-Docs/reference/auth-design.md
