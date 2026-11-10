@@ -1,11 +1,22 @@
 import { test, expect } from '@playwright/test';
 
+// Window extensions used by the auth test-mode mocks
+declare global {
+  interface Window {
+    __BYPASS_AUTH__?: boolean;
+    msalInstance?: unknown;
+    useMsal?: unknown;
+    useIsAuthenticated?: unknown;
+    useMsalAuthentication?: unknown;
+  }
+}
+
 test.describe('MSAL Authentication Flow', () => {
 
   test.beforeEach(async ({ page }) => {
     // Set test mode bypass flag to skip authentication
     await page.addInitScript(() => {
-      (window as any).__BYPASS_AUTH__ = true;
+      window.__BYPASS_AUTH__ = true;
     });
 
     // Mock the environment variables for MSAL configuration
@@ -29,17 +40,17 @@ test.describe('MSAL Authentication Flow', () => {
       };
 
       // Replace global MSAL instance
-      (window as any).msalInstance = mockMsalInstance;
+      window.msalInstance = mockMsalInstance;
 
       // Mock Azure MSAL React hooks
-      (window as any).useMsal = () => ({
+      window.useMsal = () => ({
         instance: mockMsalInstance,
         inProgress: 'none',
         accounts: [{ username: 'test@example.com' }]
       });
 
-      (window as any).useIsAuthenticated = () => true;
-      (window as any).useMsalAuthentication = () => ({});
+      window.useIsAuthenticated = () => true;
+      window.useMsalAuthentication = () => ({});
     });
   });
 

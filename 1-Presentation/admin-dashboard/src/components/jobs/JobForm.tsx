@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Job, JobStatus, JobPriority } from '@/types';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 
@@ -12,33 +12,34 @@ interface JobFormProps {
 }
 
 export function JobForm({ job, onSubmit, onCancel, isLoading }: JobFormProps) {
-  const [formData, setFormData] = useState<Partial<Job>>({
-    title: '',
-    pickupAddress: '',
-    dropoffAddress: '',
-    amount: 0,
-    scheduledPickupTime: '',
-    specialInstructions: '',
-    customerId: '',
-    status: JobStatus.Pending,
-    priority: JobPriority.Normal,
-  });
-
-  useEffect(() => {
-    if (job) {
-      setFormData({
-        title: job.title,
-        pickupAddress: job.pickupAddress,
-        dropoffAddress: job.dropoffAddress,
-        amount: job.amount,
-        scheduledPickupTime: job.scheduledPickupTime,
-        specialInstructions: job.specialInstructions,
-        customerId: job.customerId,
-        status: job.status,
-        priority: job.priority,
-      });
-    }
-  }, [job]);
+  // The form is mounted once per create/edit session (the parent renders it
+  // conditionally), so the job prop is fixed for the component's lifetime and
+  // can seed the initial state directly.
+  const [formData, setFormData] = useState<Partial<Job>>(
+    job
+      ? {
+          title: job.title,
+          pickupAddress: job.pickupAddress,
+          dropoffAddress: job.dropoffAddress,
+          amount: job.amount,
+          scheduledPickupTime: job.scheduledPickupTime,
+          specialInstructions: job.specialInstructions,
+          customerId: job.customerId,
+          status: job.status,
+          priority: job.priority,
+        }
+      : {
+          title: '',
+          pickupAddress: '',
+          dropoffAddress: '',
+          amount: 0,
+          scheduledPickupTime: '',
+          specialInstructions: '',
+          customerId: '',
+          status: JobStatus.Pending,
+          priority: JobPriority.Normal,
+        }
+  );
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

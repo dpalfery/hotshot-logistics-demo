@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-// Production HTTPS enforcement middleware
-export function middleware(request: NextRequest) {
+// Production HTTPS enforcement proxy
+export function proxy(request: NextRequest) {
   const response = NextResponse.next();
 
   // HTTPS enforcement in production
@@ -59,7 +59,7 @@ export function middleware(request: NextRequest) {
   return response;
 }
 
-// Configure which paths the middleware should run on
+// Configure which paths the proxy should run on
 export const config = {
   matcher: [
     /*
