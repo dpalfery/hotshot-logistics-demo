@@ -6,14 +6,14 @@ status: current
 component: admin-dashboard
 source-root: 1-Presentation/admin-dashboard
 owner: unassigned
-last-reviewed: 2026-08-14
+last-reviewed: 2026-11-10
 ---
 
 # Admin dashboard onboarding
 
 ## Dependencies
 
-- Node.js 20+
+- Node.js 20.9+ (the minimum the installed Next.js 16.4.6 declares in its `engines` field)
 - npm (lockfile is `package-lock.json`)
 - A running API (see [API onboarding](../api/onboarding.md))
 
@@ -28,16 +28,21 @@ export NEXT_PUBLIC_AZURE_CLIENT_ID="<app-registration-client-id>"
 export NEXT_PUBLIC_AZURE_TENANT_ID="<tenant-id>"
 ```
 
-`npm run dev` and `npm run build` run `scripts/generate-env.js`, which writes a local `.env.local` from those variables. That generated file must stay gitignored and must never be added to the tree.
+`npm run dev` and `npm run build` run `scripts/generate-env.mjs` (the `predev` and
+`prebuild` scripts), which writes a local `.env.local` from those variables. That
+generated file must stay gitignored and must never be added to the tree.
 
-4. `npm run dev` — Next.js with `--experimental-https`. Open the URL printed by the dev server (typically https://localhost:3000).
+4. `npm run dev` — Next.js with `--experimental-https` and the locally generated
+`certificates/localhost.pem` / `certificates/localhost-key.pem`, which are not in the
+tree. Open the URL printed by the dev server (typically https://localhost:3000).
 
 ## Debug path
 
 - Auth is MSAL (`@azure/msal-browser` / `@azure/msal-react`).
 - API calls go through `src/services/api.ts`.
 - Real-time updates use `@microsoft/signalr`.
-- Playwright: `npm test` (installs browsers via `pretest`).
+- Playwright: `npm run test:install` once (installs browsers), then `npm test`
+  (`playwright test`). There is no `pretest` hook.
 
 ## Non-standard operating procedures
 

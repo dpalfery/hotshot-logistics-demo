@@ -2,7 +2,7 @@
 id: plans/dotnet-10-upgrade
 title: .NET 10 upgrade and dependency refresh
 doc-type: plan
-status: ready
+status: superseded
 component: Api
 owner: unassigned
 last-reviewed: 2026-11-09
@@ -16,7 +16,22 @@ impact-components:
 
 # .NET 10 upgrade and dependency refresh
 
-**Status:** Ready — approved for execution 2026-11-09 (D10).
+Status: Archived
+Date: 2026-11-10
+Goal: Move all twelve projects from `net8.0` to `net10.0`, pin the .NET 10 SDK in
+`global.json`, refresh the application's NuGet and admin-dashboard npm dependencies to
+their latest stable versions per D1/D3, move the three CI .NET SDK pins and the single
+deploy migration path literal per D5/D9, and reconcile every documented stack fact so no
+governed document or README asserts .NET 8.
+
+This plan is delivered and closed: the implementation references, the acceptance
+verification and the closeout mapping are recorded at the end of this document under
+[Implementation references](#implementation-references),
+[Acceptance verification](#acceptance-verification-closeout-2026-11-10) and
+[Closeout mapping](#closeout-mapping). Archived plans are historical records, not
+current guidance — read
+[`6-Docs/technology-stack.md`](../../technology-stack.md) and the other canonical documents
+named in the mapping for what the repository does today.
 
 ## Problem and goal
 
@@ -739,3 +754,123 @@ conformance fixes (`6-Docs/admin-dashboard/AZURE_AD_SETUP.md` frontmatter, the
 `kyber-weave docs validate . --merge-ready` reports 0 errors once this plan itself
 is archived. The conductor runs the two documentation checks in the worktree to
 admit closeout.
+
+## Implementation references
+
+Delivered on `factory/chore/dotnet-10-upgrade` from base `413b897740fd7d9f3e6fbc232d039e88ff2b33c8`
+(`origin/development`). Each row is the commit that carries the task's work.
+
+| Task | Commit | What the commit delivers |
+|---|---|---|
+| T1 — target-framework guard test (RED) | `0e480e6` | New `5-Test/tests/HotshotLogistics.Tests/Utils/Infrastructure/TargetFrameworkTests.cs` — six `[Fact]` methods, one per referenced assembly (`Core`, `Api`, `Application`, `Contracts`, `Domain`, `Data`), asserting `TargetFrameworkAttribute.FrameworkName` starts with `.NETCoreApp,Version=v10.` and pinning no patch level; the class documents that `MigrationRunner`, `HotshotLogistics.DbSetup` and the sibling test projects are covered by the Release build gate instead. |
+| T2 — `net10.0` cutover, SDK pin, path literals (GREEN) | `f08b930` | `TargetFramework` moved to `net10.0` in all twelve `*.csproj`; new `global.json` pinning SDK `10.0.403` with `rollForward: latestFeature` and `allowPrerelease: false`; `HotshotLogistics.Api.Tests` added to `HotshotLogistics.sln` (now twelve projects); the `"net10.0"` path segment in `7-Deployment/DbSetup/HotshotLogistics.DbSetup/MigrationInvoker.cs` `RunMigrationsAsSubprocessAsync`; `.vscode/launch.json` and `.vscode/tasks.json` build-output literals. |
+| T3 — NuGet refresh and compile fixes | `3252231` | Every `PackageReference` version refreshed to the latest stable within the D1/D3 policy (ASP.NET Core-aligned packages to 10.0.x, `Microsoft.NET.Test.Sdk` 18.x, xunit v3 4.x, and the remaining majors); `global.json` gains `test.runner: Microsoft.Testing.Platform`; call-site fixes in `RealtimeHubTests`, `RealtimeServiceTests` and `ExceptionHandlingMiddlewareTests` that the upgraded test stack required. |
+| T4 — CI SDK pins and deploy migration path | `ab527a3` | `dotnet-version: '10.0.x'` in both jobs of `.github/workflows/dotnet-buid-test.yml`; `DOTNET_VERSION: '10.0.x'` in `.github/workflows/API-deploy.yml` plus the migration step's assembly path `bin/Release/net10.0/HotshotLogistics.Data.dll`. Nothing else in `.github/workflows` changed; `FluentMigrator.DotNet.Cli` stays at `3.4.0` per D2. |
+| T5 — admin-dashboard npm refresh | `50e3b41` | `next` 16.4.6, `react`/`react-dom` 19.3.1, `@microsoft/signalr` ^10.0.11, `@azure/msal-react` 5.x, `zod` 4.x, `recharts` 3.x and the rest of `package.json` / `package-lock.json`; `middleware.ts` renamed to `proxy.ts` (the Next.js 16 request-interception convention); `scripts/generate-env.js` renamed to `generate-env.mjs`; `next.config.ts`, `eslint.config.mjs`, `tsconfig.json` and the Playwright specs follow the majors. |
+| T7 — documentation closeout | `5164743` | The Design harvest: `6-Docs/technology-stack.md` (framework, SDK, testing, frontend rows), `6-Docs/api/onboarding.md`, `6-Docs/dbsetup/architecture.md`, `6-Docs/dbsetup/onboarding.md`, `6-Docs/devops/ci-cd-pipelines.md`, `6-Docs/devops/deployment-architecture.md`, `6-Docs/catalog.md` review dates, `6-Docs/rules/aspnet-core-practices.md`, `6-Docs/rules/validation.md`, and the root plus `0-Base`/`2-Application`/`3-Domain`/`7-Deployment/DbSetup` READMEs. |
+| T8 — pre-existing documentation findings | `86903fe` | YAML frontmatter added to `6-Docs/admin-dashboard/AZURE_AD_SETUP.md` (clears `KW-DOC-SPEC-001`) and the `6-Docs/todo/README.md` inventory row for `admin-dashboard-job-status-unresolved` fixed (clears `KW-DOC-LIFECYCLE-002`). |
+| Closeout | this archive commit | Plan archived to `6-Docs/archive/plans/`, `dotnet-10-upgrade.tasks.json` removed with `git rm`, plans index synchronized. |
+
+## Acceptance verification (closeout 2026-11-10)
+
+Verified by artifact inspection of the tree at revision `86903fe` — the plan's acceptance
+criteria re-checked against what the commits left in the tree, not against the task reports.
+
+| Task | Criterion | Evidence in the tree |
+|---|---|---|
+| T1 | Guard test exists and covers the six named assemblies | `TargetFrameworkTests.cs` present with one `[Fact]` per assembly; `.NETCoreApp,Version=v10.` asserted, no patch pinned. |
+| T2 | Every framework-targeting project reads `net10.0`; SDK pinned; literals moved | Twelve `*.csproj` files read `<TargetFramework>net10.0</TargetFramework>`; `global.json` pins `10.0.403`; `MigrationInvoker.cs` carries the `"net10.0"` path segment; `.vscode/*` literals moved; `HotshotLogistics.sln` lists all twelve projects including `HotshotLogistics.Api.Tests`. |
+| T3 | Dependencies current within the D1/D3 policy; suites green on `net10.0` | Package references carry the refreshed versions recorded in `6-Docs/technology-stack.md`; the build and four-suite gates are the task-gate/council evidence recorded on the run branch. |
+| T4 | CI pins read 10.x in all three occurrences; migration path reads `net10.0`; nothing else changed | `dotnet-buid-test.yml:43,135` and `API-deploy.yml:28` read `'10.0.x'`; `API-deploy.yml:90` runs `dotnet fm migrate -a …/bin/Release/net10.0/HotshotLogistics.Data.dll`; commit `ab527a3` touches exactly two workflow files, four lines. |
+| T5 | Dashboard builds and lints on the upgraded stack | `package.json` reads `next` 16.4.6 / `react` 19.3.1 / `@microsoft/signalr` ^10.0.11; `proxy.ts` replaces `middleware.ts`; the lockfile is regenerated. |
+| T7 | No governed document or README asserts .NET 8 | A `net8`/`.NET 8` sweep over `6-Docs/` (excluding `6-Docs/archive/`) and the repository READMEs returns nothing; `6-Docs/technology-stack.md` states .NET 10, SDK `10.0.403`, xUnit v3 4.0.3, Next.js 16.4.6, React 19.3.1, `@microsoft/signalr` 10.0.11. |
+| T8 | Both pre-existing validation findings cleared | `6-Docs/admin-dashboard/AZURE_AD_SETUP.md` carries frontmatter; `6-Docs/todo/README.md` links the todo; `kyber-weave docs validate . --merge-ready` reports neither code. |
+| Gate 4 (docs) | `validate` 0 errors, `drift` 0 findings after the archive step | see [Closeout gates](#closeout-gates-2026-11-10) below. |
+
+## Closeout mapping
+
+Every durable item from the permanent `## Decisions` table — and every component the
+Design harvest touches — is mapped to the canonical document that now carries it.
+Canonical documentation is `6-Docs/` outside `archive/`; the ADR index is
+[`6-Docs/adr/`](../../adr/README.md). A row that names no document records a
+Documentation waiver instead.
+
+| ID | Canonical destination | Durable content migrated | Status |
+|---|---|---|---|
+| D1 | [`6-Docs/technology-stack.md`](../../technology-stack.md) (Backend, Frontend, Package Management rows) | Dependency-refresh policy: latest stable, major versions included, across the solution's NuGet packages and the dashboard's npm packages | Migrated. no ADR — ADR waiver: applies the repository's established "latest stable" practice and introduces no new architectural constraint |
+| D2 | [`6-Docs/technology-stack.md`](../../technology-stack.md) · [`6-Docs/devops/ci-cd-pipelines.md`](../../devops/ci-cd-pipelines.md) | Refresh scope: product dependencies only; the CI workflow and Terraform surfaces stay pinned (`FluentMigrator.DotNet.Cli` 3.4.0 retained, action pins unchanged) | Migrated. no ADR — ADR waiver: a scope boundary for one change, not an architectural choice |
+| D3 | [`6-Docs/technology-stack.md`](../../technology-stack.md) (`SDK` row) | No preview or release-candidate packages or SDKs: `allowPrerelease: false`, `rollForward: latestFeature` | Migrated. no ADR — ADR waiver: implementation detail of the SDK pin |
+| D4 | [`6-Docs/technology-stack.md`](../../technology-stack.md) (Package Management row — recorded gap, recommendation R1) | `apm.yml` / `apm.lock.yaml` are unchanged: they govern only the agent-skills package, never a product dependency | Not yet migrated. Documentation waiver refused for this row: the fact survives this change and has no canonical home yet, so it is carried as open recommendation R1 |
+| D5 | [`6-Docs/technology-stack.md`](../../technology-stack.md) (`SDK` row) · [`6-Docs/devops/ci-cd-pipelines.md`](../../devops/ci-cd-pipelines.md) | `global.json` pins SDK `10.0.403`; the CI .NET SDK pin reads `10.0.x` at all three occurrences; nothing else in the workflows changes | Migrated. no ADR — ADR waiver: toolchain pinning per existing build conventions |
+| D6 | [`6-Docs/plans/README.md`](../../plans/README.md) (plan lifecycle) and this plan's Test contract | Development mode `test-first`: the RED→GREEN pair T1/T2 with the guard test as its evidence | Migrated as process evidence. Documentation waiver: build-process metadata with no surviving architectural, operational or behavioural invariant |
+| D7 | [`README.md`](../../../README.md) (Onboarding step 2) · [`6-Docs/api/onboarding.md`](../../api/onboarding.md) | `HotshotLogistics.Api.Tests` is part of `HotshotLogistics.sln`; `dotnet restore HotshotLogistics.sln` now covers all twelve projects | Migrated. no ADR — ADR waiver: routine solution hygiene |
+| D8 | [`6-Docs/technology-stack.md`](../../technology-stack.md) · [`6-Docs/api/onboarding.md`](../../api/onboarding.md) · [`6-Docs/dbsetup/architecture.md`](../../dbsetup/architecture.md) · [`6-Docs/dbsetup/onboarding.md`](../../dbsetup/onboarding.md) · [`README.md`](../../../README.md) | `net10.0` is the target framework for all twelve projects | Migrated. no ADR — ADR waiver: a runtime version upgrade refines the existing architecture rather than changing it |
+| D9 | [`6-Docs/devops/ci-cd-pipelines.md`](../../devops/ci-cd-pipelines.md) · [`6-Docs/devops/deployment-architecture.md`](../../devops/deployment-architecture.md) | The deploy migration step runs `bin/Release/net10.0/HotshotLogistics.Data.dll` against the unchanged 3.4.0 `dotnet fm` tool pin | Migrated. no ADR — ADR waiver: mechanical consequence of D8, already recorded in the pipeline reference |
+| D10 | [`6-Docs/plans/README.md`](../../plans/README.md) (archived row) and this plan's `## Decisions` table | The plan was approved and executed as presented (approve-and-execute 2026-11-09) | Migrated. Documentation waiver for the approval provenance itself: its permanent home is this archived decisions table, which the plans index links |
+| D11 | [`6-Docs/plans/README.md`](../../plans/README.md) and this plan's T8 task text | Arbiter-parser wording correction to T8's `Depends on` bullet | Documentation waiver: plan-authoring mechanics; no runtime or architectural invariant survives |
+| D12 | [`AGENTS.md`](../../../AGENTS.md) · [`6-Docs/plans/README.md`](../../plans/README.md) and this plan's task sections | Shared worker contract: worktree, discovery order, commit trailer, task gate, completion digest | Documentation waiver: execution and reporting procedure owned by the agent harness, with no product invariant |
+| D13 | [`6-Docs/technology-stack.md`](../../technology-stack.md) (Testing and SDK rows) | A guard test pins the .NET 10 target for the six referenced assemblies; the other projects are covered by the Release build gate | Migrated. Still open: recommendation R2 asks the test standard to name the guard beside the existing guard classes |
+| Api | [`6-Docs/technology-stack.md`](../../technology-stack.md) · [`6-Docs/api/onboarding.md`](../../api/onboarding.md) · [`6-Docs/devops/ci-cd-pipelines.md`](../../devops/ci-cd-pipelines.md) · [`6-Docs/devops/deployment-architecture.md`](../../devops/deployment-architecture.md) · [`README.md`](../../../README.md) | The API project targets `net10.0`, builds under SDK `10.0.403`, deploys from a `net10.0` publish path, and its onboarding prerequisite reads .NET 10 | Migrated; both mapped documents were re-reviewed on 2026-11-09 |
+| DbSetup | [`6-Docs/dbsetup/architecture.md`](../../dbsetup/architecture.md) · [`6-Docs/dbsetup/onboarding.md`](../../dbsetup/onboarding.md) · [`7-Deployment/DbSetup/README.md`](../../../7-Deployment/DbSetup/README.md) · [`6-Docs/devops/ci-cd-pipelines.md`](../../devops/ci-cd-pipelines.md) | DbSetup is a .NET 10 console tool; its migration subprocess path segment is `net10.0` | Migrated; the DbSetup rows were re-reviewed on 2026-11-09 |
+| admin-dashboard | [`6-Docs/admin-dashboard/architecture.md`](../../admin-dashboard/architecture.md) · [`6-Docs/admin-dashboard/onboarding.md`](../../admin-dashboard/onboarding.md) · [`6-Docs/technology-stack.md`](../../technology-stack.md) · [`6-Docs/admin-dashboard/AZURE_AD_SETUP.md`](../../admin-dashboard/AZURE_AD_SETUP.md) · [`6-Docs/todo/README.md`](../../todo/README.md) | The dashboard runs Next.js 16.4.6, React 19.3.1 and `@microsoft/signalr` 10.0.11, with request interception in `proxy.ts` and a Node.js 20.9+ floor; its Azure AD setup document is ontology-conformant | Migrated; the architecture and onboarding documents were re-reviewed and corrected on 2026-11-10 (recommendation R5) |
+| internal libraries | [`6-Docs/technology-stack.md`](../../technology-stack.md) · [`6-Docs/api/architecture.md`](../../api/architecture.md) | The `0-Base`, `2-Application`, `3-Domain` and `4-Persistence` projects target `net10.0` with refreshed package versions, and the Clean Architecture layering is unchanged | Migrated; the component READMEs under those roots were updated in the same change |
+| platform | [`6-Docs/rules/aspnet-core-practices.md`](../../rules/aspnet-core-practices.md) · [`6-Docs/rules/validation.md`](../../rules/validation.md) | The rules' framework phrasing reads .NET 10, so platform guidance matches the framework the solution builds on | Migrated; both rule documents were re-reviewed on 2026-11-09 |
+
+### Design harvest documentation impact
+
+Every Design harvest row was migrated by T7/T8. Impact is recorded per item, with the
+component it belongs to and the date the canonical document was last reviewed.
+
+| Harvest item | Component | Documentation impact | Impact components | Last reviewed | Status |
+|---|---|---|---|---|---|
+| `technology-stack.md` — framework, SDK, testing rows | Api | updated | `Api` | 2026-11-09 | migrated |
+| `api/onboarding.md` — SDK prerequisite | Api | updated | `Api` | 2026-11-09 | migrated |
+| `devops/ci-cd-pipelines.md` — SDK pins, migration assembly path, determinism section | Api | updated | `Api` | 2026-11-09 | migrated |
+| `devops/deployment-architecture.md` — target framework and DbSetup runtime claims | Api, DbSetup | updated | `Api`, `DbSetup` | 2026-11-09 | migrated |
+| root `README.md`, `1-Presentation/HotshotLogistics.Api/README.md` | Api | updated | `Api` | 2026-11-09 | migrated |
+| `dbsetup/architecture.md` — `.NET 10 console tool` | DbSetup | updated | `DbSetup` | 2026-11-09 | migrated |
+| `dbsetup/onboarding.md` — SDK prerequisite | DbSetup | updated | `DbSetup` | 2026-11-09 | migrated |
+| `7-Deployment/DbSetup/README.md` | DbSetup | updated | `DbSetup` | 2026-11-09 | migrated |
+| `MigrationInvoker.cs` `net10.0` path segment (behaviour documented in the pipeline and DbSetup docs) | DbSetup | no document change needed beyond the pipeline reference; the code literal moved in T2 | `DbSetup` | 2026-11-09 | migrated |
+| `technology-stack.md` — Next.js 16 / React 19 / SignalR 10 rows | admin-dashboard | updated | `admin-dashboard` | 2026-11-09 | migrated |
+| `admin-dashboard/architecture.md` — request-interception component (`proxy.ts`) | admin-dashboard | updated | `admin-dashboard` | 2026-11-10 | migrated (closeout, R5) |
+| `admin-dashboard/onboarding.md` — `generate-env.mjs`, Node.js 20.9+ floor, Playwright install step | admin-dashboard | updated | `admin-dashboard` | 2026-11-10 | migrated (closeout, R5) |
+| `admin-dashboard/AZURE_AD_SETUP.md` — frontmatter conformance | admin-dashboard | updated (metadata only) | `admin-dashboard` | 2026-11-09 | migrated |
+| `todo/README.md` — inventory row | admin-dashboard | updated | `admin-dashboard` | 2026-11-09 | migrated |
+| `0-Base`, `2-Application`, `3-Domain` READMEs | internal libraries | updated | `Api`, `DbSetup` | 2026-11-09 | migrated |
+| `rules/aspnet-core-practices.md`, `rules/validation.md` — ".NET 8+" phrasing | platform | updated | `Api`, `DbSetup`, `admin-dashboard` | 2026-11-09 | migrated |
+| `catalog.md` — review dates for `Api` and `DbSetup` | Api, DbSetup | updated | `Api`, `DbSetup` | 2026-11-09 | migrated |
+
+### Documentation-impact review
+
+Reviewed against the delivered diff, not against this plan's intent.
+
+| # | Question raised | Decision and reason | Files changed | Durable facts migrated |
+|---|---|---|---|---|
+| R0 | Did the change alter documented behaviour, configuration or versions? | `update` — the target framework, the SDK pin, the CI SDK band, the deploy migration assembly path, the NuGet/npm versions and the dashboard's Next.js/React stack are all documented facts | see the Design harvest table | all listed in [Implementation references](#implementation-references) and the harvest table above |
+| R1 | Is the apm manifest surface (`apm.yml`, `apm.lock.yaml`) documented anywhere canonical? | `missing` — the durable fact "apm versions the agent-skills package only and covers no product dependency" (D4) has no canonical home. Recommended home: the `Package Management` row of [`6-Docs/technology-stack.md`](../../technology-stack.md), one clause long | none in this closeout (staging scope is archive + task-file removal + index) | not yet migrated — open recommendation |
+| R2 | Is the target-framework guard test discoverable from the test standard? | `missing` — the guard exists in code and the invariant (`net10.0` for every project) is documented, but [`6-Docs/standards/test/README.md`](../../standards/test/README.md) does not name `TargetFrameworkTests` as a suite that must stay green. Recommended: name it beside the existing guard classes | none in this closeout | not yet migrated — open recommendation |
+| R3 | Do the two documentation findings the base revision carried still exist? | `update` — both were cleared by T8 (`AZURE_AD_SETUP.md` frontmatter, `todo/README.md` inventory row); no waiver needed | `6-Docs/admin-dashboard/AZURE_AD_SETUP.md`, `6-Docs/todo/README.md` (commit `86903fe`) | frontmatter conformance and the todo inventory link |
+| R4 | Did anything in the CI or Terraform surface change that the pipeline reference must record? | `update` — the three SDK pins and the single migration assembly path, both recorded; the `FluentMigrator.DotNet.Cli` 3.4.0 pin is deliberately unchanged and the reference keeps matching it | `6-Docs/devops/ci-cd-pipelines.md`, `6-Docs/devops/deployment-architecture.md` (commit `5164743`) | SDK band, migration path, tool pin |
+| R5 | Do the dashboard's own architecture and onboarding documents still match the upgraded stack? | `update` — both were last reviewed on 2026-08-14, and the change renamed `scripts/generate-env.js` to `generate-env.mjs`, raised the Next.js Node floor to 20.9, removed the non-existent `pretest` browser install, and moved request interception to `proxy.ts`. Both documents were corrected and re-reviewed | `6-Docs/admin-dashboard/architecture.md` (adds the `proxy.ts` request-interception row, `last-reviewed: 2026-11-10`), `6-Docs/admin-dashboard/onboarding.md` (script name, Node.js 20.9+, `npm run test:install` then `npm test`, certificate paths, `last-reviewed: 2026-11-10`) | Next.js 16.4.6 and the `next` `engines` floor (`>=20.9.0`); the `proxy.ts` request-interception rename; the `predev`/`prebuild`/`test:install` script contract |
+
+## Closeout gates (2026-11-10)
+
+Run in the worktree after the archival move, the task-file removal and the index update:
+
+- `kyber-weave docs validate . --merge-ready` — 0 critical, 0 error, 0 warning, 0 info.
+  Before the archive it reported 4 errors for this plan: `KW-DOC-SPEC-002` (`status
+  'ready'` outside the closed vocabulary), `KW-DOC-TASKS-001` (task file declares schema
+  version 0), `KW-DOC-LIFECYCLE-003` (plan still open) and `KW-DOC-LIFECYCLE-005` (task
+  file left behind). All four clear with this closeout.
+- `kyber-weave docs drift .` — no findings (0 critical, 0 error, 0 warning, 0 info), the
+  same as the pre-closeout baseline.
+
+The `--merge-ready` gate also carries `KW-DOC-LIFECYCLE-004` (archive closeout evidence),
+which the first archive attempt failed on its checklist items C7 (every decision and
+harvest id mapped to a live governed document or carrying a Documentation waiver) and C8
+(each impact component carried by a mapped document whose `last-reviewed` is no earlier
+than this plan's). Both are now satisfied: the mapping table above covers D1–D13 and all
+five harvest components, and the two admin-dashboard documents named in recommendation R5
+were re-reviewed on 2026-11-10. This plan's own `last-reviewed` stays `2026-11-09`, the
+date its content was last reviewed; `Date:` above records the archive date.
