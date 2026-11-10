@@ -103,26 +103,27 @@ namespace HotshotLogistics.DbSetup
                     throw new InvalidOperationException("Could not find solution directory");
                 }
 
-                string migrationRunnerPath = Path.Combine(
+                string migrationRunnerBinDirectory = Path.Combine(
                     solutionDirectory,
                     "4-Persistence",
                     "MigrationRunner",
-                    "bin",
-                    "Debug",
-                    "net10.0",
-                    "MigrationRunner.dll"
+                    "bin"
                 );
 
-                if (!File.Exists(migrationRunnerPath))
+                string? migrationRunnerPath = FindMigrationRunnerAssembly(migrationRunnerBinDirectory);
+
+                if (migrationRunnerPath == null)
                 {
                     // Try to build the MigrationRunner first
                     _logger.LogInformation("MigrationRunner.dll not found, attempting to build it");
                     await BuildMigrationRunnerAsync(solutionDirectory, cancellationToken);
 
-                    if (!File.Exists(migrationRunnerPath))
+                    migrationRunnerPath = FindMigrationRunnerAssembly(migrationRunnerBinDirectory);
+
+                    if (migrationRunnerPath == null)
                     {
                         throw new FileNotFoundException(
-                            $"MigrationRunner.dll not found at {migrationRunnerPath} after build attempt");
+                            $"MigrationRunner.dll not found under {migrationRunnerBinDirectory} after build attempt");
                     }
                 }
 
@@ -219,6 +220,30 @@ namespace HotshotLogistics.DbSetup
             }
 
             return null;
+        }
+
+        /// <summary>
+        ///     Locates the built MigrationRunner assembly beneath the project's bin directory.
+        /// </summary>
+        /// <remarks>
+        ///     The project file redirects the output to <c>$(ProjectDir)bin\</c>, so the configuration
+        ///     segment is absent and only the target framework segment remains. Searching instead of
+        ///     composing a fixed path keeps this working across configurations and target framework
+        ///     changes; the most recently written assembly wins when several are present.
+        /// </remarks>
+        /// <param name="binDirectory">The MigrationRunner bin directory to search.</param>
+        /// <returns>The assembly path, or <c>null</c> when it has not been built yet.</returns>
+        private static string? FindMigrationRunnerAssembly(string binDirectory)
+        {
+            if (!Directory.Exists(binDirectory))
+            {
+                return null;
+            }
+
+            return Directory
+                .EnumerateFiles(binDirectory, "MigrationRunner.dll", SearchOption.AllDirectories)
+                .OrderByDescending(File.GetLastWriteTimeUtc)
+                .FirstOrDefault();
         }
     }
 }
