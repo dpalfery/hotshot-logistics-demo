@@ -64,6 +64,7 @@ references that belong to this repository.
 - **<adr-index>**: `6-Docs/adr/README.md`
 - **<rules-index>**: `6-Docs/rules/README.md`
 - **<reference-index>**: `6-Docs/reference/README.md`
+- **<onboarding>**: `done`
 
 Skills and other portable instruction files SHALL reference these paths by the
 property name above — "the path declared as **<component-catalog>**
