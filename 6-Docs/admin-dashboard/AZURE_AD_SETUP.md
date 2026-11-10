@@ -1,3 +1,14 @@
+---
+id: admin-dashboard/azure-ad-setup
+title: Azure AD authentication setup
+doc-type: onboarding
+status: draft
+component: admin-dashboard
+source-root: 1-Presentation/admin-dashboard
+owner: unassigned
+last-reviewed: 2026-11-09
+---
+
 # Azure AD Authentication Setup
 
 This document explains how to configure Azure Active Directory (Azure AD) authentication for the Hotshot Logistics admin dashboard.
