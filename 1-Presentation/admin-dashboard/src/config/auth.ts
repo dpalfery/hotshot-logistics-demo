@@ -38,12 +38,13 @@ export const msalConfig: Configuration = {
     authority: `https://login.microsoftonline.com/${tenantId}`,
     redirectUri: typeof window !== 'undefined' ? window.location.origin : '/',
     postLogoutRedirectUri: typeof window !== 'undefined' ? window.location.origin : '/',
-    navigateToLoginRequestUrl: true,
+    // navigateToLoginRequestUrl was removed in @azure/msal-browser v5;
+    // returning to the original request URL is now the built-in behavior.
   },
   cache: {
     cacheLocation: 'sessionStorage',
-    storeAuthStateInCookie: true, // Enable for production cross-tab authentication
-    secureCookies: true, // HTTPS only cookies in production
+    // storeAuthStateInCookie and secureCookies were removed in
+    // @azure/msal-browser v5; cookie security is handled by the library.
   },
   system: {
     loggerOptions: {
@@ -60,9 +61,9 @@ export const msalConfig: Configuration = {
       },
       logLevel: process.env.NODE_ENV === 'production' ? 2 : 3, // Warning in prod, Info in dev
     },
-    windowHashTimeout: 90000, // 90 seconds for hash-based redirects
-    iframeHashTimeout: 90000, // 90 seconds for iframe redirects
-    loadFrameTimeout: 90000, // 90 seconds for frame loading
+    // windowHashTimeout, iframeHashTimeout and loadFrameTimeout were removed
+    // in @azure/msal-browser v5 in favor of the bridge timeout below.
+    iframeBridgeTimeout: 90000, // 90 seconds for iframe redirects
   },
 };
 

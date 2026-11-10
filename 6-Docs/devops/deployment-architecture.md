@@ -4,7 +4,7 @@ title: Deployment architecture
 doc-type: reference
 status: current
 owner: unassigned
-last-reviewed: 2026-10-20
+last-reviewed: 2026-11-09
 ---
 
 # Deployment architecture
@@ -54,7 +54,7 @@ this document does not pick a winner. The conflict is recorded as DR2 in the reg
 
 | Source | What it says |
 | --- | --- |
-| [technology-stack.md](../technology-stack.md) | "**Framework**: .NET 8 ASP.NET Core Web API (Azure App Service / Function App — see 'Hosting model')"; "**Cloud**: Azure (App Service / Function App, SQL Server, App Configuration, Key Vault)". Its "Hosting model" section states that the hosting model is "**unresolved**", names the actual deployment path, and points back at DR2. |
+| [technology-stack.md](../technology-stack.md) | "**Framework**: .NET 10 ASP.NET Core Web API (Azure App Service / Function App — see 'Hosting model')"; "**Cloud**: Azure (App Service / Function App, SQL Server, App Configuration, Key Vault)". Its "Hosting model" section states that the hosting model is "**unresolved**", names the actual deployment path, and points back at DR2. |
 | [api/architecture.md](../api/architecture.md) | "`HotshotLogistics.Api` is an ASP.NET Core Web API. Its hosting model is unresolved — see the canonical drift register (DR2) in deployment architecture; the actual deployment path is an Azure App Service plan / Function App provisioned by Terraform, deployed by `API-deploy.yml`." It was corrected on 2026-10-20 within this delivery; it previously read "`HotshotLogistics.Api` is an ASP.NET Core Web API hosted on Azure Container Apps". |
 | [project-overview.md](../project-overview.md) | "ASP.NET Core Web API (hosting model unresolved — see DR2), SQL Server via native ADO.NET, Clean Architecture." It was corrected on 2026-10-20 within this delivery; it previously read "ASP.NET Core Web API on Azure Container Apps". |
 | [rules/file-organization.md](../rules/file-organization.md) | "API controllers and endpoints" — the hosting parenthetical was dropped. It was corrected on 2026-10-20 within this delivery; it previously read "API controllers and endpoints (ASP.NET Core Web API on Azure Container Apps)". |
@@ -82,7 +82,7 @@ without naming a hosting model. See the
 
 No Container Apps resource is declared in any Terraform file, and no workflow step builds a
 container image or deploys to Container Apps. The API project is `Microsoft.NET.Sdk.Web`
-targeting `net8.0`; it carries no `host.json` and no Azure Functions worker package. It is
+targeting `net10.0`; it carries no `host.json` and no Azure Functions worker package. It is
 published with `dotnet publish` and started as a plain ASP.NET Core process, which is what the
 `dotnet HotshotLogistics.Api.dll` startup command implies.
 
@@ -188,7 +188,7 @@ All four workflows also accept `workflow_dispatch`.
 `pull_request` (path-filtered to `**/*.cs`, `**/*.csproj`, `**/Directory.Build.props`,
 `**/Directory.Build.targets`, `**/.editorconfig`, `stylecop.json`, `.github/workflows/**`),
 on `push` to `main` and `develop`, and on `workflow_dispatch`. Workflow permissions are
-`actions: read`, `contents: read`, `security-events: write`. It installs the .NET `9.0.x` SDK.
+`actions: read`, `contents: read`, `security-events: write`. It installs the .NET `10.0.x` SDK.
 
 | Job | What it does |
 | --- | --- |
@@ -282,7 +282,7 @@ The file also declares `version: '3.8'`, which the Compose specification marks o
 
 ## DbSetup CLI role
 
-DbSetup (`7-Deployment/DbSetup/`) is a .NET 8 console tool that provisions SQL Server: it
+DbSetup (`7-Deployment/DbSetup/`) is a .NET 10 console tool that provisions SQL Server: it
 creates the database, the application login and user. Its migration half is inert — the CLI
 never invokes `MigrationInvoker`, so it applies no FluentMigrator migrations of its own (see
 DR1). It is a **provisioning tool, not a runtime service**. It is not deployed, has no host, and
@@ -369,10 +369,11 @@ on 2026-10-20, and the locations in which each of the two claims was recorded.
   by `Program`. The original DR1 wording, which described the claim before that correction, is
   retained in the [Register versioning](#register-versioning) subsection above.
 - The DR1 claim — that DbSetup "applies migrations" — was also carried by
-  `7-Deployment/DbSetup/README.md`, whose opening sentence read "Cross-platform .NET 8 console
-  tool that creates the SQL Server database and application login, then applies FluentMigrator
-  migrations"; by `6-Docs/catalog.md`, whose entry described DbSetup as a "Console tool that
-  provisions SQL Server and applies migrations"; by `6-Docs/api/onboarding.md`, which said "use
+  `7-Deployment/DbSetup/README.md`, whose opening sentence named the target framework of the
+  time and went on to claim the tool "creates the SQL Server database and application login,
+  then applies FluentMigrator migrations"; by `6-Docs/catalog.md`, whose entry described
+  DbSetup as a "Console tool that provisions SQL Server and applies migrations"; by
+  `6-Docs/api/onboarding.md`, which said "use
   DbSetup to apply them" for schema changes; by `6-Docs/rules/scripts.md`, which said the
   supported DbSetup CLI "applies FluentMigrator migrations in-process when possible and
   otherwise invokes MigrationRunner"; and by `6-Docs/project-overview.md`, which listed

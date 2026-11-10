@@ -6,14 +6,14 @@ status: current
 component: DbSetup
 source-root: 7-Deployment/DbSetup
 owner: unassigned
-last-reviewed: 2026-10-19
+last-reviewed: 2026-11-09
 ---
 
 # DbSetup onboarding
 
 ## Dependencies
 
-- .NET 8 SDK
+- .NET 10 SDK (`global.json` pins `10.0.403`; `allowPrerelease` is `false`)
 - SQL Server with permission to create databases and logins
 - A privileged connection string, supplied through the **process environment or a secret store**, never from a file in the repository
 

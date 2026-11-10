@@ -5,7 +5,7 @@ This project forms the heart of the Clean Architecture. It holds the business
 entities and rules that the other layers depend on.
 
 ## Tech Stack
-- .NET 8 class library
+- .NET 10 class library
 
 ## Build
 

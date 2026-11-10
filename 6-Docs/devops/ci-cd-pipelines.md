@@ -4,7 +4,7 @@ title: CI/CD pipelines
 doc-type: reference
 status: current
 owner: unassigned
-last-reviewed: 2026-10-20
+last-reviewed: 2026-11-09
 ---
 
 # CI/CD pipelines
@@ -128,7 +128,7 @@ Four jobs, all on `ubuntu-latest`, none declaring `needs:` — they run in paral
 ### `build` job
 
 1. `actions/checkout@v5`.
-2. `actions/setup-dotnet@v4` with `dotnet-version: '9.0.x'`.
+2. `actions/setup-dotnet@v4` with `dotnet-version: '10.0.x'`.
 3. **Restore** — a shell loop over every `*.csproj` found by `find .`, running
    `dotnet restore "$proj"` for each.
 4. **Install formatter** — `dotnet tool update -g dotnet-format`.
@@ -174,7 +174,7 @@ secret is detected.
 Runs only when `github.actor == 'dependabot[bot]'`.
 
 1. **Checkout repository** — `actions/checkout@v5`.
-2. **Setup .NET** — `actions/setup-dotnet@v4` with `dotnet-version: '9.0.x'`.
+2. **Setup .NET** — `actions/setup-dotnet@v4` with `dotnet-version: '10.0.x'`.
 3. **Check for outdated packages** — a shell loop over every `*.csproj` running
    `dotnet list "$proj" package --outdated || true`. The `|| true` makes the step
    non-failing, so this job reports outdated packages without gating anything.
@@ -338,7 +338,7 @@ migrations.
 ### Declared permissions and secrets
 
 - `permissions:` — `id-token: write`, `contents: read`.
-- Workflow-level `env:` — `DOTNET_VERSION: '9.0.x'`.
+- Workflow-level `env:` — `DOTNET_VERSION: '10.0.x'`.
 - No `secrets:` block, no `environments:` block, and no `concurrency:` block.
 - **Secret names referenced:** `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `DAVIDS_AZURE_SUB`.
 - **Environment variable names set in `env:` blocks:** `ARM_CLIENT_ID`,
@@ -381,7 +381,7 @@ workflow, so any successful build run on `development` or `main` leads to a depl
    globally, exports `CONNECTION_STRING` from the previous step's output, builds
    `4-Persistence/HotshotLogistics.Data/HotshotLogistics.Data.csproj` in `Release`, then
    runs
-   `dotnet fm migrate -a 4-Persistence/HotshotLogistics.Data/bin/Release/net8.0/HotshotLogistics.Data.dll -c "<connection string>" -p sqlserver`.
+   `dotnet fm migrate -a 4-Persistence/HotshotLogistics.Data/bin/Release/net10.0/HotshotLogistics.Data.dll -c "<connection string>" -p sqlserver`.
    The step's `env:` block carries the four `ARM_*` OIDC variables.
 10. **Verify deployment** — echoes the environment, the App Service name, and a completion
     message. No secret is echoed in this step. The job log does carry the Key Vault
@@ -734,10 +734,13 @@ moves as the hosted image is updated, so the same workflow file runs on a differ
 from one day to the next.
 
 **The language version floats within the minor.** `dotnet-buid-test.yml:43` and `:135`
-request `dotnet-version: '9.0.x'`, and `API-deploy.yml:28` sets
-`DOTNET_VERSION: '9.0.x'` for the setup step that consumes it. The `x` resolves to the
-newest patch of the `9.0` band, so a patch release changes the build inputs with no change
-to the repository.
+request `dotnet-version: '10.0.x'`, and `API-deploy.yml:28` sets
+`DOTNET_VERSION: '10.0.x'` for the setup step that consumes it. The `x` resolves to the
+newest patch of the `10.0` band, so a patch release changes the build inputs with no change
+to the repository. The workflow pin is not the only SDK selection in the tree: the
+repository's `global.json` pins SDK `10.0.403` with `rollForward: latestFeature`, so a
+runner resolves against the workflow's `10.0.x` band while a developer machine resolves
+against that exact version.
 
 **The tool version is unpinned.** `dotnet-buid-test.yml:50` runs
 `dotnet tool update -g dotnet-format` with no version argument, so the formatter resolves

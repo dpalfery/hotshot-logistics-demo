@@ -4,31 +4,32 @@ title: Technology stack
 doc-type: reference
 status: current
 owner: unassigned
-last-reviewed: 2026-10-20
+last-reviewed: 2026-11-09
 ---
 
 # Technology Stack
 
 ## Backend (.NET)
 
-- **Framework**: .NET 8 ASP.NET Core Web API (Azure App Service / Function App — see [Hosting model](#hosting-model))
+- **Framework**: .NET 10 ASP.NET Core Web API (Azure App Service / Function App — see [Hosting model](#hosting-model))
+- **SDK**: `global.json` pins SDK `10.0.403` with `rollForward: latestFeature` and `allowPrerelease: false`; every project in the solution targets `net10.0`
 - **Database**: SQL Server with native ADO.NET (Entity Framework is prohibited)
-- **Testing**: xUnit, FluentAssertions
+- **Testing**: xUnit v3 (`xunit.v3` 4.0.3), FluentAssertions 8.x, Moq; `global.json` sets `test.runner` to the Microsoft Testing Platform
 - **Configuration**: Azure App Configuration, Key Vault; local API uses .NET user secrets
 - **Build Tools**: dotnet CLI
 - **Migrations**: FluentMigrator (required for all schema changes)
 
 ## Frontend (Admin Dashboard)
 
-- **Framework**: Next.js 15, React 19
-- **Styling**: Tailwind CSS
+- **Framework**: Next.js 16.4.6, React 19.3.1 (App Router; request interception is `proxy.ts` at the dashboard root)
+- **Styling**: Tailwind CSS 4
 - **Charts**: Recharts
 - **Tables**: TanStack Table
 - **State**: TanStack Query
 - **Validation**: Zod
 - **UI**: Headless UI, Heroicons, Radix
 - **Auth**: MSAL
-- **Realtime**: SignalR client
+- **Realtime**: SignalR client (`@microsoft/signalr` 10.0.11)
 - **Tests**: Playwright
 
 ## Infrastructure

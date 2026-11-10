@@ -184,7 +184,7 @@ export class ApiMocker {
     });
   }
 
-  async mockDashboardStatsApi(stats: any = {}) {
+  async mockDashboardStatsApi(stats: Record<string, unknown> = {}) {
     const defaultStats = {
       totalJobs: 0,
       activeDrivers: 0,
@@ -202,7 +202,7 @@ export class ApiMocker {
     });
   }
 
-  async mockInvoiceSummaryApi(summary: any = {}) {
+  async mockInvoiceSummaryApi(summary: Record<string, unknown> = {}) {
     const defaultSummary = {
       totalInvoiced: 0,
       totalPaid: 0,
@@ -220,7 +220,7 @@ export class ApiMocker {
     });
   }
 
-  async mockInvoiceAgingApi(aging: any = {}) {
+  async mockInvoiceAgingApi(aging: Record<string, unknown> = {}) {
     const defaultAging = {
       current: 0,
       days30: 0,
@@ -250,7 +250,7 @@ export class ApiMocker {
     });
   }
 
-  async mockApiDelay(endpoint: string, delay: number = 1000, response: any = {}) {
+  async mockApiDelay(endpoint: string, delay: number = 1000, response: Record<string, unknown> = {}) {
     await this.page.route(`**${endpoint}*`, async route => {
       await new Promise(resolve => setTimeout(resolve, delay));
       await route.fulfill({

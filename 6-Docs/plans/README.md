@@ -4,7 +4,7 @@ title: Plans
 doc-type: index
 status: draft
 owner: 'unassigned'
-last-reviewed: 2026-10-20
+last-reviewed: 2026-11-10
 ---
 
 # Plans
@@ -13,13 +13,15 @@ Sequenced implementation work: what will be done, in what order, and how it will
 verified. A plan is a record of intent rather than current guidance — retrieval
 demotes it accordingly, and it is archived once closed.
 
-**No active plan remains.** Every plan below has been delivered, verified against the
+**No active plan.** Every plan in this index has been delivered, verified against the
 implemented behavior and its canonical documentation, and archived. `Archived` plans are
-historical records, not implementation authority; open a plan only when it is listed here
-as `Draft`, `Ready`, `In progress`, or `Blocked`.
+historical records, not implementation authority; a new plan appears here as `Draft`,
+`Ready`, `In progress`, or `Blocked` only while it is open, and it moves to the archived
+row below — with its implementation reference and archive date — when it closes.
 
 | Plan | Status | Goal | Implementation reference | Archive date |
 |---|---|---|---|---|
+| [.NET 10 upgrade and dependency refresh](../archive/plans/dotnet-10-upgrade.md) | Archived | Upgrade all 12 projects from `net8.0` to `net10.0` with .NET 10 SDK pinning (`global.json` + the CI SDK pins), refresh the application's NuGet and npm dependencies per its decision ledger, and update the documented stack facts. | [`6-Docs/technology-stack.md`](../technology-stack.md) · [`6-Docs/devops/ci-cd-pipelines.md`](../devops/ci-cd-pipelines.md) · [`6-Docs/devops/deployment-architecture.md`](../devops/deployment-architecture.md) · [`6-Docs/api/onboarding.md`](../api/onboarding.md) · [`6-Docs/dbsetup/architecture.md`](../dbsetup/architecture.md) · [`6-Docs/dbsetup/onboarding.md`](../dbsetup/onboarding.md) · [`6-Docs/catalog.md`](../catalog.md) · [`6-Docs/rules/aspnet-core-practices.md`](../rules/aspnet-core-practices.md) · [`6-Docs/rules/validation.md`](../rules/validation.md) · [`6-Docs/admin-dashboard/AZURE_AD_SETUP.md`](../admin-dashboard/AZURE_AD_SETUP.md) · [`6-Docs/admin-dashboard/architecture.md`](../admin-dashboard/architecture.md) · [`6-Docs/admin-dashboard/onboarding.md`](../admin-dashboard/onboarding.md) · [`6-Docs/todo/README.md`](../todo/README.md) · root [`README.md`](../../README.md) · component READMEs under `0-Base`, `2-Application`, `3-Domain`, `7-Deployment` | 2026-11-10 |
 | [Deployment and CLI architecture documentation](../archive/plans/devops-deployment-architecture-documentation.md) | Archived | Author `6-Docs/devops/` deployment + DbSetup CLI documentation; reconcile `6-Docs/dbsetup/`; record known drift | [`6-Docs/devops/README.md`](../devops/README.md) · [`deployment-architecture.md`](../devops/deployment-architecture.md) (drift register DR1–DR6) · [`ci-cd-pipelines.md`](../devops/ci-cd-pipelines.md) · [`terraform-modules.md`](../devops/terraform-modules.md) · [`6-Docs/dbsetup/architecture.md`](../dbsetup/architecture.md) · [`6-Docs/dbsetup/onboarding.md`](../dbsetup/onboarding.md) · [`6-Docs/technology-stack.md`](../technology-stack.md) · [`6-Docs/README.md`](../README.md) | 2026-10-20 |
 | [Deployment drift register and residual-claim remediation](../archive/plans/devops-drift-remediation.md) | Archived | Amend the canonical drift register (DR1–DR2 file lists + DR7–DR15) and correct residual false claims across `6-Docs/` and component READMEs | [`6-Docs/devops/deployment-architecture.md`](../devops/deployment-architecture.md) (canonical drift register DR1–DR15) · [`ci-cd-pipelines.md`](../devops/ci-cd-pipelines.md) · [`terraform-modules.md`](../devops/terraform-modules.md) · [`6-Docs/devops/README.md`](../devops/README.md) · [`6-Docs/technology-stack.md`](../technology-stack.md) · [`6-Docs/catalog.md`](../catalog.md) · [`6-Docs/api/architecture.md`](../api/architecture.md) · [`6-Docs/api/onboarding.md`](../api/onboarding.md) · [`6-Docs/project-overview.md`](../project-overview.md) · [`6-Docs/rules/scripts.md`](../rules/scripts.md) · [`6-Docs/rules/file-organization.md`](../rules/file-organization.md) · [`7-Deployment/DbSetup/README.md`](../../7-Deployment/DbSetup/README.md) · [`1-Presentation/HotshotLogistics.Api/README.md`](../../1-Presentation/HotshotLogistics.Api/README.md) · root [`README.md`](../../README.md) | 2026-10-20 |
 
@@ -41,10 +43,18 @@ as `Draft`, `Ready`, `In progress`, or `Blocked`.
 - **The DbSetup CLI documentation** lives in
   [`6-Docs/dbsetup/architecture.md`](../dbsetup/architecture.md) and
   [`6-Docs/dbsetup/onboarding.md`](../dbsetup/onboarding.md).
+- **The current runtime and dependency facts — .NET 10 for every project, SDK `10.0.403`
+  pinned in `global.json`, the refreshed NuGet and dashboard npm versions — live in
+  [`6-Docs/technology-stack.md`](../technology-stack.md). The CI .NET SDK band
+  (`10.0.x`) and the deploy migration step's `bin/Release/net10.0/` assembly path are
+  recorded in [`6-Docs/devops/ci-cd-pipelines.md`](../devops/ci-cd-pipelines.md), and
+  the .NET 10 upgrade plan's [closeout mapping](../archive/plans/dotnet-10-upgrade.md#closeout-mapping)
+  names the canonical destination of each of its decisions.
 - **The catalog's ownership and review-date record** for the DbSetup component is the
   DbSetup row in [`6-Docs/catalog.md`](../catalog.md); the **documentation index** entry
   for the new `devops/` folder is the `devops/` row in [`6-Docs/README.md`](../README.md).
 - **The archived plans themselves** carry their permanent `## Decisions` tables — every
   row and its approval provenance, including the approve-and-execute approvals (D9 on
-  2026-10-19 and D10 on 2026-10-20). Archived material is never current guidance; read
-  the canonical documents above for what the system does today.
+  2026-10-19, D10 on 2026-10-20, and D10 on 2026-11-09 for the .NET 10 upgrade). Archived
+  material is never current guidance; read the canonical documents above for what the
+  system does today.

@@ -16,4 +16,4 @@ Add one document per todo and list it here.
 
 | Todo | Status | Component | Summary |
 |---|---|---|---|
-| [Resolve unresolved DashboardOverview issues](../todos/admin-dashboard-job-status-unresolved.md) | Open | admin-dashboard | D6 follow-up: SignalR event name mismatch, first-page Active Jobs count, stale `JobStatus` enum in `src/types/index.ts`. |
+| [Resolve unresolved DashboardOverview issues](admin-dashboard-job-status-unresolved.md) | Open | admin-dashboard | D6 follow-up: SignalR event name mismatch, first-page Active Jobs count, stale `JobStatus` enum in `src/types/index.ts`. |

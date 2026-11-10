@@ -25,7 +25,7 @@ permissions:
   contents: read
 
 env:
-  DOTNET_VERSION: '9.0.x'
+  DOTNET_VERSION: '10.0.x'
 
 jobs:
   deploy:
@@ -87,7 +87,7 @@ jobs:
           dotnet build 4-Persistence/HotshotLogistics.Data/HotshotLogistics.Data.csproj --configuration Release
           
           # Run FluentMigrator migrations against SQL Server
-          dotnet fm migrate -a 4-Persistence/HotshotLogistics.Data/bin/Release/net8.0/HotshotLogistics.Data.dll -c "${CONNECTION_STRING}" -p sqlserver
+          dotnet fm migrate -a 4-Persistence/HotshotLogistics.Data/bin/Release/net10.0/HotshotLogistics.Data.dll -c "${CONNECTION_STRING}" -p sqlserver
         env:
           ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           ARM_SUBSCRIPTION_ID: ${{ secrets.DAVIDS_AZURE_SUB }}

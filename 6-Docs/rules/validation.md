@@ -4,7 +4,7 @@ title: Validation Rule
 doc-type: rule
 status: current
 owner: unassigned
-last-reviewed: 2026-08-14
+last-reviewed: 2026-11-09
 ---
 
 # Validation Rule
@@ -12,7 +12,7 @@ last-reviewed: 2026-08-14
 This rule enforces input validation practices for ASP.NET Core applications in the Hotshot Logistics project, ensuring secure and consistent error handling.
 
 ## When to Apply
-Apply these practices whenever implementing input validation in ASP.NET Core APIs, controllers, or services in .NET 8+ projects.
+Apply these practices whenever implementing input validation in ASP.NET Core APIs, controllers, or services in .NET 10 projects (every project in this solution targets `net10.0`).
 
 ## Input Validation
 - Validate all user inputs on both client and server sides.

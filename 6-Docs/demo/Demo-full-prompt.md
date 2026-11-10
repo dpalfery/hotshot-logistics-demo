@@ -4,7 +4,7 @@ title: Demo full-stack prompt
 doc-type: reference
 status: current
 owner: unassigned
-last-reviewed: 2026-08-14
+last-reviewed: 2026-11-09
 ---
 
 # Demo-full-prompt.md
@@ -59,7 +59,7 @@ Update the **Hotshot Logistics Admin Dashboard UI** and backend to include **fou
 
 ### Frontend Implementation
 
-* Framework: **Next.js 15 (App Router)** using **React + TailwindCSS**.
+* Framework: **Next.js 16 (App Router)** using **React + TailwindCSS**.
 * Create a reusable component:
 
   ```tsx

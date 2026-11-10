@@ -206,13 +206,21 @@ class ApiService {
     _filter?: InvoiceFilter,
     _pagination?: PaginationParameters
   ): Promise<PagedResult<Invoice>> {
-    const response = await this.request<any>('/billing/invoices/overdue');
+    const response: unknown = await this.request<unknown>('/billing/invoices/overdue');
+    const responseRecord =
+      typeof response === 'object' && response !== null
+        ? (response as { items?: unknown; totalCount?: unknown })
+        : undefined;
     const items = Array.isArray(response)
-      ? response
-      : (Array.isArray(response?.items) ? response.items : []);
+      ? (response as Invoice[])
+      : Array.isArray(responseRecord?.items)
+        ? (responseRecord?.items as Invoice[])
+        : [];
     const totalCount = Array.isArray(response)
       ? response.length
-      : (response?.totalCount ?? items.length);
+      : typeof responseRecord?.totalCount === 'number'
+        ? responseRecord.totalCount
+        : items.length;
 
     return {
       items,

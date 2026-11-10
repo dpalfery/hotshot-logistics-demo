@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import type { LocationUpdate, NotificationMessage } from '@/types';
 
 // Extend Window interface for test mocks
 declare global {
@@ -6,11 +7,11 @@ declare global {
     mockSignalRService?: {
       connect: () => Promise<void>;
       disconnect: () => void;
-      onLocationUpdate: (callback: (update: any) => void) => void;
-      onNotification: (callback: (notification: any) => void) => void;
+      onLocationUpdate: (callback: (update: LocationUpdate) => void) => void;
+      onNotification: (callback: (notification: NotificationMessage) => void) => void;
     };
-    mockLocationUpdateCallback?: (update: any) => void;
-    mockNotificationCallback?: (notification: any) => void;
+    mockLocationUpdateCallback?: (update: LocationUpdate) => void;
+    mockNotificationCallback?: (notification: NotificationMessage) => void;
     disconnectCalled?: boolean;
   }
 }
@@ -194,10 +195,10 @@ test.describe('Tracking Dashboard', () => {
         window.mockSignalRService = {
           connect: () => Promise.resolve(),
           disconnect: () => {},
-          onLocationUpdate: (callback: (update: any) => void) => {
+          onLocationUpdate: (callback: (update: LocationUpdate) => void) => {
             window.mockLocationUpdateCallback = callback;
           },
-          onNotification: (callback: (notification: any) => void) => {
+          onNotification: (callback: (notification: NotificationMessage) => void) => {
             window.mockNotificationCallback = callback;
           }
         };
@@ -213,7 +214,8 @@ test.describe('Tracking Dashboard', () => {
             driverId: 1,
             location: {
               latitude: 40.7128,
-              longitude: -74.0060
+              longitude: -74.0060,
+              address: 'Test address'
             },
             timestamp: new Date().toISOString()
           });
@@ -228,6 +230,8 @@ test.describe('Tracking Dashboard', () => {
       await page.evaluate(() => {
         if (window.mockNotificationCallback) {
           window.mockNotificationCallback({
+            id: 'notification-1',
+            type: 'status',
             title: 'Job Update',
             message: 'Job has been completed',
             timestamp: new Date().toISOString(),
@@ -248,13 +252,13 @@ test.describe('Tracking Dashboard', () => {
         window.mockSignalRService = {
           connect: () => Promise.resolve(),
           disconnect: () => {},
-          onLocationUpdate: (callback: (update: any) => void) => {
+          onLocationUpdate: (callback: (update: LocationUpdate) => void) => {
             // Simulate multiple location updates
             setTimeout(() => {
               callback({
                 jobId: 'job-001',
                 driverId: 1,
-                location: { latitude: 40.7128, longitude: -74.0060 },
+                location: { latitude: 40.7128, longitude: -74.0060, address: 'Test address' },
                 timestamp: '2024-12-01T10:30:00Z'
               });
             }, 100);
@@ -263,12 +267,12 @@ test.describe('Tracking Dashboard', () => {
               callback({
                 jobId: 'job-002',
                 driverId: 2,
-                location: { latitude: 34.0522, longitude: -118.2437 },
+                location: { latitude: 34.0522, longitude: -118.2437, address: 'Test address' },
                 timestamp: '2024-12-01T10:35:00Z'
               });
             }, 200);
           },
-          onNotification: (callback: (notification: any) => void) => {}
+          onNotification: (callback: (notification: NotificationMessage) => void) => {}
         };
       });
 
@@ -292,11 +296,13 @@ test.describe('Tracking Dashboard', () => {
         window.mockSignalRService = {
           connect: () => Promise.resolve(),
           disconnect: () => {},
-          onLocationUpdate: (callback: (update: any) => void) => {},
-          onNotification: (callback: (notification: any) => void) => {
+          onLocationUpdate: (callback: (update: LocationUpdate) => void) => {},
+          onNotification: (callback: (notification: NotificationMessage) => void) => {
             // Simulate multiple notifications
             setTimeout(() => {
               callback({
+                id: 'notification-1',
+                type: 'assignment',
                 title: 'New Job Assigned',
                 message: 'Job #123 has been assigned to Driver #1',
                 timestamp: '2024-12-01T10:30:00Z',
@@ -306,6 +312,8 @@ test.describe('Tracking Dashboard', () => {
             
             setTimeout(() => {
               callback({
+                id: 'notification-2',
+                type: 'status',
                 title: 'Delivery Completed',
                 message: 'Job #122 has been completed successfully',
                 timestamp: '2024-12-01T10:25:00Z',
@@ -342,24 +350,26 @@ test.describe('Tracking Dashboard', () => {
         window.mockSignalRService = {
           connect: () => Promise.resolve(),
           disconnect: () => {},
-          onLocationUpdate: (callback: (update: any) => void) => {
+          onLocationUpdate: (callback: (update: LocationUpdate) => void) => {
             // Simulate 15 location updates
             for (let i = 1; i <= 15; i++) {
               setTimeout(() => {
                 callback({
                   jobId: `job-${i.toString().padStart(3, '0')}`,
                   driverId: i,
-                  location: { latitude: 40.7128 + i * 0.001, longitude: -74.0060 + i * 0.001 },
+                  location: { latitude: 40.7128 + i * 0.001, longitude: -74.0060 + i * 0.001, address: 'Test address' },
                   timestamp: new Date(Date.now() + i * 1000).toISOString()
                 });
               }, i * 50);
             }
           },
-          onNotification: (callback: (notification: any) => void) => {
+          onNotification: (callback: (notification: NotificationMessage) => void) => {
             // Simulate 15 notifications
             for (let i = 1; i <= 15; i++) {
               setTimeout(() => {
                 callback({
+                  id: `notification-${i}`,
+                  type: 'notification',
                   title: `Notification ${i}`,
                   message: `Message ${i}`,
                   timestamp: new Date(Date.now() + i * 1000).toISOString(),
@@ -403,8 +413,8 @@ test.describe('Tracking Dashboard', () => {
         window.mockSignalRService = {
           connect: () => Promise.reject(new Error('Connection failed')),
           disconnect: () => {},
-          onLocationUpdate: (callback: (update: any) => void) => {},
-          onNotification: (callback: (notification: any) => void) => {}
+          onLocationUpdate: (callback: (update: LocationUpdate) => void) => {},
+          onNotification: (callback: (notification: NotificationMessage) => void) => {}
         };
       });
 
@@ -440,8 +450,8 @@ test.describe('Tracking Dashboard', () => {
           disconnect: () => {
             window.disconnectCalled = true;
           },
-          onLocationUpdate: (callback: (update: any) => void) => {},
-          onNotification: (callback: (notification: any) => void) => {}
+          onLocationUpdate: (callback: (update: LocationUpdate) => void) => {},
+          onNotification: (callback: (notification: NotificationMessage) => void) => {}
         };
       });
 
@@ -478,22 +488,24 @@ test.describe('Tracking Dashboard', () => {
         window.mockSignalRService = {
           connect: () => Promise.resolve(),
           disconnect: () => {},
-          onLocationUpdate: (callback: (update: any) => void) => {
+          onLocationUpdate: (callback: (update: LocationUpdate) => void) => {
             for (let i = 1; i <= 20; i++) {
               setTimeout(() => {
                 callback({
                   jobId: `job-${i.toString().padStart(3, '0')}`,
                   driverId: i,
-                  location: { latitude: 40.7128, longitude: -74.0060 },
+                  location: { latitude: 40.7128, longitude: -74.0060, address: 'Test address' },
                   timestamp: new Date().toISOString()
                 });
               }, i * 10);
             }
           },
-          onNotification: (callback: (notification: any) => void) => {
+          onNotification: (callback: (notification: NotificationMessage) => void) => {
             for (let i = 1; i <= 20; i++) {
               setTimeout(() => {
                 callback({
+                  id: `notification-${i}`,
+                  type: 'notification',
                   title: `Notification ${i}`,
                   message: `Message ${i}`,
                   timestamp: new Date().toISOString(),

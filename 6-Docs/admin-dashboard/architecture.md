@@ -6,7 +6,7 @@ status: current
 component: admin-dashboard
 source-root: 1-Presentation/admin-dashboard
 owner: unassigned
-last-reviewed: 2026-08-14
+last-reviewed: 2026-11-10
 code-refs:
   - JobsManagement
 ---
@@ -44,6 +44,7 @@ TanStack Query caches server state. MSAL handles Azure AD sign-in. SignalR conne
 | Login | `src/app/(auth)/login/page.tsx` |
 | Auth | `src/components/auth/` |
 | HTTP | `src/services/api.ts` |
+| Request interception | `proxy.ts` (dashboard root) — production HTTPS redirect and security headers |
 
 ## Data models
 

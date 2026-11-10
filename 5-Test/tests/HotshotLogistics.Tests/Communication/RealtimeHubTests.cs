@@ -45,7 +45,7 @@ namespace HotshotLogistics.Tests.Communication
                 x => x.Log(
                     LogLevel.Information,
                     It.IsAny<EventId>(),
-                    It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains($"Job status update sent for job {jobId}")),
+                    It.Is<It.IsAnyType>((v, t) => v!.ToString()!.Contains($"Job status update sent for job {jobId}")),
                     It.IsAny<Exception>(),
                     It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
                 Times.Once);
@@ -96,7 +96,7 @@ namespace HotshotLogistics.Tests.Communication
                     LogLevel.Information,
                     It.IsAny<EventId>(),
                     It.Is<It.IsAnyType>((v, t) =>
-                        v.ToString()!.Contains($"Driver status update sent for driver {driverId}")),
+                        v!.ToString()!.Contains($"Driver status update sent for driver {driverId}")),
                     It.IsAny<Exception>(),
                     It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
                 Times.Once);
@@ -127,7 +127,7 @@ namespace HotshotLogistics.Tests.Communication
                     LogLevel.Information,
                     It.IsAny<EventId>(),
                     It.Is<It.IsAnyType>((v, t) =>
-                        v.ToString()!.Contains($"New job availability broadcast for job {job.Id}")),
+                        v!.ToString()!.Contains($"New job availability broadcast for job {job.Id}")),
                     It.IsAny<Exception>(),
                     It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
                 Times.Once);
@@ -159,7 +159,7 @@ namespace HotshotLogistics.Tests.Communication
                 x => x.Log(
                     LogLevel.Information,
                     It.IsAny<EventId>(),
-                    It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains($"Notification sent: {message.Title}")),
+                    It.Is<It.IsAnyType>((v, t) => v!.ToString()!.Contains($"Notification sent: {message.Title}")),
                     It.IsAny<Exception>(),
                     It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
                 Times.Once);
@@ -206,7 +206,7 @@ namespace HotshotLogistics.Tests.Communication
                     LogLevel.Error,
                     It.IsAny<EventId>(),
                     It.Is<It.IsAnyType>((v, t) =>
-                        v.ToString()!.Contains($"Error broadcasting job status update for job {jobId}")),
+                        v!.ToString()!.Contains($"Error broadcasting job status update for job {jobId}")),
                     expectedException,
                     It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
                 Times.Once);
@@ -237,7 +237,7 @@ namespace HotshotLogistics.Tests.Communication
                     LogLevel.Error,
                     It.IsAny<EventId>(),
                     It.Is<It.IsAnyType>((v, t) =>
-                        v.ToString()!.Contains($"Error broadcasting location update for job {jobId}")),
+                        v!.ToString()!.Contains($"Error broadcasting location update for job {jobId}")),
                     expectedException,
                     It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
                 Times.Once);

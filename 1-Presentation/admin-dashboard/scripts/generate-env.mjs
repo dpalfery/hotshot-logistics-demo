@@ -6,8 +6,11 @@
  * and generates the .env.local file automatically for secure deployments.
  */
 
-const fs = require('fs');
-const path = require('path');
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 
 function generateEnvFile() {
   const envFilePath = path.join(process.cwd(), '.env.local');
@@ -70,7 +73,7 @@ NEXT_PUBLIC_PRODUCTION_DOMAIN=${productionDomain}
 # For production deployment, also set NEXT_PUBLIC_PRODUCTION_DOMAIN to your actual domain.
 `;
 
-  const envPath = path.join(__dirname, '..', '.env.local');
+  const envPath = path.join(scriptDir, '..', '.env.local');
 
   try {
     // Write .env.local file

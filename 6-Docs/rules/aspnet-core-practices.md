@@ -4,7 +4,7 @@ title: ASP.NET Core Practices Rule
 doc-type: rule
 status: current
 owner: unassigned
-last-reviewed: 2026-08-14
+last-reviewed: 2026-11-09
 ---
 
 # ASP.NET Core Practices Rule
@@ -12,7 +12,7 @@ last-reviewed: 2026-08-14
 This rule enforces best practices for ASP.NET Core applications in the Hotshot Logistics project, ensuring secure, performant, and maintainable services.
 
 ## When to Apply
-Apply these practices whenever developing or modifying ASP.NET Core APIs, controllers, or services in .NET 8+ projects.
+Apply these practices whenever developing or modifying ASP.NET Core APIs, controllers, or services in .NET 10 projects (every project in this solution targets `net10.0`).
 
 ## Configuration
 - Centralize settings using the **Options pattern** with dependency injection.
