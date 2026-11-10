@@ -109,7 +109,7 @@ namespace HotshotLogistics.DbSetup
                     "MigrationRunner",
                     "bin",
                     "Debug",
-                    "net8.0",
+                    "net10.0",
                     "MigrationRunner.dll"
                 );
 
