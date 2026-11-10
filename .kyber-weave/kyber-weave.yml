@@ -33,3 +33,5 @@ mcp:
 # 'docs init' creates is already published; name only what is yours.
 # config-reg:
 #   auth-design: 6-Docs/reference/auth-design.md
+
+onboarding: done
