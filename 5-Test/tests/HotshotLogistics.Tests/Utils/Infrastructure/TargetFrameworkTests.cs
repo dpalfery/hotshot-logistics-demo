@@ -146,7 +146,7 @@ namespace HotshotLogistics.Tests.Utils.Infrastructure
             string? frameworkName = attribute?.FrameworkName;
 
             frameworkName.Should().NotBeNull($"{assemblyName} must declare a TargetFrameworkAttribute");
-            frameworkName!.Should().StartWith(
+            frameworkName.Should().StartWith(
                 s_net10FrameworkPrefix,
                 $"{assemblyName} must be compiled for .NET 10");
         }
@@ -162,7 +162,7 @@ namespace HotshotLogistics.Tests.Utils.Infrastructure
 
             directory.Should().NotBeNull(
                 $"the test must run from a checkout that contains {s_solutionFileName}");
-            return directory!.FullName;
+            return directory.FullName;
         }
 
         private static bool IsBuildOutputPath(string path)
@@ -179,13 +179,13 @@ namespace HotshotLogistics.Tests.Utils.Infrastructure
         {
             string projectContent = File.ReadAllText(projectPath);
 
-            Match plural = Regex.Match(projectContent, @"<TargetFrameworks>([^<]+)</TargetFrameworks>");
+            Match plural = Regex.Match(projectContent, "<TargetFrameworks>([^<]+)</TargetFrameworks>");
             if (plural.Success)
             {
                 return plural.Groups[1].Value.Trim();
             }
 
-            Match singular = Regex.Match(projectContent, @"<TargetFramework>([^<]+)</TargetFramework>");
+            Match singular = Regex.Match(projectContent, "<TargetFramework>([^<]+)</TargetFramework>");
             return singular.Success ? singular.Groups[1].Value.Trim() : null;
         }
 

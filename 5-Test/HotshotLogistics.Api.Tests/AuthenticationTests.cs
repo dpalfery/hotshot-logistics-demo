@@ -100,7 +100,7 @@ namespace HotshotLogistics.Api.Tests
                 await schemes.GetDefaultAuthenticateSchemeAsync();
 
             defaultScheme.Should().NotBeNull();
-            defaultScheme!.Name.Should().Be(s_testScheme);
+            defaultScheme.Name.Should().Be(s_testScheme);
         }
 
         [Fact]
@@ -114,7 +114,7 @@ namespace HotshotLogistics.Api.Tests
                 await schemes.GetDefaultAuthenticateSchemeAsync();
 
             defaultScheme.Should().NotBeNull();
-            defaultScheme!.Name.Should().Be(JwtBearerDefaults.AuthenticationScheme);
+            defaultScheme.Name.Should().Be(JwtBearerDefaults.AuthenticationScheme);
         }
 
         [Fact]
@@ -129,9 +129,9 @@ namespace HotshotLogistics.Api.Tests
 
             policy.Should().NotBeNull();
             RolesAuthorizationRequirement requirement =
-                policy!.Requirements.OfType<RolesAuthorizationRequirement>().Should().ContainSingle().Subject;
+                policy.Requirements.OfType<RolesAuthorizationRequirement>().Should().ContainSingle().Subject;
             requirement.AllowedRoles.Should().BeEquivalentTo(
-                new[] { AuthorizationPolicies.Admin, AuthorizationPolicies.Manager });
+                AuthorizationPolicies.Admin, AuthorizationPolicies.Manager);
         }
 
         private static WebApplicationFactory<Program> CreateFactory(
