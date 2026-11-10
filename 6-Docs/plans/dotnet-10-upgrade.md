@@ -209,6 +209,8 @@ on its branch, and clears at closeout when the plan is archived.
 | D9 | Does the `net8.0` build-output path literal in `API-deploy.yml`'s migration step move to `net10.0` with the cutover? | (a) Yes: the single `net8.0` path literal in the "Run database migrations" step of `.github/workflows/API-deploy.yml` moves to `net10.0` in the same change as the CI .NET SDK pin. | Mechanical consequence of D8: `API-deploy.yml` runs `dotnet fm migrate -a 4-Persistence/HotshotLogistics.Data/bin/Release/net8.0/HotshotLogistics.Data.dll`, and the `net8.0` build output ceases to exist after the cutover, so the step would otherwise fail with file-not-found. This is the only `.github/workflows` edit beyond the .NET SDK pins already covered by D5. The pinned `dotnet fm` CLI version (3.4.0) is unchanged and therefore may not load net10.0 migration assemblies at deploy time — an accepted, diagnosable out-of-scope consequence kept in Risk 5. | ANSWERED — User decision 2026-11-09 |
 | D10 | Approve and execute this plan as presented? | Approved. Execute as presented. | The approve-and-execute gate stated: all 12 projects move from `net8.0` to `net10.0`; `global.json` pins SDK 10.0.403; NuGet and dashboard npm dependencies go to latest stable with major versions included; the CI .NET SDK pin moves to 10.x plus the single deploy path literal; the documentation updates and the two pre-existing documentation findings are cleared; declared scale `documentation-impact: extends-component` with no new component; impact components `Api`, `DbSetup`, `admin-dashboard`; development mode test-first; no infrastructure is created or applied, and no secret enters the repository. User's answer, verbatim: "Approve and execute". | ANSWERED — Approved by user 2026-11-09 |
 | D11 | Wording correction to T8's `Depends on` bullet for the Arbiter's parser? | Corrected: the bullet now reads "…and this task's validation-clean check runs against T7's finished edits", naming only T7. | Changes one sentence's wording in T8's `Depends on` bullet and nothing else: T8's dependency (T7), file scope, acceptance criteria, the task graph, the declared scale (`extends-component`), the development mode (test-first) and every other task are untouched, and T2's file-scope label stays as it is (the Arbiter's "lists no files" report for T2 is a warning that only skips that task's file-scope check, not a defect). Reason: the Arbiter's parser reads the dependency ids appearing in the task text, so a task naming itself in its own section parsed as depending on itself (`T7, T8`) and could never satisfy the readiness gate. The correction preserves exactly what was approved. | ANSWERED — Approved by user 2026-11-09 (the approve-and-execute approval covers the plan's meaning; this correction preserves it) |
+| D12 | Shared worker contract added to every task section and every dispatch prompt? | Added: each task section (and its dispatch prompt, same wording) now carries a worker contract — work in the run worktree named by the dispatch slots with no reads of the plan, specification, todo files or plan index; the CodeGraph-first discovery order with the AGENTS.md secrets and Clean Architecture rules; the commit rule (stage only the task's files, commit on the run branch with the "Task: <task id>" trailer and the factory-droid co-author line, no push); the task-gate run and its reporting; and the completion-report format (discovery header, six digest fields STATUS/FILES/TESTS/COMMIT/REMOTE_HEAD/TASK_GATE, then "RESULT: PASS"/"RESULT: FAIL" and "RED_EVIDENCE:" carrying the failing test name and reason for the RED task and "none" for every other task). | Adds no work and changes nothing else: every task's objective, file scope, dependencies, skills, session group, commands and acceptance criteria are untouched, and so are the declared scale, impact components, Design harvest, Test contract, out-of-scope boundaries, verification gates, dependency graph, risks, review and closeout sections, and D1–D11. Reason: the Arbiter's scope rule (KW-ARB-SCOPE-002) judges each dispatch against the task's own text, and the conductor must add execution and reporting obligations to every dispatch — so the task text must describe them for the dispatch to be provably within scope. | ANSWERED — Approved by user 2026-11-09 (the approve-and-execute approval covers the plan's meaning; this addition states how the work is executed and reported rather than adding work) |
+| D13 | Strengthen T1's guard test from one assembly to the full cutover scope? | Strengthened: T1's test asserts the .NET 10 target for every HotshotLogistics assembly the test project references — `HotshotLogistics.Core`, `HotshotLogistics.Api`, `HotshotLogistics.Application`, `HotshotLogistics.Contracts`, `HotshotLogistics.Domain`, `HotshotLogistics.Data` — and names the assemblies it covers; a project the test project does not reference is covered by the Release build gate instead. The Test contract's T1 and T2 rows carry the same scope. | The test stays one file in one place, stays red before the cutover and green after it, and keeps its RED evidence rules (failing run against the unmodified tree with only the new test file added, no git stash, output reported verbatim). Does not change the development mode, any task's file scope, dependencies, skills, session group or commands, any other task's substance, the plan's scale, impact components, dependency graph, risks, gates, review and closeout sections, or D1–D12. Reason: the failing-then-passing run does not prove the framework moved — the Release build proves that; the test's value is a standing guard against a partial cutover, and asserting one assembly guarded none of the other eleven projects. | ANSWERED — Approved by user 2026-11-09; user's answer, verbatim: "Keep test-first, strengthen the guard test" |
 
 ## Design harvest
 
@@ -233,8 +235,8 @@ on its branch, and clears at closeout when the plan is archived.
 
 | Task | Test project or file | Runner command | Observable behavior | RED evidence required | GREEN acceptance |
 |---|---|---|---|---|---|
-| T1 (RED) | New `5-Test/tests/HotshotLogistics.Tests/Utils/Infrastructure/TargetFrameworkTests.cs` | `dotnet test 5-Test/tests/HotshotLogistics.Tests/HotshotLogistics.Tests.csproj --filter "FullyQualifiedName~TargetFrameworkTests"` | The Api assembly is compiled for `.NETCoreApp,Version=v10.0` (assert `TargetFrameworkAttribute` on `typeof(Program).Assembly`, per the repo's xUnit + FluentAssertions stack) | Failing run of the filter command on the current `net8.0` build, captured before any csproj edit | n/a (T2 carries GREEN) |
-| T2 (GREEN) | Same class | Same filter command | Same | n/a | Filter command passes; `dotnet build HotshotLogistics.sln -c Release` succeeds with warnings-as-errors enabled |
+| T1 (RED) | New `5-Test/tests/HotshotLogistics.Tests/Utils/Infrastructure/TargetFrameworkTests.cs` | `dotnet test 5-Test/tests/HotshotLogistics.Tests/HotshotLogistics.Tests.csproj --filter "FullyQualifiedName~TargetFrameworkTests"` | Every HotshotLogistics assembly the test project references is compiled for `.NETCoreApp,Version=v10.0` (assert `TargetFrameworkAttribute` for each of `HotshotLogistics.Core`, `HotshotLogistics.Api`, `HotshotLogistics.Application`, `HotshotLogistics.Contracts`, `HotshotLogistics.Domain`, `HotshotLogistics.Data`, per the repo's xUnit + FluentAssertions stack; projects the test project does not reference are covered by the Release build gate) | Failing run of the filter command on the current `net8.0` build, captured against the unmodified tree with only the new test file added, before any csproj edit | n/a (T2 carries GREEN) |
+| T2 (GREEN) | Same class | Same filter command | Same — all six named assemblies | n/a | Filter command passes over the same six assemblies; `dotnet build HotshotLogistics.sln -c Release` succeeds with warnings-as-errors enabled |
 | T3 | No new test — existing suites are the contract (explicit no-new-test task) | `dotnet test` per project, four commands below | All existing behavior unchanged on net10.0 with upgraded packages | n/a | All four test projects pass on net10.0; `dotnet list HotshotLogistics.sln package --outdated` shows nothing outstanding within the D1/D3 policy |
 | T4 | No test surface — read-only verification | YAML parse + pin sweep below | The CI .NET SDK pin reads 10.x in all three occurrences and the migration step's path literal reads `net10.0`; no other workflow content changes (D2/D5/D9) | n/a | YAML parses; no `9.0.x` or `net8.0` remains under `.github/workflows`; the workflow diff shows only the three SDK-pin lines plus the single migration path literal |
 | T5 | No new test — build/lint replace it; existing Playwright suite is the smoke | `npm run build` / `npm run lint` in `1-Presentation/admin-dashboard` | Dashboard builds and lints clean on upgraded deps | n/a | Build and lint pass; Playwright suite (`npm run test`) runs if a local stack is available, otherwise the limitation is recorded |
@@ -251,8 +253,15 @@ NetArchTest), `HotshotLogistics.Tests.Utils.Infrastructure.ExceptionHandlingMidd
 
 ### T1 — Target-framework guard test (RED)
 
-- **Objective:** Add `TargetFrameworkTests` asserting the Api assembly targets
-  `.NETCoreApp,Version=v10.0`, and capture it failing on the current net8.0 build.
+- **Objective:** Add `TargetFrameworkTests` asserting that every HotshotLogistics
+  assembly the test project references targets `.NETCoreApp,Version=v10.0`, and
+  capture it failing on the current net8.0 build. The test names the assemblies it
+  covers — `HotshotLogistics.Core`, `HotshotLogistics.Api`,
+  `HotshotLogistics.Application`, `HotshotLogistics.Contracts`,
+  `HotshotLogistics.Domain`, `HotshotLogistics.Data` — the six projects the test
+  project references. A project the test project does not reference (`MigrationRunner`,
+  `HotshotLogistics.DbSetup`, and the sibling test projects) is covered by the
+  Release build gate instead, so this test does not overstate what it proves.
 - **Session:** `dotnet10-red`
 - **Skills:** `test-dev`
 - **Depends on:** none
@@ -260,11 +269,42 @@ NetArchTest), `HotshotLogistics.Tests.Utils.Infrastructure.ExceptionHandlingMidd
   `5-Test/tests/HotshotLogistics.Tests/Utils/Infrastructure/TargetFrameworkTests.cs`
   (class `TargetFrameworkTests`; follow the namespace convention of its neighbours,
   e.g. `ArchitectureTests.cs`; assert via `FluentAssertions` per the test standard;
-  do not pin the patch number — assert the v10 major).
+  name each covered assembly — one test per named assembly or one test iterating
+  the named assemblies, in this one file, reading `TargetFrameworkAttribute` from a
+  well-known type of each assembly; do not pin the patch number — assert the v10
+  major).
 - **Commands:** the filter command in the Test contract T1 row (expect FAIL — RED
   evidence).
-- **Acceptance:** test exists, compiles, and its failing run against the unmodified
-  net8.0 projects is recorded.
+- **RED rules:** the failing run is taken against the unmodified tree with only the
+  new test file added — no git stash, no source or project edits — and the failing
+  output is reported verbatim.
+- **Acceptance:** test exists, compiles, asserts the v10 target for all six named
+  assemblies, and its failing run against the unmodified net8.0 projects is
+  recorded.
+
+#### Worker contract
+
+- Work in the run worktree named by the dispatch's {worktree} slot; prior task
+  results arrive in the {prior_results} slot. Do not open the plan, the
+  specification, or the todo files, or any file under the plan index — this task
+  text is the whole brief.
+- Discovery: ask CodeGraph first from the worktree shell, then the repository
+  documentation tools, then read files directly only for what those do not cover,
+  naming the reason for each direct read of indexed code. The repository AGENTS.md
+  rules apply: no secrets anywhere in the tree, and the Clean Architecture
+  boundaries stay intact.
+- Commit: stage only the files this task names, commit on the run branch with the
+  trailer line "Task: T1" and the line "Co-authored-by: factory-droid[bot]
+  <138933559+factory-droid[bot]@users.noreply.github.com>", and do not push.
+- Task gate: run the deterministic task-gate over the files this task changed and
+  report the result; when the repository declares no gates for this host, report
+  that fact rather than omitting the line.
+- Completion report: the discovery header, then the six digest fields (STATUS,
+  FILES, TESTS, COMMIT, REMOTE_HEAD, TASK_GATE), then the two marker lines
+  "RESULT: PASS" or "RESULT: FAIL" and "RED_EVIDENCE:" carrying the failing test
+  name and reason for the RED task and the word "none" for every other task. The
+  RESULT line records the task as complete for the run's ledger; the RED_EVIDENCE
+  line records the failing run the cutover task is measured against.
 
 ### T2 — net10.0 cutover, SDK pin, path literals (GREEN)
 
@@ -289,8 +329,33 @@ NetArchTest), `HotshotLogistics.Tests.Utils.Infrastructure.ExceptionHandlingMidd
   - `dotnet build HotshotLogistics.sln --configuration Release`
   - the T1 filter command (expect PASS — GREEN)
 - **Acceptance:** solution (now 12 projects) builds Release with
-  warnings-as-errors; guard test green; no `net8.0`/`net8` string remains in csproj,
+  warnings-as-errors; the same filtered guard run passes over the same six
+  assemblies (GREEN); no `net8.0`/`net8` string remains in csproj,
   `global.json` present.
+
+#### Worker contract
+
+- Work in the run worktree named by the dispatch's {worktree} slot; prior task
+  results arrive in the {prior_results} slot. Do not open the plan, the
+  specification, or the todo files, or any file under the plan index — this task
+  text is the whole brief.
+- Discovery: ask CodeGraph first from the worktree shell, then the repository
+  documentation tools, then read files directly only for what those do not cover,
+  naming the reason for each direct read of indexed code. The repository AGENTS.md
+  rules apply: no secrets anywhere in the tree, and the Clean Architecture
+  boundaries stay intact.
+- Commit: stage only the files this task names, commit on the run branch with the
+  trailer line "Task: T2" and the line "Co-authored-by: factory-droid[bot]
+  <138933559+factory-droid[bot]@users.noreply.github.com>", and do not push.
+- Task gate: run the deterministic task-gate over the files this task changed and
+  report the result; when the repository declares no gates for this host, report
+  that fact rather than omitting the line.
+- Completion report: the discovery header, then the six digest fields (STATUS,
+  FILES, TESTS, COMMIT, REMOTE_HEAD, TASK_GATE), then the two marker lines
+  "RESULT: PASS" or "RESULT: FAIL" and "RED_EVIDENCE:" carrying the failing test
+  name and reason for the RED task and the word "none" for every other task. The
+  RESULT line records the task as complete for the run's ledger; the RED_EVIDENCE
+  line records the failing run the cutover task is measured against.
 
 ### T3 — NuGet dependency refresh and compile fixes
 
@@ -326,6 +391,30 @@ NetArchTest), `HotshotLogistics.Tests.Utils.Infrastructure.ExceptionHandlingMidd
   stay green; no `NoWarn`/suppression additions without a recorded reason
   (Directory.Build.props owns analyzer policy).
 
+#### Worker contract
+
+- Work in the run worktree named by the dispatch's {worktree} slot; prior task
+  results arrive in the {prior_results} slot. Do not open the plan, the
+  specification, or the todo files, or any file under the plan index — this task
+  text is the whole brief.
+- Discovery: ask CodeGraph first from the worktree shell, then the repository
+  documentation tools, then read files directly only for what those do not cover,
+  naming the reason for each direct read of indexed code. The repository AGENTS.md
+  rules apply: no secrets anywhere in the tree, and the Clean Architecture
+  boundaries stay intact.
+- Commit: stage only the files this task names, commit on the run branch with the
+  trailer line "Task: T3" and the line "Co-authored-by: factory-droid[bot]
+  <138933559+factory-droid[bot]@users.noreply.github.com>", and do not push.
+- Task gate: run the deterministic task-gate over the files this task changed and
+  report the result; when the repository declares no gates for this host, report
+  that fact rather than omitting the line.
+- Completion report: the discovery header, then the six digest fields (STATUS,
+  FILES, TESTS, COMMIT, REMOTE_HEAD, TASK_GATE), then the two marker lines
+  "RESULT: PASS" or "RESULT: FAIL" and "RED_EVIDENCE:" carrying the failing test
+  name and reason for the RED task and the word "none" for every other task. The
+  RESULT line records the task as complete for the run's ledger; the RED_EVIDENCE
+  line records the failing run the cutover task is measured against.
+
 ### T4 — CI .NET SDK pin and migration path literal
 
 - **Objective:** Move the CI .NET SDK pin to 10.x (D5) and the deploy migration
@@ -352,6 +441,30 @@ NetArchTest), `HotshotLogistics.Tests.Utils.Infrastructure.ExceptionHandlingMidd
   path literal reads `net10.0`; the workflow diff contains nothing but the three
   SDK-pin lines and the single path literal; CI runs green on the PR.
 
+#### Worker contract
+
+- Work in the run worktree named by the dispatch's {worktree} slot; prior task
+  results arrive in the {prior_results} slot. Do not open the plan, the
+  specification, or the todo files, or any file under the plan index — this task
+  text is the whole brief.
+- Discovery: ask CodeGraph first from the worktree shell, then the repository
+  documentation tools, then read files directly only for what those do not cover,
+  naming the reason for each direct read of indexed code. The repository AGENTS.md
+  rules apply: no secrets anywhere in the tree, and the Clean Architecture
+  boundaries stay intact.
+- Commit: stage only the files this task names, commit on the run branch with the
+  trailer line "Task: T4" and the line "Co-authored-by: factory-droid[bot]
+  <138933559+factory-droid[bot]@users.noreply.github.com>", and do not push.
+- Task gate: run the deterministic task-gate over the files this task changed and
+  report the result; when the repository declares no gates for this host, report
+  that fact rather than omitting the line.
+- Completion report: the discovery header, then the six digest fields (STATUS,
+  FILES, TESTS, COMMIT, REMOTE_HEAD, TASK_GATE), then the two marker lines
+  "RESULT: PASS" or "RESULT: FAIL" and "RED_EVIDENCE:" carrying the failing test
+  name and reason for the RED task and the word "none" for every other task. The
+  RESULT line records the task as complete for the run's ledger; the RED_EVIDENCE
+  line records the failing run the cutover task is measured against.
+
 ### T5 — admin-dashboard npm refresh
 
 - **Objective:** Upgrade dashboard dependencies per D1/D3: majors included
@@ -373,6 +486,30 @@ NetArchTest), `HotshotLogistics.Tests.Utils.Infrastructure.ExceptionHandlingMidd
 - **Acceptance:** install, lint, and build clean on the upgraded versions;
   Playwright run recorded or its unavailability documented.
 
+#### Worker contract
+
+- Work in the run worktree named by the dispatch's {worktree} slot; prior task
+  results arrive in the {prior_results} slot. Do not open the plan, the
+  specification, or the todo files, or any file under the plan index — this task
+  text is the whole brief.
+- Discovery: ask CodeGraph first from the worktree shell, then the repository
+  documentation tools, then read files directly only for what those do not cover,
+  naming the reason for each direct read of indexed code. The repository AGENTS.md
+  rules apply: no secrets anywhere in the tree, and the Clean Architecture
+  boundaries stay intact.
+- Commit: stage only the files this task names, commit on the run branch with the
+  trailer line "Task: T5" and the line "Co-authored-by: factory-droid[bot]
+  <138933559+factory-droid[bot]@users.noreply.github.com>", and do not push.
+- Task gate: run the deterministic task-gate over the files this task changed and
+  report the result; when the repository declares no gates for this host, report
+  that fact rather than omitting the line.
+- Completion report: the discovery header, then the six digest fields (STATUS,
+  FILES, TESTS, COMMIT, REMOTE_HEAD, TASK_GATE), then the two marker lines
+  "RESULT: PASS" or "RESULT: FAIL" and "RED_EVIDENCE:" carrying the failing test
+  name and reason for the RED task and the word "none" for every other task. The
+  RESULT line records the task as complete for the run's ledger; the RED_EVIDENCE
+  line records the failing run the cutover task is measured against.
+
 ### T7 — Documentation closeout
 
 - **Objective:** Update every documented stack fact per the Design harvest table so
@@ -391,6 +528,30 @@ NetArchTest), `HotshotLogistics.Tests.Utils.Infrastructure.ExceptionHandlingMidd
 - **Acceptance:** all harvest rows updated; docs validate and drift pass for the
   touched documents; `technology-stack.md` states .NET 10 and the new frontend
   versions.
+
+#### Worker contract
+
+- Work in the run worktree named by the dispatch's {worktree} slot; prior task
+  results arrive in the {prior_results} slot. Do not open the plan, the
+  specification, or the todo files, or any file under the plan index — this task
+  text is the whole brief.
+- Discovery: ask CodeGraph first from the worktree shell, then the repository
+  documentation tools, then read files directly only for what those do not cover,
+  naming the reason for each direct read of indexed code. The repository AGENTS.md
+  rules apply: no secrets anywhere in the tree, and the Clean Architecture
+  boundaries stay intact.
+- Commit: stage only the files this task names, commit on the run branch with the
+  trailer line "Task: T7" and the line "Co-authored-by: factory-droid[bot]
+  <138933559+factory-droid[bot]@users.noreply.github.com>", and do not push.
+- Task gate: run the deterministic task-gate over the files this task changed and
+  report the result; when the repository declares no gates for this host, report
+  that fact rather than omitting the line.
+- Completion report: the discovery header, then the six digest fields (STATUS,
+  FILES, TESTS, COMMIT, REMOTE_HEAD, TASK_GATE), then the two marker lines
+  "RESULT: PASS" or "RESULT: FAIL" and "RED_EVIDENCE:" carrying the failing test
+  name and reason for the RED task and the word "none" for every other task. The
+  RESULT line records the task as complete for the run's ledger; the RED_EVIDENCE
+  line records the failing run the cutover task is measured against.
 
 ### T8 — Clear the pre-existing documentation validation findings
 
@@ -425,6 +586,30 @@ NetArchTest), `HotshotLogistics.Tests.Utils.Infrastructure.ExceptionHandlingMidd
   closeout archives the plan; drift stays at 0 findings; the frontmatter is
   ontology-conformant and the todo inventory resolution (link or archive) is
   recorded.
+
+#### Worker contract
+
+- Work in the run worktree named by the dispatch's {worktree} slot; prior task
+  results arrive in the {prior_results} slot. Do not open the plan, the
+  specification, or the todo files, or any file under the plan index — this task
+  text is the whole brief.
+- Discovery: ask CodeGraph first from the worktree shell, then the repository
+  documentation tools, then read files directly only for what those do not cover,
+  naming the reason for each direct read of indexed code. The repository AGENTS.md
+  rules apply: no secrets anywhere in the tree, and the Clean Architecture
+  boundaries stay intact.
+- Commit: stage only the files this task names, commit on the run branch with the
+  trailer line "Task: T8" and the line "Co-authored-by: factory-droid[bot]
+  <138933559+factory-droid[bot]@users.noreply.github.com>", and do not push.
+- Task gate: run the deterministic task-gate over the files this task changed and
+  report the result; when the repository declares no gates for this host, report
+  that fact rather than omitting the line.
+- Completion report: the discovery header, then the six digest fields (STATUS,
+  FILES, TESTS, COMMIT, REMOTE_HEAD, TASK_GATE), then the two marker lines
+  "RESULT: PASS" or "RESULT: FAIL" and "RED_EVIDENCE:" carrying the failing test
+  name and reason for the RED task and the word "none" for every other task. The
+  RESULT line records the task as complete for the run's ledger; the RED_EVIDENCE
+  line records the failing run the cutover task is measured against.
 
 ## Dependency graph
 
