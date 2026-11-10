@@ -4,7 +4,7 @@ title: Plans
 doc-type: index
 status: draft
 owner: 'unassigned'
-last-reviewed: 2026-10-20
+last-reviewed: 2026-11-09
 ---
 
 # Plans
@@ -13,13 +13,15 @@ Sequenced implementation work: what will be done, in what order, and how it will
 verified. A plan is a record of intent rather than current guidance — retrieval
 demotes it accordingly, and it is archived once closed.
 
-**No active plan remains.** Every plan below has been delivered, verified against the
-implemented behavior and its canonical documentation, and archived. `Archived` plans are
+**One active plan.** The plan listed as `Ready` below is approved for execution; every other plan
+here has been delivered, verified against the implemented behavior and its canonical
+documentation, and archived. `Archived` plans are
 historical records, not implementation authority; open a plan only when it is listed here
 as `Draft`, `Ready`, `In progress`, or `Blocked`.
 
 | Plan | Status | Goal | Implementation reference | Archive date |
 |---|---|---|---|---|
+| [.NET 10 upgrade and dependency refresh](dotnet-10-upgrade.md) | Ready | Upgrade all 12 projects from `net8.0` to `net10.0` with .NET 10 SDK pinning (`global.json` + the CI SDK pin), refresh the application's NuGet and npm dependencies per its decision ledger, and update the documented stack facts. | — | — |
 | [Deployment and CLI architecture documentation](../archive/plans/devops-deployment-architecture-documentation.md) | Archived | Author `6-Docs/devops/` deployment + DbSetup CLI documentation; reconcile `6-Docs/dbsetup/`; record known drift | [`6-Docs/devops/README.md`](../devops/README.md) · [`deployment-architecture.md`](../devops/deployment-architecture.md) (drift register DR1–DR6) · [`ci-cd-pipelines.md`](../devops/ci-cd-pipelines.md) · [`terraform-modules.md`](../devops/terraform-modules.md) · [`6-Docs/dbsetup/architecture.md`](../dbsetup/architecture.md) · [`6-Docs/dbsetup/onboarding.md`](../dbsetup/onboarding.md) · [`6-Docs/technology-stack.md`](../technology-stack.md) · [`6-Docs/README.md`](../README.md) | 2026-10-20 |
 | [Deployment drift register and residual-claim remediation](../archive/plans/devops-drift-remediation.md) | Archived | Amend the canonical drift register (DR1–DR2 file lists + DR7–DR15) and correct residual false claims across `6-Docs/` and component READMEs | [`6-Docs/devops/deployment-architecture.md`](../devops/deployment-architecture.md) (canonical drift register DR1–DR15) · [`ci-cd-pipelines.md`](../devops/ci-cd-pipelines.md) · [`terraform-modules.md`](../devops/terraform-modules.md) · [`6-Docs/devops/README.md`](../devops/README.md) · [`6-Docs/technology-stack.md`](../technology-stack.md) · [`6-Docs/catalog.md`](../catalog.md) · [`6-Docs/api/architecture.md`](../api/architecture.md) · [`6-Docs/api/onboarding.md`](../api/onboarding.md) · [`6-Docs/project-overview.md`](../project-overview.md) · [`6-Docs/rules/scripts.md`](../rules/scripts.md) · [`6-Docs/rules/file-organization.md`](../rules/file-organization.md) · [`7-Deployment/DbSetup/README.md`](../../7-Deployment/DbSetup/README.md) · [`1-Presentation/HotshotLogistics.Api/README.md`](../../1-Presentation/HotshotLogistics.Api/README.md) · root [`README.md`](../../README.md) | 2026-10-20 |
 
