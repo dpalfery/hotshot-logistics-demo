@@ -44,7 +44,7 @@ namespace HotshotLogistics.Tests.Communication
                     LogLevel.Information,
                     It.IsAny<EventId>(),
                     It.Is<It.IsAnyType>((v, t) =>
-                        v.ToString()!.Contains($"Job status update broadcast for job {jobId}")),
+                        v!.ToString()!.Contains($"Job status update broadcast for job {jobId}")),
                     It.IsAny<Exception>(),
                     It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
                 Times.Once);
@@ -77,7 +77,7 @@ namespace HotshotLogistics.Tests.Communication
                 x => x.Log(
                     LogLevel.Debug,
                     It.IsAny<EventId>(),
-                    It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains($"Location update broadcast for job {jobId}")),
+                    It.Is<It.IsAnyType>((v, t) => v!.ToString()!.Contains($"Location update broadcast for job {jobId}")),
                     It.IsAny<Exception>(),
                     It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
                 Times.Once);
@@ -105,7 +105,7 @@ namespace HotshotLogistics.Tests.Communication
                     LogLevel.Information,
                     It.IsAny<EventId>(),
                     It.Is<It.IsAnyType>((v, t) =>
-                        v.ToString()!.Contains($"Driver status update broadcast for driver {driverId}")),
+                        v!.ToString()!.Contains($"Driver status update broadcast for driver {driverId}")),
                     It.IsAny<Exception>(),
                     It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
                 Times.Once);
@@ -136,7 +136,7 @@ namespace HotshotLogistics.Tests.Communication
                     LogLevel.Information,
                     It.IsAny<EventId>(),
                     It.Is<It.IsAnyType>((v, t) =>
-                        v.ToString()!.Contains($"New job availability broadcast for job {job.Id}")),
+                        v!.ToString()!.Contains($"New job availability broadcast for job {job.Id}")),
                     It.IsAny<Exception>(),
                     It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
                 Times.Once);
@@ -169,7 +169,7 @@ namespace HotshotLogistics.Tests.Communication
                     LogLevel.Information,
                     It.IsAny<EventId>(),
                     It.Is<It.IsAnyType>((v, t) =>
-                        v.ToString()!.Contains($"Notification sent to user {message.UserId}")),
+                        v!.ToString()!.Contains($"Notification sent to user {message.UserId}")),
                     It.IsAny<Exception>(),
                     It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
                 Times.Once);
@@ -200,7 +200,7 @@ namespace HotshotLogistics.Tests.Communication
                 x => x.Log(
                     LogLevel.Information,
                     It.IsAny<EventId>(),
-                    It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("Notification broadcast to all users")),
+                    It.Is<It.IsAnyType>((v, t) => v!.ToString()!.Contains("Notification broadcast to all users")),
                     It.IsAny<Exception>(),
                     It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
                 Times.Once);
@@ -226,7 +226,7 @@ namespace HotshotLogistics.Tests.Communication
                     LogLevel.Information,
                     It.IsAny<EventId>(),
                     It.Is<It.IsAnyType>((v, t) =>
-                        v.ToString()!.Contains($"Message sent to group {groupName} via method {method}")),
+                        v!.ToString()!.Contains($"Message sent to group {groupName} via method {method}")),
                     It.IsAny<Exception>(),
                     It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
                 Times.Once);
@@ -252,7 +252,7 @@ namespace HotshotLogistics.Tests.Communication
                     LogLevel.Information,
                     It.IsAny<EventId>(),
                     It.Is<It.IsAnyType>((v, t) =>
-                        v.ToString()!.Contains($"Message sent to user {userId} via method {method}")),
+                        v!.ToString()!.Contains($"Message sent to user {userId} via method {method}")),
                     It.IsAny<Exception>(),
                     It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
                 Times.Once);
@@ -281,7 +281,7 @@ namespace HotshotLogistics.Tests.Communication
                     LogLevel.Error,
                     It.IsAny<EventId>(),
                     It.Is<It.IsAnyType>((v, t) =>
-                        v.ToString()!.Contains($"Error broadcasting job status update for job {jobId}")),
+                        v!.ToString()!.Contains($"Error broadcasting job status update for job {jobId}")),
                     expectedException,
                     It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
                 Times.Once);
@@ -303,7 +303,7 @@ namespace HotshotLogistics.Tests.Communication
                     LogLevel.Information,
                     It.IsAny<EventId>(),
                     It.Is<It.IsAnyType>((v, t) =>
-                        v.ToString()!.Contains($"Request to add user {userId} to group {groupName}")),
+                        v!.ToString()!.Contains($"Request to add user {userId} to group {groupName}")),
                     It.IsAny<Exception>(),
                     It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
                 Times.Once);
@@ -325,7 +325,7 @@ namespace HotshotLogistics.Tests.Communication
                     LogLevel.Information,
                     It.IsAny<EventId>(),
                     It.Is<It.IsAnyType>((v, t) =>
-                        v.ToString()!.Contains($"Request to remove user {userId} from group {groupName}")),
+                        v!.ToString()!.Contains($"Request to remove user {userId} from group {groupName}")),
                     It.IsAny<Exception>(),
                     It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
                 Times.Once);

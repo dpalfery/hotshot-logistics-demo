@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Moq;
 
@@ -204,14 +205,20 @@ namespace HotshotLogistics.Tests.Utils.Infrastructure
         private async Task<HttpResponseMessage> ExecuteMiddlewareTestAsync(Exception exception,
             string? correlationId = null)
         {
-            TestServer server = new(new WebHostBuilder()
-                .ConfigureServices(services => { services.AddSingleton(_mockLogger.Object); })
-                .Configure(app =>
-                {
-                    app.UseExceptionHandling();
-                    app.Run(_ => throw exception);
-                }));
+            using IHost host = new HostBuilder()
+                .ConfigureWebHost(webBuilder => webBuilder
+                    .UseTestServer()
+                    .ConfigureServices(services => { services.AddSingleton(_mockLogger.Object); })
+                    .Configure(app =>
+                    {
+                        app.UseExceptionHandling();
+                        app.Run(_ => throw exception);
+                    }))
+                .Build();
 
+            await host.StartAsync();
+
+            TestServer server = host.GetTestServer();
             HttpClient client = server.CreateClient();
 
             HttpRequestMessage request = new(HttpMethod.Get, "/test");
