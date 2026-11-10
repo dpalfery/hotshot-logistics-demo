@@ -10,7 +10,17 @@ ontology:
   # Technologies this repository declares a coding standard for. Adding one and
   # re-running 'docs init' creates 6-Docs/standards/<technology>/, publishes its
   # registry property, and legalizes that value in the standard's 'technology' key.
-  technologies: []
+  technologies:
+    - azure
+    - csharp
+    - data-access-layer
+    - github-actions
+    - maui
+    - pulumi
+    - python
+    - react
+    - sql
+    - test
 
 mcp:
   # The MCP servers this repository's agent instructions rely on. `docs init` wires these

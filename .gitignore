@@ -38,6 +38,9 @@ agent-scratchpad/
 .agent_scratchpad/
 .agent_scratchpad
 
+# CodeGraph index (local to each machine; must not be tracked or worktrees get a hollow .codegraph/)
+.codegraph/
+
 # typescript
 *.tsbuildinfo
 ## Ignore Visual Studio temporary files, build results, and
