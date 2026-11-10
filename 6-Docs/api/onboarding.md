@@ -6,14 +6,14 @@ status: current
 component: Api
 source-root: 1-Presentation/HotshotLogistics.Api
 owner: unassigned
-last-reviewed: 2026-10-20
+last-reviewed: 2026-11-09
 ---
 
 # API onboarding
 
 ## Dependencies
 
-- .NET 8 SDK
+- .NET 10 SDK (`global.json` pins `10.0.403`; `allowPrerelease` is `false`)
 - SQL Server (local, Docker, or remote), provisioned with [DbSetup](../dbsetup/onboarding.md)
 - Solution restore from the repository root: `dotnet restore HotshotLogistics.sln`
 

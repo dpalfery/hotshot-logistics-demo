@@ -6,7 +6,7 @@ status: current
 component: DbSetup
 source-root: 7-Deployment/DbSetup
 owner: unassigned
-last-reviewed: 2026-10-19
+last-reviewed: 2026-11-09
 code-refs:
   - SqlServerProvisioner
   - MigrationInvoker
@@ -16,7 +16,7 @@ code-refs:
 
 ## Overview
 
-DbSetup is a .NET 8 console tool built on `System.CommandLine`. It creates the SQL Server database, login, and application user. It is not a runtime service.
+DbSetup is a .NET 10 console tool (`net10.0`) built on `System.CommandLine`. It creates the SQL Server database, login, and application user. It is not a runtime service.
 
 The tool does **not** apply FluentMigrator migrations today. `MigrationInvoker` is implemented, but `Program.cs` carries a `// TODO` for it and never calls `MigrationInvoker.RunMigrationsAsync`, so the migration path is dead code.
 

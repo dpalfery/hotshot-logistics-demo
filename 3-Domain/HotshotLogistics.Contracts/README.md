@@ -6,7 +6,7 @@ Architecture. The Application and Infrastructure projects reference these
 interfaces so that dependencies flow inward.
 
 ## Tech Stack
-- .NET 8 class library
+- .NET 10 class library
 
 ## Build
 

@@ -26,8 +26,8 @@ instead of mirroring the repository's folder structure.
 | Component | Type | Source root | Overview | Detailed documentation | Owner | Last reviewed | Status |
 |---|---|---|---|---|---|---|---|
 | admin-dashboard | Service | `1-Presentation/admin-dashboard` | Next.js admin UI for jobs, drivers, tracking, and billing. | [architecture](admin-dashboard/architecture.md), [onboarding](admin-dashboard/onboarding.md) | unassigned | 2026-08-14 | current |
-| Api | Service | `1-Presentation/HotshotLogistics.Api` | ASP.NET Core HTTP and SignalR edge for the platform. | [architecture](api/architecture.md), [onboarding](api/onboarding.md) | unassigned | 2026-10-20 | current |
-| DbSetup | Tool | `7-Deployment/DbSetup` | Console tool that provisions the SQL Server database, login, and application user. | [architecture](dbsetup/architecture.md), [onboarding](dbsetup/onboarding.md) | unassigned | 2026-10-19 | current |
+| Api | Service | `1-Presentation/HotshotLogistics.Api` | ASP.NET Core HTTP and SignalR edge for the platform. | [architecture](api/architecture.md), [onboarding](api/onboarding.md) | unassigned | 2026-11-09 | current |
+| DbSetup | Tool | `7-Deployment/DbSetup` | Console tool that provisions the SQL Server database, login, and application user. | [architecture](dbsetup/architecture.md), [onboarding](dbsetup/onboarding.md) | unassigned | 2026-11-09 | current |
 
 ## How the columns are read
 

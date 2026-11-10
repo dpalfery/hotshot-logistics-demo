@@ -6,7 +6,7 @@ fundamental abstractions consumed by the Application and Domain layers.
 
 ## Tech Stack
 
-- .NET 8 class library
+- .NET 10 class library
 
 ## Build
 

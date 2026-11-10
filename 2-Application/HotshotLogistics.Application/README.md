@@ -6,7 +6,7 @@ It implements use cases and orchestrates Domain entities while remaining free
 of any infrastructure concerns.
 
 ## Tech Stack
-- .NET 8 class library
+- .NET 10 class library
 
 ## Build
 

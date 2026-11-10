@@ -8,7 +8,7 @@ This repository is in **active development**. Cataloged runnables are documentat
 
 | Runnable | What it is | Source README |
 | --- | --- | --- |
-| Api | ASP.NET Core Web API (.NET 8), hosting model unresolved (App Service / Function App — see DR2). Native ADO.NET and FluentMigrator; Entity Framework is prohibited. | [HotshotLogistics.Api](1-Presentation/HotshotLogistics.Api/README.md) |
+| Api | ASP.NET Core Web API (.NET 10), hosting model unresolved (App Service / Function App — see DR2). Native ADO.NET and FluentMigrator; Entity Framework is prohibited. | [HotshotLogistics.Api](1-Presentation/HotshotLogistics.Api/README.md) |
 | admin-dashboard | Next.js app for jobs, drivers, customers, tracking, and billing. | [admin-dashboard](1-Presentation/admin-dashboard/README.md) |
 | DbSetup | .NET CLI that provisions SQL Server databases and application accounts for local and CI use. | [DbSetup](7-Deployment/DbSetup/README.md) |
 
@@ -16,7 +16,7 @@ The [component catalog](6-Docs/catalog.md) is the authoritative inventory. Share
 
 ## Onboarding
 
-1. Install the **.NET 8 SDK**, **Node.js** (for the dashboard), and a **SQL Server** instance (local, Docker, or remote).
+1. Install the **.NET 10 SDK** (`global.json` pins `10.0.403`), **Node.js** (for the dashboard), and a **SQL Server** instance (local, Docker, or remote).
 2. Restore and build the solution: `dotnet restore HotshotLogistics.sln` then `dotnet build`.
 3. Provision the database — [DbSetup onboarding](6-Docs/dbsetup/onboarding.md).
 4. Configure and run the API — [API onboarding](6-Docs/api/onboarding.md). Launch URLs are `https://localhost:5001` and `http://localhost:5000`.
