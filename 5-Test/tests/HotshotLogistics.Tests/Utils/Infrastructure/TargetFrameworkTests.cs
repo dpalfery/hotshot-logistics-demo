@@ -108,8 +108,7 @@ namespace HotshotLogistics.Tests.Utils.Infrastructure
             foreach (string projectPath in projectFiles)
             {
                 string? targetFramework = ReadTargetFramework(projectPath);
-                if (targetFramework is null
-                    || !targetFramework.StartsWith(s_net10TargetFrameworkMoniker, StringComparison.Ordinal))
+                if (targetFramework is null || !TargetsOnlyNet10(targetFramework))
                 {
                     violations.Add(
                         $"{Path.GetRelativePath(repositoryRoot, projectPath)}: {targetFramework ?? "<no TargetFramework property>"}");
@@ -117,6 +116,27 @@ namespace HotshotLogistics.Tests.Utils.Infrastructure
             }
 
             violations.Should().BeEmpty("every project in the tree must target .NET 10");
+        }
+
+        /// <summary>
+        ///     Locks the multi-targeting decision the tree-wide fact depends on, including the token
+        ///     order that once slipped through: a project declaring <c>net10.0;net8.0</c> still
+        ///     targets .NET 8, so the guard must report it whichever order the tokens appear in.
+        /// </summary>
+        /// <param name="targetFrameworkMonikers">The declared target framework moniker or monikers.</param>
+        /// <param name="expectedResult">Whether the declaration is .NET 10 only.</param>
+        [Theory]
+        [InlineData("net10.0", true)]
+        [InlineData("net8.0", false)]
+        [InlineData("net8.0;net10.0", false)]
+        [InlineData("net10.0;net8.0", false)]
+        public void TargetsOnlyNet10_WhenGivenTargetFrameworkMonikers_ReturnsExpectedResult(
+            string targetFrameworkMonikers,
+            bool expectedResult)
+        {
+            bool actualResult = TargetsOnlyNet10(targetFrameworkMonikers);
+
+            actualResult.Should().Be(expectedResult);
         }
 
         private static void AssertTargetsNet10(Assembly assembly)
@@ -167,6 +187,27 @@ namespace HotshotLogistics.Tests.Utils.Infrastructure
 
             Match singular = Regex.Match(projectContent, @"<TargetFramework>([^<]+)</TargetFramework>");
             return singular.Success ? singular.Groups[1].Value.Trim() : null;
+        }
+
+        /// <summary>
+        ///     Reports whether every target framework moniker a project declares is .NET 10.
+        ///     <para>
+        ///         A project that uses <c>TargetFrameworks</c> declares a semicolon-separated set, and
+        ///         every token in that set has to be .NET 10. Comparing only the leading token would
+        ///         let <c>net10.0;net8.0</c> through even though the project still targets .NET 8.
+        ///     </para>
+        /// </summary>
+        /// <param name="targetFrameworkMonikers">One moniker, or a semicolon-separated set of them.</param>
+        /// <returns><see langword="true" /> when at least one moniker is declared and all of them are .NET 10.</returns>
+        private static bool TargetsOnlyNet10(string targetFrameworkMonikers)
+        {
+            string[] monikers = targetFrameworkMonikers.Split(
+                ';',
+                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+            return monikers.Length > 0
+                   && monikers.All(
+                       moniker => moniker.StartsWith(s_net10TargetFrameworkMoniker, StringComparison.Ordinal));
         }
     }
 }
