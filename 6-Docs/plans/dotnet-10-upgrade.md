@@ -208,6 +208,7 @@ on its branch, and clears at closeout when the plan is archived.
 | D8 | Target framework version. | `net10.0` for every project that targets a framework today (all 12). | The user chose ".net 10 latest" explicitly; not reopened. | ANSWERED — user request, verbatim, relayed by conductor 2026-11-09 |
 | D9 | Does the `net8.0` build-output path literal in `API-deploy.yml`'s migration step move to `net10.0` with the cutover? | (a) Yes: the single `net8.0` path literal in the "Run database migrations" step of `.github/workflows/API-deploy.yml` moves to `net10.0` in the same change as the CI .NET SDK pin. | Mechanical consequence of D8: `API-deploy.yml` runs `dotnet fm migrate -a 4-Persistence/HotshotLogistics.Data/bin/Release/net8.0/HotshotLogistics.Data.dll`, and the `net8.0` build output ceases to exist after the cutover, so the step would otherwise fail with file-not-found. This is the only `.github/workflows` edit beyond the .NET SDK pins already covered by D5. The pinned `dotnet fm` CLI version (3.4.0) is unchanged and therefore may not load net10.0 migration assemblies at deploy time — an accepted, diagnosable out-of-scope consequence kept in Risk 5. | ANSWERED — User decision 2026-11-09 |
 | D10 | Approve and execute this plan as presented? | Approved. Execute as presented. | The approve-and-execute gate stated: all 12 projects move from `net8.0` to `net10.0`; `global.json` pins SDK 10.0.403; NuGet and dashboard npm dependencies go to latest stable with major versions included; the CI .NET SDK pin moves to 10.x plus the single deploy path literal; the documentation updates and the two pre-existing documentation findings are cleared; declared scale `documentation-impact: extends-component` with no new component; impact components `Api`, `DbSetup`, `admin-dashboard`; development mode test-first; no infrastructure is created or applied, and no secret enters the repository. User's answer, verbatim: "Approve and execute". | ANSWERED — Approved by user 2026-11-09 |
+| D11 | Wording correction to T8's `Depends on` bullet for the Arbiter's parser? | Corrected: the bullet now reads "…and this task's validation-clean check runs against T7's finished edits", naming only T7. | Changes one sentence's wording in T8's `Depends on` bullet and nothing else: T8's dependency (T7), file scope, acceptance criteria, the task graph, the declared scale (`extends-component`), the development mode (test-first) and every other task are untouched, and T2's file-scope label stays as it is (the Arbiter's "lists no files" report for T2 is a warning that only skips that task's file-scope check, not a defect). Reason: the Arbiter's parser reads the dependency ids appearing in the task text, so a task naming itself in its own section parsed as depending on itself (`T7, T8`) and could never satisfy the readiness gate. The correction preserves exactly what was approved. | ANSWERED — Approved by user 2026-11-09 (the approve-and-execute approval covers the plan's meaning; this correction preserves it) |
 
 ## Design harvest
 
@@ -401,8 +402,8 @@ NetArchTest), `HotshotLogistics.Tests.Utils.Infrastructure.ExceptionHandlingMidd
 - **Session:** `docs-findings`
 - **Skills:** `kyber-docs-authoring`, `app-docs-standard`
 - **Depends on:** T7 — both tasks are broad `6-Docs/` edits, so they are serialized
-  to keep their file scopes from overlapping, and T8's validation-clean check runs
-  against T7's finished edits.
+  to keep their file scopes from overlapping, and this task's validation-clean
+  check runs against T7's finished edits.
 - **Files:**
   - `6-Docs/admin-dashboard/AZURE_AD_SETUP.md` — add the YAML frontmatter block the
     ontology requires for its document type (`6-Docs/documentation-ontology.md`),
