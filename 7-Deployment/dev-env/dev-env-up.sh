@@ -5,7 +5,11 @@
 # application connection string lives in .NET user secrets (ConnectionStrings:DefaultConnection),
 # which every git worktree of this repo shares.
 #
-# Exit codes: 0 ready | 2 Docker unavailable | 3 SQL Server not ready in time
+# Safe to run from several processes at once (parallel agent worktrees): callers queue on a lock, so the
+# provisioning and `dotnet run` builds below never overlap. A lock whose holder died, or is over 15
+# minutes old, is taken over.
+#
+# Exit codes: 0 ready | 2 Docker unavailable | 3 SQL Server not ready in time (or lock wait expired)
 #             4 provisioning or migration failed | 5 configuration problem
 set -euo pipefail
 
@@ -24,6 +28,27 @@ SA_FILE="$SECRET_DIR/sa-password"
 log() { printf '[dev-env-up] %s\n' "$*"; }
 die() { local code="$1"; shift; printf '[dev-env-up] ERROR: %s\n' "$*" >&2; exit "$code"; }
 START=$SECONDS
+
+# 0. Serialise concurrent callers (mkdir is atomic; flock is not on macOS).
+LOCK_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/hotshot-logistics/dev-env-up.lock"
+LOCK_WAIT="${DEV_ENV_LOCK_WAIT_SECONDS:-600}"
+mkdir -p "$(dirname "$LOCK_DIR")"
+waited=0
+until mkdir "$LOCK_DIR" 2>/dev/null; do
+  holder="$(cat "$LOCK_DIR/pid" 2>/dev/null || true)"
+  if [[ -n "$holder" ]] && ! kill -0 "$holder" 2>/dev/null; then
+    rm -rf "$LOCK_DIR"; continue
+  fi
+  if [[ -n "$(find "$LOCK_DIR" -maxdepth 0 -mmin +15 2>/dev/null)" ]]; then
+    rm -rf "$LOCK_DIR"; continue
+  fi
+  ((waited == 0)) && log "another dev-env-up is running (pid ${holder:-?}); waiting"
+  ((waited >= LOCK_WAIT)) && die 3 "dev-env-up lock still held after ${LOCK_WAIT}s ($LOCK_DIR)"
+  sleep 2
+  waited=$((waited + 2))
+done
+printf '%s' "$$" >"$LOCK_DIR/pid"
+trap 'rm -rf "$LOCK_DIR"' EXIT
 
 # 1. Docker daemon (start Docker Desktop on macOS), bounded.
 if ! docker info >/dev/null 2>&1; then

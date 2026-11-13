@@ -124,10 +124,30 @@ review:
       blocking: true
       timeout-seconds: 300
 
-  # Per-task gates: what each developer role runs on its own change. Builds go under a per-task
-  # artifacts directory so parallel agents do not share one obj/ tree. `{tests}` expands to the
-  # test classes covering the change (`<Stem>Tests` naming convention); a change no class covers
-  # skips the gate (KW-REVIEW-026) instead of passing.
+  # Test classes the `<Stem>Tests` naming convention does not find: a controller is also covered by its
+  # HTTP-level IntegrationTests class (a different project from its unit-test class).
+  test-map:
+    "1-Presentation/HotshotLogistics.Api/Controllers/BillingController.cs": [HotshotLogistics.IntegrationTests.BillingControllerIntegrationTests]
+    "1-Presentation/HotshotLogistics.Api/Controllers/CustomerController.cs": [HotshotLogistics.IntegrationTests.CustomerControllerIntegrationTests]
+    "1-Presentation/HotshotLogistics.Api/Controllers/DriversController.cs": [HotshotLogistics.IntegrationTests.DriversControllerIntegrationTests]
+    "1-Presentation/HotshotLogistics.Api/Controllers/JobAssignmentsController.cs": [HotshotLogistics.IntegrationTests.JobAssignmentsControllerIntegrationTests]
+    "1-Presentation/HotshotLogistics.Api/Controllers/JobController.cs": [HotshotLogistics.IntegrationTests.JobControllerIntegrationTests]
+    "1-Presentation/HotshotLogistics.Api/Controllers/TrackingController.cs": [HotshotLogistics.IntegrationTests.TrackingControllerIntegrationTests]
+
+  # Per-task gates: what each developer runs on its own change. One developer writes the tests, runs the
+  # gate in failing-run mode (`--red`), implements, then runs it again, so every role that writes code
+  # needs a build and the tests its change covers, in whichever test project they live.
+  # Builds go under a per-task artifacts directory so parallel agents do not share one obj/ tree.
+  #   `tests`: `{tests}` expands to the classes covering the change (`review.test-map`, then the
+  #   `<Stem>Tests` convention, and a changed test file's own class). A change no class covers is skipped
+  #   (KW-REVIEW-026), never run with a filter that matches nothing. 5-Test/run-task-tests.sh then runs
+  #   those classes in each test project that declares one (HotshotLogistics.Tests, .IntegrationTests,
+  #   .Api.Tests, .DbSetup.Tests, and any project added later), starts SQL Server first for the DB-backed
+  #   ones (dev-env-up.sh takes a lock, so parallel workers queue instead of racing), and fails with exit 8
+  #   if no project ran a test. It runs after `dotnet-build` and rebuilds incrementally into the same
+  #   artifacts path (not `--no-build`), so a failing run's missing-symbol errors reach the test gate too.
+  #   `dashboard-e2e`: 1-Presentation/admin-dashboard/scripts/task-e2e.sh runs the changed Playwright specs
+  #   and the specs covering a changed component by naming convention (chromium only).
   task-gates:
     csharp-dev:
       - &task-build
@@ -138,21 +158,20 @@ review:
       - &task-tests
         id: tests
         include: ["**/*.cs"]
-        run: [dotnet, test, 5-Test/tests/HotshotLogistics.Tests/HotshotLogistics.Tests.csproj, -c, Release, --no-build, --filter, "{tests}", --artifacts-path, ".agent_scratchpad/{task}/artifacts"]
-        timeout: 300
+        run: [bash, 5-Test/run-task-tests.sh, "{tests}", ".agent_scratchpad/{task}/artifacts"]
+        timeout: 600
     dal-dev:
       - *task-build
+      - *task-tests
     test-dev:
       - *task-build
       - *task-tests
       - &task-e2e
         id: dashboard-e2e
-        include: ["1-Presentation/admin-dashboard/tests/**/*.spec.ts"]
-        # Runs only the spec files the task changed ("$@" is the expanded {changed}; Playwright reads
-        # each as a filter on the full path, so the repository-relative form works), chromium only.
-        # No working-directory: the schema refuses it together with {changed}.
-        run: [sh, -c, "cd 1-Presentation/admin-dashboard && (test -d node_modules || npm ci --no-audit --no-fund) && npx --no-install playwright install chromium && npx --no-install playwright test --project=chromium \"$@\"", sh, "{changed}"]
-        timeout: 300
+        include: ["1-Presentation/admin-dashboard/src/**", "1-Presentation/admin-dashboard/tests/**", "1-Presentation/admin-dashboard/playwright.config.ts"]
+        # "$@" is the expanded {changed}. No working-directory: the schema refuses it together with {changed}.
+        run: [bash, 1-Presentation/admin-dashboard/scripts/task-e2e.sh, "{changed}"]
+        timeout: 420
     react-dev:
       - &task-lint
         id: dashboard-lint
@@ -162,17 +181,23 @@ review:
       - &task-typecheck
         id: dashboard-typecheck
         include: ["1-Presentation/admin-dashboard/**"]
-        run: [sh, -c, "cd 1-Presentation/admin-dashboard && (test -d node_modules || npm ci --no-audit --no-fund) && npx --no-install tsc --noEmit"]
+        # tsc runs from the repository root so its diagnostics name repository-relative paths, which is how
+        # a failing run (--red) tells a missing symbol in the task's own test from any other error.
+        run: [sh, -c, "(test -d 1-Presentation/admin-dashboard/node_modules || (cd 1-Presentation/admin-dashboard && npm ci --no-audit --no-fund)) && 1-Presentation/admin-dashboard/node_modules/.bin/tsc --noEmit --pretty false -p 1-Presentation/admin-dashboard"]
         timeout: 300
       - &task-build-dashboard
         id: dashboard-build
         include: ["1-Presentation/admin-dashboard/**"]
-        run: [sh, -c, "cd 1-Presentation/admin-dashboard && (test -d node_modules || npm ci --no-audit --no-fund) && npm run build"]
+        # tsc runs first, from the repository root, so a type error is reported as the clean
+        # repository-relative diagnostic a failing run (--red) reads; next build's own output wraps
+        # that line in progress text the classifier cannot attribute to the task's files.
+        run: [sh, -c, "(test -d 1-Presentation/admin-dashboard/node_modules || (cd 1-Presentation/admin-dashboard && npm ci --no-audit --no-fund)) && 1-Presentation/admin-dashboard/node_modules/.bin/tsc --noEmit --pretty false -p 1-Presentation/admin-dashboard && cd 1-Presentation/admin-dashboard && npm run build"]
         timeout: 300
       - *task-e2e
     typescript-dev:
       - *task-lint
       - *task-typecheck
       - *task-build-dashboard
+      - *task-e2e
 
 onboarding: done
