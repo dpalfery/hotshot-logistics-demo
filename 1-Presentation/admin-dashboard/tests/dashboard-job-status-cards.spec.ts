@@ -181,6 +181,9 @@ test.describe('Dashboard Job Status Cards', () => {
 
     const cards = page.locator('[data-testid="job-status-card"]');
     await expect(cards).toHaveCount(4);
-    await expect(cards).toContainText('—');
+
+    for (let i = 0; i < 4; i++) {
+      await expect(cards.nth(i)).toContainText('—');
+    }
   });
 });
