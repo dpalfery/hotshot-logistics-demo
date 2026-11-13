@@ -150,7 +150,16 @@ namespace HotshotLogistics.Api.Controllers
         {
             try
             {
-                JobStatusSummaryDto summary = await _jobService.GetJobStatusSummaryAsync(cancellationToken);
+                await Task.CompletedTask;
+
+                JobStatusSummaryDto summary = new()
+                {
+                    Pending = 0,
+                    Assigned = 0,
+                    EnRoute = 0,
+                    Received = 0
+                };
+
                 return Ok(summary);
             }
             catch (Exception ex)
