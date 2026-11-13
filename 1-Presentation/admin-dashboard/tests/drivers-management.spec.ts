@@ -15,10 +15,10 @@ test.describe('Driver Management', () => {
 
     test('should display drivers table with proper columns', async ({ page }) => {
       // Check table headers
-      await expect(page.getByText('Driver')).toBeVisible();
-      await expect(page.getByText('Contact')).toBeVisible();
-      await expect(page.getByText('License')).toBeVisible();
-      await expect(page.getByText('Status')).toBeVisible();
+      await expect(page.getByRole('columnheader', { name: 'Driver' })).toBeVisible();
+      await expect(page.getByRole('columnheader', { name: 'Contact' })).toBeVisible();
+      await expect(page.getByRole('columnheader', { name: 'License' })).toBeVisible();
+      await expect(page.getByRole('columnheader', { name: 'Status' })).toBeVisible();
     });
 
     test('should display driver information correctly', async ({ page }) => {
@@ -107,12 +107,12 @@ test.describe('Driver Management', () => {
       await page.reload();
 
       // Check active status styling
-      const activeStatus = page.locator('text=Active').first();
+      const activeStatus = page.getByText('Active', { exact: true });
       await expect(activeStatus).toBeVisible();
       await expect(activeStatus).toHaveClass(/bg-green-100.*text-green-800/);
 
       // Check inactive status styling
-      const inactiveStatus = page.locator('text=Inactive').first();
+      const inactiveStatus = page.getByText('Inactive', { exact: true });
       await expect(inactiveStatus).toBeVisible();
       await expect(inactiveStatus).toHaveClass(/bg-red-100.*text-red-800/);
     });
@@ -150,10 +150,10 @@ test.describe('Driver Management', () => {
       await page.reload();
 
       // Verify table structure is still present but no driver rows
-      await expect(page.getByText('Driver')).toBeVisible();
-      await expect(page.getByText('Contact')).toBeVisible();
-      await expect(page.getByText('License')).toBeVisible();
-      await expect(page.getByText('Status')).toBeVisible();
+      await expect(page.getByRole('columnheader', { name: 'Driver' })).toBeVisible();
+      await expect(page.getByRole('columnheader', { name: 'Contact' })).toBeVisible();
+      await expect(page.getByRole('columnheader', { name: 'License' })).toBeVisible();
+      await expect(page.getByRole('columnheader', { name: 'Status' })).toBeVisible();
       
       // Check that no driver data is displayed
       const tableRows = page.locator('tbody tr');
@@ -257,8 +257,8 @@ test.describe('Driver Management', () => {
       await expect(page.getByText('Soon Expiring')).toBeVisible();
       
       // Verify dates are formatted correctly
-      const expiredDateFormatted = expiredDate.toLocaleDateString();
-      const soonExpireDateFormatted = soonToExpireDate.toLocaleDateString();
+      const expiredDateFormatted = expiredDate.toLocaleDateString('en-US', { timeZone: 'UTC' }); // matches the pinned browser locale and time zone
+      const soonExpireDateFormatted = soonToExpireDate.toLocaleDateString('en-US', { timeZone: 'UTC' });
       
       await expect(page.getByText(`Expires: ${expiredDateFormatted}`)).toBeVisible();
       await expect(page.getByText(`Expires: ${soonExpireDateFormatted}`)).toBeVisible();
@@ -356,8 +356,8 @@ test.describe('Driver Management', () => {
       await page.reload();
 
       // Verify initial state shows all drivers
-      await expect(page.getByText('Active Driver')).toBeVisible();
-      await expect(page.getByText('Inactive Driver')).toBeVisible();
+      await expect(page.getByText('Active Driver', { exact: true })).toBeVisible();
+      await expect(page.getByText('Inactive Driver', { exact: true })).toBeVisible();
 
       // Check if filter controls exist
       const statusFilter = page.getByRole('combobox', { name: /status|filter/i });
@@ -365,13 +365,13 @@ test.describe('Driver Management', () => {
       if (await statusFilter.isVisible()) {
         // Test filtering by active status
         await statusFilter.selectOption('active');
-        await expect(page.getByText('Active Driver')).toBeVisible();
-        await expect(page.getByText('Inactive Driver')).not.toBeVisible();
+        await expect(page.getByText('Active Driver', { exact: true })).toBeVisible();
+        await expect(page.getByText('Inactive Driver', { exact: true })).not.toBeVisible();
         
         // Test filtering by inactive status
         await statusFilter.selectOption('inactive');
-        await expect(page.getByText('Inactive Driver')).toBeVisible();
-        await expect(page.getByText('Active Driver')).not.toBeVisible();
+        await expect(page.getByText('Inactive Driver', { exact: true })).toBeVisible();
+        await expect(page.getByText('Active Driver', { exact: true })).not.toBeVisible();
       }
     });
 

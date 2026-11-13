@@ -1,6 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // `next dev` otherwise writes an untracked AGENTS.md of generic Next.js agent rules into this
+  // directory on every run.
+  agentRules: false,
+
   // Production HTTPS enforcement
   async headers() {
     return [

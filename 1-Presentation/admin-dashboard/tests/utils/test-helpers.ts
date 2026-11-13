@@ -80,7 +80,7 @@ export class ApiMocker {
   constructor(private page: Page) {}
 
   async mockJobsApi(jobs: MockJob[] = [], totalCount?: number) {
-    await this.page.route('**/api/jobs*', async route => {
+    await this.page.route('**/api/job*', async route => {
       const url = new URL(route.request().url());
       const status = url.searchParams.get('status');
       const search = url.searchParams.get('search');

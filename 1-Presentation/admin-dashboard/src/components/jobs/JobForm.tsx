@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { Job, JobStatus, JobPriority } from '@/types';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 
@@ -41,6 +41,9 @@ export function JobForm({ job, onSubmit, onCancel, isLoading }: JobFormProps) {
         }
   );
 
+  const formId = useId();
+  const fieldId = (name: string) => `${formId}-${name}`;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit(formData);
@@ -57,7 +60,7 @@ export function JobForm({ job, onSubmit, onCancel, isLoading }: JobFormProps) {
           <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
         </div>
 
-        <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+        <div className="relative inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
           <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg leading-6 font-medium text-gray-900">
@@ -71,10 +74,11 @@ export function JobForm({ job, onSubmit, onCancel, isLoading }: JobFormProps) {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form id={formId} onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">Title</label>
+                <label htmlFor={fieldId('title')} className="block text-sm font-medium text-gray-700">Title</label>
                 <input
+                  id={fieldId('title')}
                   type="text"
                   required
                   value={formData.title}
@@ -84,8 +88,9 @@ export function JobForm({ job, onSubmit, onCancel, isLoading }: JobFormProps) {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">Pickup Address</label>
+                <label htmlFor={fieldId('pickupAddress')} className="block text-sm font-medium text-gray-700">Pickup Address</label>
                 <input
+                  id={fieldId('pickupAddress')}
                   type="text"
                   required
                   value={formData.pickupAddress}
@@ -95,8 +100,9 @@ export function JobForm({ job, onSubmit, onCancel, isLoading }: JobFormProps) {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">Dropoff Address</label>
+                <label htmlFor={fieldId('dropoffAddress')} className="block text-sm font-medium text-gray-700">Dropoff Address</label>
                 <input
+                  id={fieldId('dropoffAddress')}
                   type="text"
                   required
                   value={formData.dropoffAddress}
@@ -107,8 +113,9 @@ export function JobForm({ job, onSubmit, onCancel, isLoading }: JobFormProps) {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Amount</label>
+                  <label htmlFor={fieldId('amount')} className="block text-sm font-medium text-gray-700">Amount</label>
                   <input
+                    id={fieldId('amount')}
                     type="number"
                     step="0.01"
                     required
@@ -119,8 +126,9 @@ export function JobForm({ job, onSubmit, onCancel, isLoading }: JobFormProps) {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Priority</label>
+                  <label htmlFor={fieldId('priority')} className="block text-sm font-medium text-gray-700">Priority</label>
                   <select
+                    id={fieldId('priority')}
                     value={formData.priority}
                     onChange={(e) => handleChange('priority', e.target.value as JobPriority)}
                     className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
@@ -134,8 +142,9 @@ export function JobForm({ job, onSubmit, onCancel, isLoading }: JobFormProps) {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">Scheduled Pickup Time</label>
+                <label htmlFor={fieldId('scheduledPickupTime')} className="block text-sm font-medium text-gray-700">Scheduled Pickup Time</label>
                 <input
+                  id={fieldId('scheduledPickupTime')}
                   type="datetime-local"
                   required
                   value={formData.scheduledPickupTime}
@@ -145,8 +154,9 @@ export function JobForm({ job, onSubmit, onCancel, isLoading }: JobFormProps) {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">Customer ID</label>
+                <label htmlFor={fieldId('customerId')} className="block text-sm font-medium text-gray-700">Customer ID</label>
                 <input
+                  id={fieldId('customerId')}
                   type="text"
                   required
                   value={formData.customerId}
@@ -156,8 +166,9 @@ export function JobForm({ job, onSubmit, onCancel, isLoading }: JobFormProps) {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">Special Instructions</label>
+                <label htmlFor={fieldId('specialInstructions')} className="block text-sm font-medium text-gray-700">Special Instructions</label>
                 <textarea
+                  id={fieldId('specialInstructions')}
                   rows={3}
                   value={formData.specialInstructions}
                   onChange={(e) => handleChange('specialInstructions', e.target.value)}
@@ -170,7 +181,7 @@ export function JobForm({ job, onSubmit, onCancel, isLoading }: JobFormProps) {
           <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
             <button
               type="submit"
-              onClick={handleSubmit}
+              form={formId}
               disabled={isLoading}
               className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50"
             >

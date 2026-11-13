@@ -17,3 +17,4 @@ Add one document per todo and list it here.
 | Todo | Status | Component | Summary |
 |---|---|---|---|
 | [Resolve unresolved DashboardOverview issues](admin-dashboard-job-status-unresolved.md) | Open | admin-dashboard | D6 follow-up: SignalR event name mismatch, first-page Active Jobs count, stale `JobStatus` enum in `src/types/index.ts`. |
+| [Admin dashboard Playwright tests marked fixme](admin-dashboard-playwright-baseline.md) | Open | admin-dashboard | Eleven dashboard e2e tests check behaviour the app lacks: overview error/empty states, Quick Actions, live stats, SignalR injection. |

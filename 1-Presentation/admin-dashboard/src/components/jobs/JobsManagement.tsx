@@ -25,7 +25,7 @@ export function JobsManagement() {
   });
 
   const createJobMutation = useMutation({
-    mutationFn: apiService.createJob,
+    mutationFn: (job: Partial<Job>) => apiService.createJob(job),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['jobs'] });
       setShowCreateForm(false);
@@ -157,6 +157,8 @@ export function JobsManagement() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                       <button
                         onClick={() => setEditingJob(job)}
+                        aria-label="Edit job"
+                        data-testid="edit-job-button"
                         className="text-blue-600 hover:text-blue-900"
                       >
                         <PencilIcon className="h-5 w-5" />
@@ -164,6 +166,8 @@ export function JobsManagement() {
                       {job.status === JobStatus.Pending && (
                         <button
                           onClick={() => setAssigningJob(job)}
+                          aria-label="Assign driver"
+                          data-testid="assign-driver-button"
                           className="text-green-600 hover:text-green-900"
                         >
                           <TruckIcon className="h-5 w-5" />

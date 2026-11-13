@@ -68,13 +68,13 @@ test.describe('MSAL Authentication Flow', () => {
     await expect(loginButton).toBeVisible();
   });
 
-  test('should manage and persist authentication state', async ({ page }) => {
+  test('should manage and persist authentication state', async () => {
     // This test would involve mocking a login, then reloading the page
     // and ensuring the user is still authenticated.
     // Placeholder for now.
   });
 
-  test('should handle logout correctly', async ({ page }) => {
+  test('should handle logout correctly', async () => {
     // This test would involve mocking a login, then clicking the logout
     // button and verifying the user is redirected to the login page.
     // Placeholder for now.

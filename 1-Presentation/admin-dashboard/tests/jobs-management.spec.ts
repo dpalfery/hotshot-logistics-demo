@@ -18,11 +18,11 @@ test.describe('Jobs Management', () => {
 
     test('should display jobs table with proper columns', async ({ page }) => {
       // Check table headers
-      await expect(page.getByText('Job Details')).toBeVisible();
-      await expect(page.getByText('Status')).toBeVisible();
-      await expect(page.getByText('Driver')).toBeVisible();
-      await expect(page.getByText('Amount')).toBeVisible();
-      await expect(page.getByText('Actions')).toBeVisible();
+      await expect(page.getByRole('columnheader', { name: 'Job Details' })).toBeVisible();
+      await expect(page.getByRole('columnheader', { name: 'Status' })).toBeVisible();
+      await expect(page.getByRole('columnheader', { name: 'Driver' })).toBeVisible();
+      await expect(page.getByRole('columnheader', { name: 'Amount' })).toBeVisible();
+      await expect(page.getByRole('columnheader', { name: 'Actions' })).toBeVisible();
     });
 
     test('should open job creation form when create button is clicked', async ({ page }) => {
@@ -47,8 +47,8 @@ test.describe('Jobs Management', () => {
       // Open create job form
       await page.getByRole('button', { name: 'Create Job' }).click();
       
-      // Try to submit empty form
-      await page.getByRole('button', { name: 'Create Job' }).click();
+      // Try to submit empty form (the modal's submit button; the page header has a 'Create Job' button too)
+      await page.locator('button[type="submit"]').click();
       
       // Check that form validation prevents submission
       // Note: This assumes HTML5 validation or custom validation
@@ -62,7 +62,7 @@ test.describe('Jobs Management', () => {
 
     test('should create a new job with valid data', async ({ page }) => {
       // Mock API response for job creation
-      await page.route('**/api/jobs', async route => {
+      await page.route('**/api/job', async route => {
         if (route.request().method() === 'POST') {
           await route.fulfill({
             status: 201,
@@ -75,6 +75,13 @@ test.describe('Jobs Management', () => {
               amount: 150.00,
               status: 'Pending'
             })
+          });
+        } else {
+          // The page's jobs list request (initial load and the refetch after creating) must not hang
+          await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({ items: [], totalCount: 0 })
           });
         }
       });
@@ -92,8 +99,8 @@ test.describe('Jobs Management', () => {
       await page.getByLabel('Customer ID').fill('CUST-001');
       await page.getByLabel('Special Instructions').fill('Handle with care');
       
-      // Submit the form
-      await page.getByRole('button', { name: 'Create Job' }).click();
+      // Submit the form (the modal's submit button; the page header has a 'Create Job' button too)
+      await page.locator('button[type="submit"]').click();
       
       // Verify form closes (modal should disappear)
       await expect(page.getByText('Create New Job')).not.toBeVisible();
@@ -112,7 +119,7 @@ test.describe('Jobs Management', () => {
 
     test('should display job status with appropriate styling', async ({ page }) => {
       // Mock jobs data with different statuses
-      await page.route('**/api/jobs*', async route => {
+      await page.route('**/api/job*', async route => {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
@@ -147,8 +154,8 @@ test.describe('Jobs Management', () => {
       await page.reload();
 
       // Check that different statuses have different styling
-      const pendingStatus = page.locator('text=Pending').first();
-      const inProgressStatus = page.locator('text=InProgress').first();
+      const pendingStatus = page.getByText('Pending', { exact: true });
+      const inProgressStatus = page.getByText('InProgress', { exact: true });
       
       await expect(pendingStatus).toBeVisible();
       await expect(inProgressStatus).toBeVisible();
@@ -160,7 +167,7 @@ test.describe('Jobs Management', () => {
 
     test('should open edit job form when edit button is clicked', async ({ page }) => {
       // Mock jobs data
-      await page.route('**/api/jobs*', async route => {
+      await page.route('**/api/job*', async route => {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
@@ -199,7 +206,7 @@ test.describe('Jobs Management', () => {
 
     test('should show assign driver modal for pending jobs', async ({ page }) => {
       // Mock jobs and drivers data
-      await page.route('**/api/jobs*', async route => {
+      await page.route('**/api/job*', async route => {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
@@ -251,7 +258,7 @@ test.describe('Jobs Management', () => {
       
       // Check if assign driver modal opens
       await expect(page.getByText('Assign Driver to Job')).toBeVisible();
-      await expect(page.getByText('Job Details')).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Job Details' })).toBeVisible();
       await expect(page.getByText('Available Drivers')).toBeVisible();
       
       // Check that drivers are listed
@@ -261,7 +268,7 @@ test.describe('Jobs Management', () => {
 
     test('should assign driver to job', async ({ page }) => {
       // Mock initial data
-      await page.route('**/api/jobs*', async route => {
+      await page.route('**/api/job*', async route => {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
@@ -300,7 +307,7 @@ test.describe('Jobs Management', () => {
       });
 
       // Mock driver assignment API
-      await page.route('**/api/jobs/job-1/assign-driver', async route => {
+      await page.route('**/api/job/job-1/assign-driver', async route => {
         if (route.request().method() === 'POST') {
           await route.fulfill({
             status: 200,
@@ -316,7 +323,7 @@ test.describe('Jobs Management', () => {
       await page.locator('[data-testid="assign-driver-button"]').first().click();
       
       // Assign driver
-      await page.getByRole('button', { name: 'Assign' }).first().click();
+      await page.getByRole('button', { name: 'Assign', exact: true }).click();
       
       // Verify modal closes
       await expect(page.getByText('Assign Driver to Job')).not.toBeVisible();
@@ -324,10 +331,9 @@ test.describe('Jobs Management', () => {
 
     test('should filter and sort jobs', async ({ page }) => {
       // Mock jobs data with various statuses and dates
-      await page.route('**/api/jobs*', async route => {
+      await page.route('**/api/job*', async route => {
         const url = new URL(route.request().url());
         const status = url.searchParams.get('status');
-        const sortBy = url.searchParams.get('sortBy');
         
         let items = [
           {
@@ -376,7 +382,7 @@ test.describe('Jobs Management', () => {
 
     test('should handle loading states', async ({ page }) => {
       // Mock slow API response
-      await page.route('**/api/jobs*', async route => {
+      await page.route('**/api/job*', async route => {
         await new Promise(resolve => setTimeout(resolve, 1000));
         await route.fulfill({
           status: 200,
@@ -399,7 +405,7 @@ test.describe('Jobs Management', () => {
 
     test('should handle empty jobs list', async ({ page }) => {
       // Mock empty response
-      await page.route('**/api/jobs*', async route => {
+      await page.route('**/api/job*', async route => {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',

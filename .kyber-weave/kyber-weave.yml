@@ -49,8 +49,8 @@ mcp:
 # classes in HotshotLogistics.Tests) need SQL Server: their gates start it first with
 # 7-Deployment/dev-env/dev-env-up.sh (idempotent; Docker plus the dotnet user secret
 # ConnectionStrings:DefaultConnection, see 6-Docs/dbsetup/onboarding.md). The dashboard's Playwright
-# suite is left out: it starts `next dev`, which writes an untracked AGENTS.md, and 36 of 79
-# chromium tests fail without the API.
+# suite is self-contained: every API call is mocked and its config starts `next dev` over plain http
+# on port 3100, so a fresh worktree needs only `npm ci` and the Playwright browsers.
 review:
   gates:
     - id: dotnet-build
@@ -113,6 +113,16 @@ review:
       working-directory: 1-Presentation/admin-dashboard
       blocking: true
       timeout-seconds: 300
+    # Chromium only: the full three-browser matrix (`npx playwright test`) takes about three times as
+    # long and the mocked tests are not browser-specific. `playwright install` is a no-op once the
+    # browser is cached.
+    - id: dashboard-e2e
+      applies-when:
+        paths: *dashboard-paths
+      run: [sh, -c, "test -d node_modules || npm ci --no-audit --no-fund; npx --no-install playwright install chromium && npx --no-install playwright test --project=chromium"]
+      working-directory: 1-Presentation/admin-dashboard
+      blocking: true
+      timeout-seconds: 300
 
   # Per-task gates: what each developer role runs on its own change. Builds go under a per-task
   # artifacts directory so parallel agents do not share one obj/ tree. `{tests}` expands to the
@@ -135,6 +145,14 @@ review:
     test-dev:
       - *task-build
       - *task-tests
+      - &task-e2e
+        id: dashboard-e2e
+        include: ["1-Presentation/admin-dashboard/tests/**/*.spec.ts"]
+        # Runs only the spec files the task changed ("$@" is the expanded {changed}; Playwright reads
+        # each as a filter on the full path, so the repository-relative form works), chromium only.
+        # No working-directory: the schema refuses it together with {changed}.
+        run: [sh, -c, "cd 1-Presentation/admin-dashboard && (test -d node_modules || npm ci --no-audit --no-fund) && npx --no-install playwright install chromium && npx --no-install playwright test --project=chromium \"$@\"", sh, "{changed}"]
+        timeout: 300
     react-dev:
       - &task-lint
         id: dashboard-lint
@@ -151,6 +169,7 @@ review:
         include: ["1-Presentation/admin-dashboard/**"]
         run: [sh, -c, "cd 1-Presentation/admin-dashboard && (test -d node_modules || npm ci --no-audit --no-fund) && npm run build"]
         timeout: 300
+      - *task-e2e
     typescript-dev:
       - *task-lint
       - *task-typecheck
