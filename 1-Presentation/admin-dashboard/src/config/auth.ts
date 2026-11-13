@@ -19,7 +19,7 @@ if (process.env.NODE_ENV === 'production') {
   }
 
   // Validate GUID format for production
-  const guidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  const guidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   if (!guidRegex.test(clientId)) {
     throw new Error('NEXT_PUBLIC_AZURE_CLIENT_ID is not a valid GUID format');
   }

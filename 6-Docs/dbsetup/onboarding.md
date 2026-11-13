@@ -41,6 +41,17 @@ The tool does not prompt for missing values. A missing `--server` with no `HOTSH
 
 Do not persist generated passwords into tracked files. `--persist-env` asks for consent and writes the generated connection string to the OS environment under the name `DB_CONNECTION_STRING` — user scope on Windows, an export line appended to the shell profile on macOS and Linux — never to the repository.
 
+## Local test database (one command)
+
+`7-Deployment/dev-env/dev-env-up.sh` is idempotent. It starts Docker Desktop on macOS if needed (waits up to 180 s), runs `7-Deployment/docker-compose.yml` (SQL Server 2022, port 1433; the image is amd64 and runs under emulation on Apple Silicon), waits for the server, runs this CLI to create the database and application login, then runs `4-Persistence/MigrationRunner` as `sa` to apply the schema. The application login has no DDL rights, so migrations use the SA login. Exit codes: 0 ready, 2 Docker unavailable, 3 SQL Server not ready, 4 provisioning or migration failed, 5 configuration problem.
+
+Secrets stay outside the repository:
+
+- The tests read `ConnectionStrings:DefaultConnection` from .NET user secrets (the `UserSecretsId` is shared by the test, API and runner projects, so every git worktree sees it). If it is absent the script generates one (database `hotshot_logistics_test`, user `hotshot_app`) and stores it there. The script takes the database name, user and password from that value.
+- The SA password comes from `SQL_SA_PASSWORD`, else `${XDG_CONFIG_HOME:-~/.config}/hotshot-logistics/sa-password`, else it is read from an existing container, else generated and written to that file with mode 600.
+
+`7-Deployment/dev-env/dev-env-down.sh` removes the container and keeps the data volume; `--purge` also deletes the volume. Use `--purge` when the SA password for an existing volume is lost.
+
 ## Debug path
 
 - Logs go to the console through `Microsoft.Extensions.Logging` with the console provider. `Program` does not use `SecureLogger`, so secret masking is not applied to console output.

@@ -26,6 +26,10 @@ All agents must follow the comprehensive rule system located in `6-Docs/rules/`:
 
 Follow the repository-wide rules in [6-Docs/rules/](6-Docs/rules/README.md) and read the [security directives](6-Docs/security.md) when a task touches security. Azure CLI reads remain prohibited until an approved subscription allowlist is documented.
 
+## Local verification environment
+
+DB-backed tests (`HotshotLogistics.IntegrationTests`, the repository and controller classes in `HotshotLogistics.Tests`) need SQL Server. Run `7-Deployment/dev-env/dev-env-up.sh` first: it starts Docker, brings up the container, creates the database and applies migrations (about 20 s cold, 7 s when already up). `7-Deployment/dev-env/dev-env-down.sh` stops it (`--purge` also deletes the data). Details: [DbSetup onboarding](6-Docs/dbsetup/onboarding.md). The dashboard builds in a fresh worktree with `npm ci && npm run build`; `1-Presentation/admin-dashboard/.env.production` holds placeholder IDs only.
+
 <!-- CODEGRAPH_START -->
 ## CodeGraph
 

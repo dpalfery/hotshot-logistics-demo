@@ -45,10 +45,12 @@ mcp:
 #   auth-design: 6-Docs/reference/auth-design.md
 
 # Deterministic review gates. Backend gates apply only to backend changes and dashboard gates
-# only to dashboard changes. Tests that need a live SQL Server (the IntegrationTests project and
-# three repository classes plus one controller class in HotshotLogistics.Tests) are excluded: they
-# fail on any machine without one. The dashboard's Playwright suite is left out: it starts
-# `next dev`, which writes an untracked AGENTS.md, and 36 of 79 chromium tests fail without the API.
+# only to dashboard changes. The DB-backed tests (IntegrationTests and the repository and controller
+# classes in HotshotLogistics.Tests) need SQL Server: their gates start it first with
+# 7-Deployment/dev-env/dev-env-up.sh (idempotent; Docker plus the dotnet user secret
+# ConnectionStrings:DefaultConnection, see 6-Docs/dbsetup/onboarding.md). The dashboard's Playwright
+# suite is left out: it starts `next dev`, which writes an untracked AGENTS.md, and 36 of 79
+# chromium tests fail without the API.
 review:
   gates:
     - id: dotnet-build
@@ -61,7 +63,14 @@ review:
     - id: unit-tests
       applies-when:
         paths: *backend-paths
-      run: [dotnet, test, 5-Test/tests/HotshotLogistics.Tests/HotshotLogistics.Tests.csproj, -c, Release, --no-build, --filter-not-class, HotshotLogistics.Tests.Billing.InvoiceRepositoryTests, --filter-not-class, HotshotLogistics.Tests.Jobs.JobRepositoryTests, --filter-not-class, HotshotLogistics.Tests.Tracking.LocationTrackingRepositoryTests, --filter-not-class, HotshotLogistics.Tests.Jobs.JobControllerIntegrationTests]
+      run: [sh, -c, "7-Deployment/dev-env/dev-env-up.sh && dotnet test 5-Test/tests/HotshotLogistics.Tests/HotshotLogistics.Tests.csproj -c Release --no-build"]
+      full-suite: true
+      blocking: true
+      timeout-seconds: 420
+    - id: integration-tests
+      applies-when:
+        paths: *backend-paths
+      run: [sh, -c, "7-Deployment/dev-env/dev-env-up.sh && dotnet test 5-Test/tests/HotshotLogistics.IntegrationTests/HotshotLogistics.IntegrationTests.csproj -c Release --no-build"]
       full-suite: true
       blocking: true
       timeout-seconds: 300
@@ -95,7 +104,15 @@ review:
       working-directory: 1-Presentation/admin-dashboard
       blocking: true
       timeout-seconds: 300
-
+    # `next build` runs `prebuild`, which reads the tracked placeholder .env.production, so a fresh
+    # worktree builds without .env.local.
+    - id: dashboard-build
+      applies-when:
+        paths: *dashboard-paths
+      run: [sh, -c, "test -d node_modules || npm ci --no-audit --no-fund; npm run build"]
+      working-directory: 1-Presentation/admin-dashboard
+      blocking: true
+      timeout-seconds: 300
 
   # Per-task gates: what each developer role runs on its own change. Builds go under a per-task
   # artifacts directory so parallel agents do not share one obj/ tree. `{tests}` expands to the
@@ -129,8 +146,14 @@ review:
         include: ["1-Presentation/admin-dashboard/**"]
         run: [sh, -c, "cd 1-Presentation/admin-dashboard && (test -d node_modules || npm ci --no-audit --no-fund) && npx --no-install tsc --noEmit"]
         timeout: 300
+      - &task-build-dashboard
+        id: dashboard-build
+        include: ["1-Presentation/admin-dashboard/**"]
+        run: [sh, -c, "cd 1-Presentation/admin-dashboard && (test -d node_modules || npm ci --no-audit --no-fund) && npm run build"]
+        timeout: 300
     typescript-dev:
       - *task-lint
       - *task-typecheck
+      - *task-build-dashboard
 
 onboarding: done

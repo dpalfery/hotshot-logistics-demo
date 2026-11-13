@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev --experimental-https --experimental-https-key certificates/localhost-key.pem --experimental-https-cert certificates/localhost.pem",
     "predev": "node scripts/generate-env.mjs",
-    "prebuild": "node scripts/generate-env.mjs",
+    "prebuild": "node --env-file-if-exists=.env.production scripts/generate-env.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
