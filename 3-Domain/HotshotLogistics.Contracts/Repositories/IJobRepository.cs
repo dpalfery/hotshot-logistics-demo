@@ -62,6 +62,13 @@ namespace HotshotLogistics.Contracts.Repositories
             CancellationToken cancellationToken = default);
 
         /// <summary>
+        ///     Gets the number of jobs for each status.
+        /// </summary>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>A dictionary keyed by job status with the count for each status.</returns>
+        Task<IReadOnlyDictionary<JobStatus, int>> GetJobStatusCountsAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
         ///     Gets jobs by status.
         /// </summary>
         /// <param name="status">The job status.</param>

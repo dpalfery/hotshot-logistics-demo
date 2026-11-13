@@ -137,6 +137,21 @@ namespace HotshotLogistics.Api.Controllers
         }
 
         /// <summary>
+        ///     Gets a summary of job counts by status.
+        /// </summary>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>A job status summary.</returns>
+        [HttpGet("status-summary")]
+        [Authorize(Policy = AuthorizationPolicies.ManagerOrAdmin)]
+        [ProducesResponseType(typeof(JobStatusSummaryDto), StatusCodes.Status200OK)]
+        public async Task<ActionResult<JobStatusSummaryDto>> GetJobStatusSummary(
+            CancellationToken cancellationToken = default)
+        {
+            JobStatusSummaryDto summary = await _jobService.GetJobStatusSummaryAsync(cancellationToken);
+            return Ok(summary);
+        }
+
+        /// <summary>
         ///     Gets a job by ID.
         /// </summary>
         /// <param name="id">The job ID.</param>

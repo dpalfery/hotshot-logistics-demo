@@ -7,6 +7,13 @@ namespace HotshotLogistics.Contracts.Services
 {
     public interface IJobService
     {
+        /// <summary>
+        ///     Gets a summary of job counts by status.
+        /// </summary>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>The job status summary.</returns>
+        Task<JobStatusSummaryDto> GetJobStatusSummaryAsync(CancellationToken cancellationToken = default);
+
         Task<IEnumerable<Job>> GetJobsAsync(CancellationToken cancellationToken = default);
 
         /// <summary>

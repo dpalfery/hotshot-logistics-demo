@@ -111,6 +111,12 @@ namespace HotshotLogistics.Application.Services
         }
 
         /// <inheritdoc />
+        public Task<JobStatusSummaryDto> GetJobStatusSummaryAsync(CancellationToken cancellationToken = default)
+        {
+            throw new NotImplementedException();
+        }
+
+        /// <inheritdoc />
         public Task<Job?> GetJobByIdAsync(string id, CancellationToken cancellationToken = default)
         {
             return _jobRepository.GetJobByIdAsync(id, cancellationToken);

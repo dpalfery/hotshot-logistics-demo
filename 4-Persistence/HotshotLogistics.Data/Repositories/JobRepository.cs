@@ -151,6 +151,12 @@ namespace HotshotLogistics.Data.Repositories
         }
 
         /// <inheritdoc />
+        public Task<IReadOnlyDictionary<JobStatus, int>> GetJobStatusCountsAsync(CancellationToken cancellationToken = default)
+        {
+            throw new NotImplementedException();
+        }
+
+        /// <inheritdoc />
         public async Task<IEnumerable<Job>> GetJobsByStatusAsync(JobStatus status,
             CancellationToken cancellationToken = default)
         {
