@@ -41,16 +41,17 @@ flowchart TD
 | Surface | Role |
 | --- | --- |
 | `JobController` and sibling controllers under `Controllers/` | HTTP API, route prefix `api/[controller]` |
+| `JobController.GetJobStatusSummary` | `GET /api/job/status-summary` for manager/admin summaries: `JobStatusSummaryDto` returns `Pending`, `Assigned`, `EnRoute`, and `Received` counts |
 | `TestAuthHandler` | Development and test authentication |
 | JWT Bearer + Microsoft Identity Web | Non-development Azure AD B2C |
 | `ExceptionHandlingMiddleware` | Structured error responses (ProblemDetails-style payloads) |
 | Application `RealtimeHub` | Real-time updates mapped from the API host |
 
-Authorization policies include `Admin`, `Manager`, `Driver`, `Customer`, and combined roles.
+Authorization policies include `Admin`, `Manager`, `Driver`, `Customer`, and combined roles. `GET /api/job/status-summary` is protected by the `ManagerOrAdmin` policy and returns a zero-filled summary when no jobs match a status bucket.
 
 ## Data models
 
-Request and response DTOs live in Domain. Persistence uses native ADO.NET. See [data access](../data-access.md).
+Request and response DTOs live in Domain. `JobStatusSummaryDto` is the typed payload for dashboard metrics and includes `Pending`, `Assigned`, `EnRoute`, and `Received` counters; the frontend `JobStatusSummary` type mirrors the same shape. Persistence uses native ADO.NET. See [data access](../data-access.md).
 
 ## Error handling
 

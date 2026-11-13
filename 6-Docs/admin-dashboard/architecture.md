@@ -32,6 +32,8 @@ flowchart LR
 
 TanStack Query caches server state. MSAL handles Azure AD sign-in. SignalR connects to the API `/realtime` hub for live updates.
 
+`DashboardOverview` also issues a separate `useQuery(['job-status-summary'])` for the admin metric cards. The UI calls `apiService.getJobStatusSummary()` and renders four cards for `Pending`, `Assigned`, `En Route`, and `Received` jobs.
+
 ## Components and interfaces
 
 | Area | Path |
@@ -44,11 +46,12 @@ TanStack Query caches server state. MSAL handles Azure AD sign-in. SignalR conne
 | Login | `src/app/(auth)/login/page.tsx` |
 | Auth | `src/components/auth/` |
 | HTTP | `src/services/api.ts` |
+| Dashboard overview metrics | `src/components/dashboard/DashboardOverview.tsx` — `useQuery` calls `apiService.getJobStatusSummary()` and renders the `job-status-summary-grid` with `metric-pending-jobs`, `metric-assigned-jobs`, `metric-en-route-jobs`, and `metric-received-jobs` cards |
 | Request interception | `proxy.ts` (dashboard root) — production HTTPS redirect and security headers |
 
 ## Data models
 
-Shared TypeScript types live in `src/types`. They mirror API DTOs; the API remains the source of truth.
+Shared TypeScript types live in `src/types`. They mirror API DTOs; the API remains the source of truth. `JobStatusSummary` tracks the four dashboard metrics as `{ pending, assigned, enRoute, received }`, matching the API response from `GET /api/job/status-summary`.
 
 ## Error handling
 
