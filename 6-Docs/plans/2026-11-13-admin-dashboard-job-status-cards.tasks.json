@@ -1,0 +1,97 @@
+{
+  "schema-version": 1,
+  "plan": "6-Docs/plans/2026-11-13-admin-dashboard-job-status-cards.md",
+  "execution-digest": "4cefa233d0db85b92eef55d85c96b0488b3404171141c6d236c68e6271f6ccd3",
+  "tasks": [
+    {
+      "id": "T1",
+      "role": "csharp-dev",
+      "depends-on": [],
+      "files": [
+        "3-Domain/HotshotLogistics.Domain/DTOs/JobStatusSummaryDto.cs",
+        "3-Domain/HotshotLogistics.Contracts/Repositories/IJobRepository.cs",
+        "3-Domain/HotshotLogistics.Contracts/Services/IJobService.cs",
+        "4-Persistence/HotshotLogistics.Data/Repositories/JobRepository.cs",
+        "2-Application/HotshotLogistics.Application/Services/JobService.cs",
+        "1-Presentation/HotshotLogistics.Api/Controllers/JobController.cs"
+      ],
+      "session": "status-backend-stubs",
+      "prompt": "Task T1: Backend contract skeleton\nWorktree: {worktree}\n\n- **Objective:** Add the DTO, interface members and throwing implementations so RED tests compile.\n- **Session:** `status-backend-stubs`\n- **Skills:** `csharp-dev`\n- **Depends on:** none\n- **Files:**\n  - new `3-Domain/HotshotLogistics.Domain/DTOs/JobStatusSummaryDto.cs` (class `JobStatusSummaryDto`: int `Pending`, `Assigned`, `EnRoute`, `Received`; XML docs per StyleCop settings).\n  - `3-Domain/HotshotLogistics.Contracts/Repositories/IJobRepository.cs` — add `GetJobStatusCountsAsync` returning `Task<IReadOnlyDictionary<JobStatus, int>>` with a `CancellationToken`.\n  - `3-Domain/HotshotLogistics.Contracts/Services/IJobService.cs` — add `GetJobStatusSummaryAsync` returning `Task<JobStatusSummaryDto>` with a `CancellationToken`.\n  - `4-Persistence/HotshotLogistics.Data/Repositories/JobRepository.cs` — `GetJobStatusCountsAsync` stub throwing `NotImplementedException`.\n  - `2-Application/HotshotLogistics.Application/Services/JobService.cs` — `GetJobStatusSummaryAsync` stub throwing `NotImplementedException`.\n  - `1-Presentation/HotshotLogistics.Api/Controllers/JobController.cs` — action `GetJobStatusSummary` (`[HttpGet(\"status-summary\")]`, `ManagerOrAdmin`, `ProducesResponseType` of `JobStatusSummaryDto` 200) calling the service; no other logic yet.\n  - Any other `IJobRepository` or `IJobService` implementers or test fakes that fail to compile (discover with CodeGraph).\n- **Command:** `dotnet build HotshotLogistics.sln --configuration Release`\n- **Acceptance criteria:** the solution builds Release clean; existing `JobControllerTests` still compile; Contracts holds interfaces only; the DTO lives in Domain.\n\nResults of the tasks this one follows, as their workers reported them:\n{prior_results}\n"
+    },
+    {
+      "id": "T2",
+      "role": "test-dev",
+      "depends-on": [
+        "T1"
+      ],
+      "files": [
+        "5-Test/tests/HotshotLogistics.Tests/Jobs/**",
+        "5-Test/tests/HotshotLogistics.Tests/Jobs/JobStatusSummaryServiceTests.cs",
+        "5-Test/tests/HotshotLogistics.Tests/Jobs/JobControllerStatusSummaryTests.cs",
+        "5-Test/tests/HotshotLogistics.Tests/Jobs/JobRepositoryStatusSummaryTests.cs",
+        "5-Test/tests/HotshotLogistics.Tests/Jobs/JobStatusSummaryIntegrationTests.cs",
+        "/api/Job/status-summary"
+      ],
+      "session": "status-backend-red",
+      "prompt": "Task T2: Backend tests (RED)\nWorktree: {worktree}\n\n- **Objective:** Write the four backend test classes in the Test contract and capture them failing against the T1 stubs.\n- **Session:** `status-backend-red`\n- **Skills:** `test-dev`\n- **Depends on:** T1\n- **Files:** new in `5-Test/tests/HotshotLogistics.Tests/Jobs/`: `JobStatusSummaryServiceTests.cs` (class `JobStatusSummaryServiceTests`; build `JobService` with Moq mocks of its six ctor dependencies), `JobControllerStatusSummaryTests.cs` (class `JobControllerStatusSummaryTests`; construct `JobController` as `JobControllerTests` does), `JobRepositoryStatusSummaryTests.cs` (class `JobRepositoryStatusSummaryTests`; mirror the `JobRepositoryTests` fixture, `DatabaseFact`), `JobStatusSummaryIntegrationTests.cs` (class `JobStatusSummaryIntegrationTests`; mirror `JobControllerIntegrationTests`, GET `/api/Job/status-summary`).\n- **Command:** `dotnet test 5-Test/tests/HotshotLogistics.Tests/HotshotLogistics.Tests.csproj --filter \"FullyQualifiedName~StatusSummary\"`\n- **Acceptance criteria:** tests compile; the service and controller tests fail for the stated reason (not a compile error) against the unmodified tree plus the T1 stubs; output reported verbatim; no source edits and no git stash.\n\nResults of the tasks this one follows, as their workers reported them:\n{prior_results}\n"
+    },
+    {
+      "id": "T3",
+      "role": "csharp-dev",
+      "depends-on": [
+        "T2"
+      ],
+      "files": [
+        "4-Persistence/HotshotLogistics.Data/Repositories/JobRepository.cs",
+        "2-Application/HotshotLogistics.Application/Services/JobService.cs",
+        "1-Presentation/HotshotLogistics.Api/Controllers/JobController.cs"
+      ],
+      "session": "status-backend-green",
+      "prompt": "Task T3: Backend implementation (GREEN)\nWorktree: {worktree}\n\n- **Objective:** Implement the count query, summary mapping and controller action.\n- **Session:** `status-backend-green`\n- **Skills:** `csharp-dev`\n- **Depends on:** T2\n- **Files:**\n  - `4-Persistence/HotshotLogistics.Data/Repositories/JobRepository.cs` — `GetJobStatusCountsAsync`: `SELECT Status, COUNT(*)` from `GetTableName()` `GROUP BY Status`, same connection pattern as `GetJobsByStatusAsync`.\n  - `2-Application/HotshotLogistics.Application/Services/JobService.cs` — `GetJobStatusSummaryAsync`: zero-fill all four statuses, ignore undefined status values, return `JobStatusSummaryDto`.\n  - `1-Presentation/HotshotLogistics.Api/Controllers/JobController.cs` — `GetJobStatusSummary`: 200 with the DTO, catch-all 500 with the controller's standard message and logging.\n- **Commands:**\n  - `dotnet test 5-Test/tests/HotshotLogistics.Tests/HotshotLogistics.Tests.csproj --filter \"FullyQualifiedName~StatusSummary\"`\n  - `dotnet test 5-Test/tests/HotshotLogistics.Tests/HotshotLogistics.Tests.csproj --filter \"FullyQualifiedName~ArchitectureTests\"`\n  - `dotnet test 5-Test/tests/HotshotLogistics.Tests/HotshotLogistics.Tests.csproj --filter \"FullyQualifiedName~HotshotLogistics.Tests.Jobs.JobControllerTests\"`\n- **Acceptance criteria:** both commands pass (DB-conditional tests reported as skipped when no database is configured); Release build clean; no secrets; no business rule in the controller.\n\nResults of the tasks this one follows, as their workers reported them:\n{prior_results}\n"
+    },
+    {
+      "id": "T4",
+      "role": "test-dev",
+      "depends-on": [],
+      "files": [
+        "1-Presentation/admin-dashboard/tests/dashboard-job-status-cards.spec.ts",
+        "1-Presentation/admin-dashboard/tests/dashboard-overview.spec.ts",
+        "1-Presentation/admin-dashboard/tests/page.route",
+        "tests/utils/test-helpers.ts",
+        "https://localhost:5001/api/job/status-summary"
+      ],
+      "session": "status-ui-red",
+      "prompt": "Task T4: Dashboard tests (RED)\nWorktree: {worktree}\n\n- **Objective:** Write the Playwright spec for the four cards and capture it failing.\n- **Session:** `status-ui-red`\n- **Skills:** `test-dev`\n- **Depends on:** none\n- **Files:** new `1-Presentation/admin-dashboard/tests/dashboard-job-status-cards.spec.ts` (follow `dashboard-overview.spec.ts` auth bypass and `page.route` mocking and `tests/utils/test-helpers.ts`; mock `https://localhost:5001/api/job/status-summary` to `{pending:5,assigned:3,enRoute:8,received:3}` plus the jobs, drivers and invoices routes the overview spec mocks; the error case returns 500 and expects `—`).\n- **Command:** `cd 1-Presentation/admin-dashboard && npx playwright test tests/dashboard-job-status-cards.spec.ts`\n- **Acceptance criteria:** the spec exists and fails against the unmodified UI because the cards are absent; failing output reported verbatim; no source edits.\n\nResults of the tasks this one follows, as their workers reported them:\n{prior_results}\n"
+    },
+    {
+      "id": "T5",
+      "role": "react-dev",
+      "depends-on": [
+        "T4"
+      ],
+      "files": [
+        "1-Presentation/admin-dashboard/src/types/index.ts",
+        "1-Presentation/admin-dashboard/src/services/api.ts",
+        "/job/status-summary",
+        "1-Presentation/admin-dashboard/src/components/dashboard/DashboardOverview.tsx"
+      ],
+      "session": "status-ui-green",
+      "prompt": "Task T5: Dashboard implementation (GREEN)\nWorktree: {worktree}\n\n- **Objective:** Add the type, API method and four cards.\n- **Session:** `status-ui-green`\n- **Skills:** `react-dev`\n- **Depends on:** T4\n- **Files:**\n  - `1-Presentation/admin-dashboard/src/types/index.ts` — add `JobStatusSummary` (`pending`, `assigned`, `enRoute`, `received`, all number); leave the existing `JobStatus` enum untouched (D4).\n  - `1-Presentation/admin-dashboard/src/services/api.ts` — `ApiService.getJobStatusSummary` requesting `/job/status-summary`.\n  - `1-Presentation/admin-dashboard/src/components/dashboard/DashboardOverview.tsx` — `DashboardOverview`: a fifth `useQuery` (`['job-status-summary']`, `retry: false`) outside the loading gate (D6); a second grid after the Stats Cards per D7 reusing the existing card classes.\n- **Commands:**\n  - `cd 1-Presentation/admin-dashboard && npx playwright test tests/dashboard-job-status-cards.spec.ts tests/dashboard-overview.spec.ts`\n  - `cd 1-Presentation/admin-dashboard && npm run lint && npm run build`\n- **Acceptance criteria:** the new spec passes; `dashboard-overview.spec.ts` shows no new failures versus its baseline; lint and build clean; the `stats-card` count stays four.\n\nResults of the tasks this one follows, as their workers reported them:\n{prior_results}\n"
+    },
+    {
+      "id": "T6",
+      "role": "docs-dev",
+      "depends-on": [
+        "T3",
+        "T5"
+      ],
+      "files": [
+        "6-Docs/api/architecture.md",
+        "6-Docs/admin-dashboard/architecture.md",
+        "6-Docs/catalog.md"
+      ],
+      "session": "status-docs",
+      "prompt": "Task T6: Documentation closeout\nWorktree: {worktree}\n\n- **Objective:** Update the two harvest documents and the catalog review dates for the delivered behaviour.\n- **Session:** `status-docs`\n- **Skills:** `docs-dev`\n- **Depends on:** T3, T5\n- **Files:** `6-Docs/api/architecture.md` (Components and interfaces, Data models), `6-Docs/admin-dashboard/architecture.md` (Components and interfaces, Data models, Testing strategy), `6-Docs/catalog.md` (Last reviewed for the Api and admin-dashboard rows).\n- **Command:** `kyber-weave docs validate . --merge-ready && kyber-weave docs drift .`\n- **Acceptance criteria:** every harvest row updated truthfully; both checks pass for the touched documents.\n\nResults of the tasks this one follows, as their workers reported them:\n{prior_results}\n"
+    }
+  ]
+}
