@@ -1,6 +1,6 @@
 import { msalInstance } from '@/lib/providers';
 import { loginRequest } from '@/config/auth';
-import { Job, Driver, Invoice, Customer, PagedResult, JobFilter, InvoiceFilter, PaginationParameters, InvoiceSummaryMetrics, InvoiceAgingBuckets } from '@/types';
+import { Job, Driver, Invoice, Customer, PagedResult, JobFilter, InvoiceFilter, PaginationParameters, InvoiceSummaryMetrics, InvoiceAgingBuckets, JobStatusSummary } from '@/types';
 
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL || '/api').trim();
 
@@ -135,6 +135,10 @@ class ApiService {
 
   async getJobById(id: string): Promise<Job> {
     return this.request<Job>(`/job/${id}`);
+  }
+
+  async getJobStatusSummary(): Promise<JobStatusSummary> {
+    return this.request<JobStatusSummary>('/job/status-summary');
   }
 
   async createJob(job: Partial<Job>): Promise<Job> {

@@ -3,7 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { apiService } from '@/services/api';
-import { JobStatus } from '@/types';
+import { JobStatus, type JobStatusSummary } from '@/types';
 
 export function DashboardOverview() {
   const { data: jobs, isLoading: jobsLoading, error: jobsError } = useQuery({
@@ -21,6 +21,12 @@ export function DashboardOverview() {
   const { data: invoices, isLoading: invoicesLoading, error: invoicesError } = useQuery({
     queryKey: ['invoices'],
     queryFn: () => apiService.getInvoices(),
+    retry: false,
+  });
+
+  const { data: jobStatusSummary, error: jobStatusSummaryError } = useQuery({
+    queryKey: ['job-status-summary'],
+    queryFn: () => apiService.getJobStatusSummary(),
     retry: false,
   });
 
@@ -63,7 +69,15 @@ export function DashboardOverview() {
   if (jobsError) console.error('Jobs error:', jobsError);
   if (driversError) console.error('Drivers error:', driversError);
   if (invoicesError) console.error('Invoices error:', invoicesError);
+  if (jobStatusSummaryError) console.error('Job status summary error:', jobStatusSummaryError);
   console.log('=== END DEBUG INFO ===');
+
+  const statusSummary: JobStatusSummary = jobStatusSummary ?? {
+    pending: 0,
+    assigned: 0,
+    enRoute: 0,
+    received: 0,
+  };
 
   const stats = {
     totalJobs: finalJobs?.totalCount || 0,
@@ -80,6 +94,14 @@ export function DashboardOverview() {
     // Since we're getting overdue invoices directly from the API, just count them
     overdueInvoices: finalInvoices?.items?.length || 0,
   };
+
+  const hasJobStatusSummary = !!jobStatusSummary;
+  const statusCards = [
+    { label: 'Pending', value: !hasJobStatusSummary || jobStatusSummaryError ? '—' : statusSummary.pending, color: 'bg-yellow-500' },
+    { label: 'Assigned', value: !hasJobStatusSummary || jobStatusSummaryError ? '—' : statusSummary.assigned, color: 'bg-blue-500' },
+    { label: 'En Route', value: !hasJobStatusSummary || jobStatusSummaryError ? '—' : statusSummary.enRoute, color: 'bg-purple-500' },
+    { label: 'Received', value: !hasJobStatusSummary || jobStatusSummaryError ? '—' : statusSummary.received, color: 'bg-green-500' },
+  ];
 
   if (jobsLoading || driversLoading || invoicesLoading) {
     return (
@@ -254,6 +276,24 @@ export function DashboardOverview() {
                   </button>
                 </div>
               </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6" data-testid="job-status-summary-grid">
+              {statusCards.map((card) => (
+                <div key={card.label} className="bg-white p-6 rounded-lg shadow" data-testid="job-status-card">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0">
+                      <div className={`w-8 h-8 ${card.color} rounded-md flex items-center justify-center`}>
+                        <span className="text-white text-sm font-bold">{card.label.charAt(0)}</span>
+                      </div>
+                    </div>
+                    <div className="ml-4">
+                      <dt className="text-sm font-medium text-gray-500 truncate">{card.label} Jobs</dt>
+                      <dd className="text-2xl font-semibold text-gray-900" data-testid={`metric-${card.label.toLowerCase().replace(/\s+/g, '-')}-jobs`}>{card.value}</dd>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>

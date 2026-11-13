@@ -32,6 +32,13 @@ export enum JobStatus {
   Cancelled = 'Cancelled'
 }
 
+export interface JobStatusSummary {
+  pending: number;
+  assigned: number;
+  enRoute: number;
+  received: number;
+}
+
 export enum JobPriority {
   Low = 'Low',
   Normal = 'Normal',
