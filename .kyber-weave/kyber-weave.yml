@@ -44,4 +44,93 @@ mcp:
 # config-reg:
 #   auth-design: 6-Docs/reference/auth-design.md
 
+# Deterministic review gates. Backend gates apply only to backend changes and dashboard gates
+# only to dashboard changes. Tests that need a live SQL Server (the IntegrationTests project and
+# three repository classes plus one controller class in HotshotLogistics.Tests) are excluded: they
+# fail on any machine without one. The dashboard's Playwright suite is left out: it starts
+# `next dev`, which writes an untracked AGENTS.md, and 36 of 79 chromium tests fail without the API.
+review:
+  gates:
+    - id: dotnet-build
+      applies-when:
+        paths: &backend-paths ["**/*.cs", "**/*.csproj", "**/*.props", "**/*.targets", "**/*.sln", "**/NuGet.config", "**/.editorconfig", "global.json"]
+      run: [dotnet, build, HotshotLogistics.sln, -c, Release, -nr:false, -p:UseSharedCompilation=false]
+      blocking: true
+      timeout-seconds: 300
+    # `--no-build`: the dotnet-build gate above produced these Release binaries.
+    - id: unit-tests
+      applies-when:
+        paths: *backend-paths
+      run: [dotnet, test, 5-Test/tests/HotshotLogistics.Tests/HotshotLogistics.Tests.csproj, -c, Release, --no-build, --filter-not-class, HotshotLogistics.Tests.Billing.InvoiceRepositoryTests, --filter-not-class, HotshotLogistics.Tests.Jobs.JobRepositoryTests, --filter-not-class, HotshotLogistics.Tests.Tracking.LocationTrackingRepositoryTests, --filter-not-class, HotshotLogistics.Tests.Jobs.JobControllerIntegrationTests]
+      full-suite: true
+      blocking: true
+      timeout-seconds: 300
+    - id: api-tests
+      applies-when:
+        paths: *backend-paths
+      run: [dotnet, test, 5-Test/HotshotLogistics.Api.Tests/HotshotLogistics.Api.Tests.csproj, -c, Release, --no-build]
+      full-suite: true
+      blocking: true
+      timeout-seconds: 300
+    - id: dbsetup-tests
+      applies-when:
+        paths: *backend-paths
+      run: [dotnet, test, 7-Deployment/DbSetup/HotshotLogistics.DbSetup.Tests/HotshotLogistics.DbSetup.Tests.csproj, -c, Release, --no-build]
+      full-suite: true
+      blocking: true
+      timeout-seconds: 300
+    # The dashboard gates install dependencies when node_modules is missing, so a fresh checkout
+    # fails on code, not on a missing install.
+    - id: dashboard-lint
+      applies-when:
+        paths: &dashboard-paths ["1-Presentation/admin-dashboard/**"]
+      run: [sh, -c, "test -d node_modules || npm ci --no-audit --no-fund; npm run lint"]
+      working-directory: 1-Presentation/admin-dashboard
+      blocking: true
+      timeout-seconds: 300
+    - id: dashboard-typecheck
+      applies-when:
+        paths: *dashboard-paths
+      run: [sh, -c, "test -d node_modules || npm ci --no-audit --no-fund; npx --no-install tsc --noEmit"]
+      working-directory: 1-Presentation/admin-dashboard
+      blocking: true
+      timeout-seconds: 300
+
+
+  # Per-task gates: what each developer role runs on its own change. Builds go under a per-task
+  # artifacts directory so parallel agents do not share one obj/ tree. `{tests}` expands to the
+  # test classes covering the change (`<Stem>Tests` naming convention); a change no class covers
+  # skips the gate (KW-REVIEW-026) instead of passing.
+  task-gates:
+    csharp-dev:
+      - &task-build
+        id: dotnet-build
+        include: ["**/*.cs", "**/*.csproj", "**/*.props", "**/*.targets", "**/*.sln", "**/NuGet.config", "**/.editorconfig"]
+        run: [dotnet, build, HotshotLogistics.sln, -c, Release, --artifacts-path, ".agent_scratchpad/{task}/artifacts", -nr:false, -p:UseSharedCompilation=false]
+        timeout: 300
+      - &task-tests
+        id: tests
+        include: ["**/*.cs"]
+        run: [dotnet, test, 5-Test/tests/HotshotLogistics.Tests/HotshotLogistics.Tests.csproj, -c, Release, --no-build, --filter, "{tests}", --artifacts-path, ".agent_scratchpad/{task}/artifacts"]
+        timeout: 300
+    dal-dev:
+      - *task-build
+    test-dev:
+      - *task-build
+      - *task-tests
+    react-dev:
+      - &task-lint
+        id: dashboard-lint
+        include: ["1-Presentation/admin-dashboard/**"]
+        run: [sh, -c, "cd 1-Presentation/admin-dashboard && (test -d node_modules || npm ci --no-audit --no-fund) && npm run lint"]
+        timeout: 300
+      - &task-typecheck
+        id: dashboard-typecheck
+        include: ["1-Presentation/admin-dashboard/**"]
+        run: [sh, -c, "cd 1-Presentation/admin-dashboard && (test -d node_modules || npm ci --no-audit --no-fund) && npx --no-install tsc --noEmit"]
+        timeout: 300
+    typescript-dev:
+      - *task-lint
+      - *task-typecheck
+
 onboarding: done
