@@ -111,9 +111,44 @@ namespace HotshotLogistics.Application.Services
         }
 
         /// <inheritdoc />
-        public Task<JobStatusSummaryDto> GetJobStatusSummaryAsync(CancellationToken cancellationToken = default)
+        public async Task<JobStatusSummaryDto> GetJobStatusSummaryAsync(CancellationToken cancellationToken = default)
         {
-            throw new NotImplementedException();
+            IReadOnlyDictionary<JobStatus, int> counts = await _jobRepository.GetJobStatusCountsAsync(cancellationToken);
+            JobStatusSummaryDto summary = new()
+            {
+                Pending = 0,
+                Assigned = 0,
+                EnRoute = 0,
+                Received = 0
+            };
+
+            foreach ((JobStatus status, int count) in counts)
+            {
+                if (!Enum.IsDefined(typeof(JobStatus), status))
+                {
+                    continue;
+                }
+
+                switch (status)
+                {
+                    case JobStatus.Pending:
+                        summary.Pending = count;
+                        break;
+                    case JobStatus.Assigned:
+                        summary.Assigned = count;
+                        break;
+                    case JobStatus.EnRoute:
+                        summary.EnRoute = count;
+                        break;
+                    case JobStatus.Received:
+                        summary.Received = count;
+                        break;
+                    default:
+                        break;
+                }
+            }
+
+            return summary;
         }
 
         /// <inheritdoc />

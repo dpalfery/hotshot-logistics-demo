@@ -151,9 +151,30 @@ namespace HotshotLogistics.Data.Repositories
         }
 
         /// <inheritdoc />
-        public Task<IReadOnlyDictionary<JobStatus, int>> GetJobStatusCountsAsync(CancellationToken cancellationToken = default)
+        public async Task<IReadOnlyDictionary<JobStatus, int>> GetJobStatusCountsAsync(CancellationToken cancellationToken = default)
         {
-            throw new NotImplementedException();
+            string query = $"SELECT Status, COUNT(*) AS JobCount FROM {GetTableName()} GROUP BY Status";
+            Dictionary<JobStatus, int> counts = new();
+
+            await using SqlConnection connection = new(ConnectionString);
+            await connection.OpenAsync(cancellationToken);
+
+            await using SqlCommand command = new(query, connection);
+            await using SqlDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                int statusValue = reader.GetInt32(reader.GetOrdinal("Status"));
+                JobStatus status = (JobStatus)statusValue;
+
+                if (!Enum.IsDefined(typeof(JobStatus), status))
+                {
+                    continue;
+                }
+
+                counts[status] = reader.GetInt32(reader.GetOrdinal("JobCount"));
+            }
+
+            return counts;
         }
 
         /// <inheritdoc />

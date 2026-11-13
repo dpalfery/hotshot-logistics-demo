@@ -144,11 +144,21 @@ namespace HotshotLogistics.Api.Controllers
         [HttpGet("status-summary")]
         [Authorize(Policy = AuthorizationPolicies.ManagerOrAdmin)]
         [ProducesResponseType(typeof(JobStatusSummaryDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<ActionResult<JobStatusSummaryDto>> GetJobStatusSummary(
             CancellationToken cancellationToken = default)
         {
-            JobStatusSummaryDto summary = await _jobService.GetJobStatusSummaryAsync(cancellationToken);
-            return Ok(summary);
+            try
+            {
+                JobStatusSummaryDto summary = await _jobService.GetJobStatusSummaryAsync(cancellationToken);
+                return Ok(summary);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An error occurred while retrieving the job status summary.");
+                return StatusCode(StatusCodes.Status500InternalServerError,
+                    "An error occurred while processing your request.");
+            }
         }
 
         /// <summary>
