@@ -19,6 +19,17 @@ function makeQueryClient() {
     });
 }
 
+let browserQueryClient: QueryClient | undefined = undefined;
+
+function getQueryClient() {
+    if (typeof window === 'undefined') {
+        return makeQueryClient();
+    } else {
+        if (!browserQueryClient) browserQueryClient = makeQueryClient();
+        return browserQueryClient;
+    }
+}
+
 export const msalInstance = new PublicClientApplication(msalConfig);
 
 // Default to using the first account if no account is active on page load
