@@ -38,10 +38,10 @@ Dashboard: `bash 1-Presentation/admin-dashboard/scripts/task-e2e.sh <repo-relati
 
 ## Fixtures and collections
 
-- `[Collection("DatabaseCollection")]` is a bare name (no `CollectionDefinition` class): xUnit runs
-  same-named classes in one assembly serially. All 7 controller classes in `IntegrationTests` and
-  `Tests/Jobs/JobControllerIntegrationTests` join it.
-- **Rule:** every class that writes to the shared database or asserts on its contents joins it.
+- `[Collection(DatabaseCollection.Name)]`: each test project has a `[CollectionDefinition]` class
+  `DatabaseCollection`; its classes run serially. Members: all controller classes and
+  the Job/Invoice/LocationTracking repository classes.
+- **Rule:** every class that reads or writes the shared database joins it.
 - Repository classes use `IClassFixture<DatabaseTestFixture>`; HTTP classes inherit
   `IntegrationTestBase` (factory + fixture) and send `Authorization: Test` (`X-Test-Role` picks the role).
 - `[DatabaseFact]` (`Tests` project only) is skipped, not failed, when no connection string exists.
@@ -62,22 +62,25 @@ Dashboard: `bash 1-Presentation/admin-dashboard/scripts/task-e2e.sh <repo-relati
 Safe to read (do not modify or delete): customers `cust-001`..`cust-100` ("Seed Customer 001"), jobs
 `job-<customer>-<nnn>` (e.g. `job-cust-001-001`), assignments `ja-<jobId>`, invoices `inv-<jobId>`
 (`inv-job-cust-001-001`), ~200 drivers `seed.driverNNN@local.test` (identity ids: look up by email),
-plus `cust-1`, `cust-2`, `job-1`, `job-2` (`SeedInitialData`). Everything else, create in the test.
+plus `cust-1`, `cust-2`, `job-1`, `job-2` (`SeedInitialData`), `CUST-<name>-<nnnn>` (50), `JOB-<nnnnn>` (300),
+`job-assigned-seed-<nnn>`, ~250 `@drivers.logistics.com` drivers; no `LocationTracking`. Else create it.
 `CUST001`/`JOB001` in repository tests are **not** seeded (verified in the dev database); they are
 free-text ids, not references to rely on.
 
 ## Test data hygiene
 
 - Unique ids per test: `test-{Guid.NewGuid():N}`, `test-job-...`, GUID in emails and licence numbers.
-- Repository classes record created ids in `_created*Ids` and delete them in `Dispose()`; delete tests
-  call the API. **Rule:** cleanup runs in `finally`/`Dispose`, never skipped on failure.
-- **Rule:** assert on count deltas or `>= n`, never absolute counts (seed and leftovers vary).
+- Register each created row with `TestRowCleanup` (one per project; controller classes inherit `Cleanup`
+  from `IntegrationTestBase`, repository classes use `IAsyncLifetime`) before creating it. `DisposeAsync`
+  deletes by SQL, children first, and fails the test if a delete errors or a row remains.
+- **Rule:** scope queries to rows the test created (unique customer/job id or tag); never assert absolute
+  table counts or "first row", never change seed rows.
 
 ## Copy these (one per layer)
 
 | Layer | Class (file under `5-Test/tests/`) |
 |---|---|
-| Repository (real DB) | `HotshotLogistics.Tests.Jobs.JobRepositoryTests` (`HotshotLogistics.Tests/Jobs/`); add the collection |
+| Repository (real DB) | `HotshotLogistics.Tests.Jobs.JobRepositoryTests` (`HotshotLogistics.Tests/Jobs/`) |
 | Service (Moq) | `RealtimeServiceTests` (`HotshotLogistics.Tests/Communication/`) |
 | Controller, unit | `JobControllerTests` (`HotshotLogistics.Tests/Jobs/`) |
 | Controller, HTTP | `JobControllerIntegrationTests` (`HotshotLogistics.IntegrationTests/`) |
@@ -114,8 +117,9 @@ cd 1-Presentation/admin-dashboard && npx playwright test tests/billing-managemen
 
 ## Known gaps
 
-- `JobRepositoryTests`, `InvoiceRepositoryTests`, `LocationTrackingRepositoryTests` are not in the
-  database collection but share tables with the controller classes (no exact-count assertion found today).
 - `Tests` and `IntegrationTests` each have their own `TestDatabaseHelper`/`DatabaseTestFixture`/
-  `IntegrationTestBase` with different behaviour; their collections do not serialise against each other.
-- Cleanup swallows errors and never uses `finally`; the dev database accumulates leftovers.
+  `IntegrationTestBase`, with different behaviour. They run in separate processes, so their collections
+  do not serialise against each other; only unique ids and scoped assertions keep them safe.
+- `GetNextInvoiceNumberAsync` is MAX()+1 without a lock: concurrent `GenerateInvoiceAsync` calls can
+  collide on the unique number (application issue; the test takes a file lock).
+- `GetAgingReportAsync_ReturnsAgingReportData` asserts only non-null: the report inner-joins `Customers`.
