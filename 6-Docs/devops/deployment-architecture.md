@@ -4,14 +4,15 @@ title: Deployment architecture
 doc-type: reference
 status: current
 owner: unassigned
-last-reviewed: 2026-11-09
+last-reviewed: 2026-11-14
 ---
 
 # Deployment architecture
 
 How the Hotshot Logistics platform is deployed as this repository actually implements it:
-the Terraform under `7-Deployment/Azure-deploy/`, the four GitHub Actions workflows under
-`.github/workflows/`, the local Docker Compose file, and the DbSetup CLI.
+the Terraform under `7-Deployment/Azure-deploy/`, the two GitHub Actions workflows under
+`.github/workflows/` (`ci.yml` and `release.yml`), the CI helper module under `7-Deployment/ci/`,
+the local Docker Compose file, and the DbSetup CLI.
 
 This document also hosts the **canonical drift register** for this repository — the
 [Canonical drift register](#canonical-drift-register) section below. Other documents link
@@ -25,7 +26,7 @@ register rather than resolved here.
 
 | Area | Files read |
 | --- | --- |
-| CI/CD | `.github/workflows/dotnet-buid-test.yml`, `.github/workflows/terraform-plan.yml`, `.github/workflows/terraform-apply.yml`, `.github/workflows/API-deploy.yml`, `.github/dependabot.yml` |
+| CI/CD | `.github/workflows/ci.yml`, `.github/workflows/release.yml`, `7-Deployment/ci/ci_helpers.py`, `.github/dependabot.yml` |
 | Infrastructure as code | `7-Deployment/Azure-deploy/solution/launchpad/{main,variables,outputs}.tf`, `7-Deployment/Azure-deploy/solution/HotshotLogistics/{main,variables,outputs}.tf`, `7-Deployment/Azure-deploy/environments/dev/hotshot.tfvars` |
 | Local dependencies | `7-Deployment/docker-compose.yml` |
 | Provisioning tool | `7-Deployment/DbSetup/HotshotLogistics.DbSetup/Program.cs`, `7-Deployment/DbSetup/HotshotLogistics.DbSetup/MigrationInvoker.cs` |
@@ -35,17 +36,16 @@ register rather than resolved here.
 
 | Environment | Where the code defines it | Provisioning inputs |
 | --- | --- | --- |
-| `dev` | Terraform variable default (`environment = "dev"` in `variables.tf`); the `workflow_dispatch` default in `API-deploy.yml` and `terraform-apply.yml` | `7-Deployment/Azure-deploy/environments/dev/hotshot.tfvars` |
-| `staging` | `workflow_dispatch` choice option in `API-deploy.yml` and `terraform-apply.yml` only | none |
-| `prod` | `workflow_dispatch` choice option in `API-deploy.yml` and `terraform-apply.yml` only | none |
+| `dev` | Terraform variable default (`environment = "dev"` in `variables.tf`); `workflow_dispatch` default in `release.yml` | `TF_VAR_*` env vars in `release.yml`; `7-Deployment/Azure-deploy/environments/dev/hotshot.tfvars` on disk |
+| `staging` | `workflow_dispatch` choice option in `release.yml` only | `TF_VAR_environment` and `TF_VAR_resource_group_name` in `release.yml` (no `.tfvars` or separate state key) |
+| `prod` | `workflow_dispatch` choice option in `release.yml` only | `TF_VAR_environment` and `TF_VAR_resource_group_name` in `release.yml` (no `.tfvars` or separate state key) |
 
 The Terraform `environment` variable is a plain string whose only effect in the
 `HotshotLogistics` solution is to prefix the six resource names built from it. Resource tags
-come from the separate `tags` variable, a `map(string)` that the tfvars file sets independently
-of `environment`, so `environment` never reaches a tag. There is no per-environment module, no
-separate state key, and no environment-specific parameterization beyond that prefix and the
-tfvars file. `staging` and `prod` exist as workflow input options, but no infrastructure
-definition for either exists in the tree — see DR5 in the register.
+come from the separate `tags` variable, a `map(string)` that defaults in `variables.tf`
+independently of `environment`, so `environment` never reaches a tag. There is no per-environment
+module and no separate state key. `staging` and `prod` exist as `release.yml` dispatch choices,
+but no per-environment `.tfvars` file exists in the tree — see DR5 in the register.
 
 ## Hosting model
 
@@ -55,29 +55,20 @@ this document does not pick a winner. The conflict is recorded as DR2 in the reg
 | Source | What it says |
 | --- | --- |
 | [technology-stack.md](../technology-stack.md) | "**Framework**: .NET 10 ASP.NET Core Web API (Azure App Service / Function App — see 'Hosting model')"; "**Cloud**: Azure (App Service / Function App, SQL Server, App Configuration, Key Vault)". Its "Hosting model" section states that the hosting model is "**unresolved**", names the actual deployment path, and points back at DR2. |
-| [api/architecture.md](../api/architecture.md) | "`HotshotLogistics.Api` is an ASP.NET Core Web API. Its hosting model is unresolved — see the canonical drift register (DR2) in deployment architecture; the actual deployment path is an Azure App Service plan / Function App provisioned by Terraform, deployed by `API-deploy.yml`." It was corrected on 2026-10-20 within this delivery; it previously read "`HotshotLogistics.Api` is an ASP.NET Core Web API hosted on Azure Container Apps". |
-| [project-overview.md](../project-overview.md) | "ASP.NET Core Web API (hosting model unresolved — see DR2), SQL Server via native ADO.NET, Clean Architecture." It was corrected on 2026-10-20 within this delivery; it previously read "ASP.NET Core Web API on Azure Container Apps". |
-| [rules/file-organization.md](../rules/file-organization.md) | "API controllers and endpoints" — the hosting parenthetical was dropped. It was corrected on 2026-10-20 within this delivery; it previously read "API controllers and endpoints (ASP.NET Core Web API on Azure Container Apps)". |
+| [api/architecture.md](../api/architecture.md) | "`HotshotLogistics.Api` is an ASP.NET Core Web API. Its hosting model is unresolved — see the canonical drift register (DR2) in deployment architecture; the actual deployment path is an Azure App Service plan / Function App provisioned by Terraform, deployed by `.github/workflows/release.yml` (`deploy-api` job)." |
+| [project-overview.md](../project-overview.md) | "ASP.NET Core Web API (hosting model unresolved — see DR2), SQL Server via native ADO.NET, Clean Architecture." |
+| [rules/file-organization.md](../rules/file-organization.md) | "API controllers and endpoints" — the hosting parenthetical was dropped. |
 | `7-Deployment/Azure-deploy/solution/HotshotLogistics/main.tf` | `module "function_app"` — AVM `Azure/avm-res-web-site/azurerm` v0.17.2, `kind = "functionapp"` |
-| `.github/workflows/API-deploy.yml` | `azure/webapps-deploy@v4`, in a step named "Deploy to Azure App Service", with `startup-command: 'dotnet HotshotLogistics.Api.dll'` |
+| `.github/workflows/release.yml` | `deploy-api` job uses `azure/webapps-deploy` (`v3.0.8`), in a step named "Deploy to Azure App Service", with `startup-command: "dotnet HotshotLogistics.Api.dll"` |
 
 Text quoted from another document is reproduced without that document's internal link markup.
 
-[technology-stack.md](../technology-stack.md) no longer asserts Azure Container Apps. It was
-corrected on 2026-10-19, within this delivery: it now names the actual deployment path — an
-App Service plan and a Function App provisioned by Terraform, deployed by `API-deploy.yml` —
-and it states that the hosting model is unresolved.
-
-The documents that carried Azure Container Apps as the hosting model were
-[api/architecture.md](../api/architecture.md), [project-overview.md](../project-overview.md),
-[rules/file-organization.md](../rules/file-organization.md), the root `README.md`, and
-`1-Presentation/HotshotLogistics.Api/README.md`. All five were corrected on 2026-10-20, within
-this delivery: each no longer asserts Azure Container Apps.
-[api/architecture.md](../api/architecture.md), [project-overview.md](../project-overview.md),
-the root `README.md`, and `1-Presentation/HotshotLogistics.Api/README.md` now state that the
-hosting model is unresolved and point at DR2, while
-[rules/file-organization.md](../rules/file-organization.md) dropped the hosting parenthetical
-without naming a hosting model. See the
+[technology-stack.md](../technology-stack.md), [api/architecture.md](../api/architecture.md),
+[project-overview.md](../project-overview.md), [rules/file-organization.md](../rules/file-organization.md),
+the root `README.md`, and `1-Presentation/HotshotLogistics.Api/README.md` no longer assert Azure
+Container Apps; each states that the hosting model is unresolved (pointing at DR2) and names the
+actual Terraform + `.github/workflows/release.yml` deployment path (except
+[rules/file-organization.md](../rules/file-organization.md), which drops the hosting parenthetical). See the
 [register reconciliation note](#register-reconciliation-note) below.
 
 No Container Apps resource is declared in any Terraform file, and no workflow step builds a
@@ -100,9 +91,10 @@ published with `dotnet publish` and started as a plain ASP.NET Core process, whi
 `variables.tf` declares `location` and `environment`, but `main.tf` hardcodes `East US` and
 `rg-launchpad-dev-eastus` rather than referencing them.
 
-No workflow invokes the launchpad solution. `terraform-plan.yml` and `terraform-apply.yml` both
-set `working-directory: 7-Deployment/Azure-deploy/solution/HotshotLogistics`, so the state
-backend has to be bootstrapped out of band before either workflow can run.
+No workflow invokes the launchpad solution. `.github/workflows/ci.yml` runs
+`terraform init -backend=false -input=false`, while `.github/workflows/release.yml` sets
+`working-directory: 7-Deployment/Azure-deploy/solution/HotshotLogistics`, so the state
+backend has to be bootstrapped out of band before `release.yml` can initialize `azurerm`.
 
 ### HotshotLogistics — workload solution
 
@@ -114,7 +106,7 @@ backend has to be bootstrapped out of band before either workflow can run.
 
 | Terraform address | Resource | Name for `dev` | Module source | Notable settings |
 | --- | --- | --- | --- | --- |
-| `azurerm_resource_group.rg` | Resource group | `rg-hotshot-logistics-dev-eastus` (from `environments/dev/hotshot.tfvars`; see DR3) | — | `location` from the tfvars file |
+| `azurerm_resource_group.rg` | Resource group | `rg-hotshot-logistics-dev-eastus2` in `release.yml` (`environments/dev/hotshot.tfvars` specifies `rg-hotshot-logistics-dev-eastus`; see DR3) | — | `East US 2` in `release.yml`; `East US` in `hotshot.tfvars` |
 | `module.app_service_plan` | App Service plan | `dev-hotshot-logistics-plan` | `Azure/avm-res-web-serverfarm/azurerm` v0.7.0 | `sku_name = "B1"`, `os_type = "Linux"`, zone balancing disabled |
 | `azurerm_storage_account.storage` | Storage account | `devhotshotstorage` | — | `Standard`, `LRS`; backs the Function App |
 | `module.function_app` | Function App | `dev-hotshot-logistics-function` | `Azure/avm-res-web-site/azurerm` v0.17.2 | `kind = "functionapp"`, Linux, on the B1 plan above |
@@ -132,10 +124,10 @@ in the module block, and the `max_capacity` variable is declared and set in the 
 is never passed to the module.
 
 The `administrator_login_password` variable is declared `sensitive` with no default. The
-tfvars file deliberately omits it and points at the `TF_VAR_administrator_login_password`
-environment variable instead, but no workflow exports that variable — the workflows export
-`TF_VAR_subscription_id`, `TF_VAR_azure_ad_client_id`, and `TF_VAR_azure_ad_client_secret`
-only.
+tfvars file omits it and points at `TF_VAR_administrator_login_password`.
+`.github/workflows/release.yml` exports `TF_VAR_administrator_login_password` from
+`secrets.SQL_ADMIN_PASSWORD` (and fails early if `SQL_ADMIN_PASSWORD`, `AZURE_AD_CLIENT_ID`, or
+`AZURE_AD_CLIENT_SECRET` is unset).
 
 ### Key Vault secret names
 
@@ -146,18 +138,19 @@ only.
 
 No secret value is recorded in this document, in the tfvars files, or anywhere else in the
 repository. The `sql-connection-string` value is written into the vault by Terraform, and
-`API-deploy.yml` reads it back out at deploy time to run the migrations. See the
+`.github/workflows/release.yml` (`deploy-api`) reads it back out at deploy time, masks it via
+`::add-mask::`, and passes it via `env:` (`CONNECTION_STRING`) to run migrations. See the
 [security guidelines](../security.md) for the repository-wide rules on secret handling.
 
 ### Workflow-to-Terraform name reconciliation
 
-`API-deploy.yml` derives its targets from the workflow input rather than from Terraform
-outputs, so the two have to agree by convention:
+`.github/workflows/release.yml` derives its targets from `inputs.environment || 'dev'` rather
+than from Terraform outputs, so both sides must agree by convention:
 
-| Target | Name used by `API-deploy.yml` | Name provisioned by Terraform for `dev` | Match |
+| Target | Name used by `release.yml` | Name provisioned by Terraform for `dev` | Match |
 | --- | --- | --- | --- |
 | App | `<environment>-hotshot-logistics-function` | `dev-hotshot-logistics-function` | yes |
-| Key Vault | `<environment>-hotshot-logistics-kv` | `dev-hotshot-log-kv-01` | no |
+| Key Vault | `<environment>-hotshot-log-kv-01` | `dev-hotshot-log-kv-01` | yes |
 
 This table records observed naming facts about the current code. It does not add or change an
 entry in the canonical drift register below.
@@ -166,92 +159,27 @@ entry in the canonical drift register below.
 
 ```mermaid
 flowchart TD
-  ci["Dot Net API Build and Test<br/>dotnet-buid-test.yml"]
-  plan["Terraform Plan<br/>terraform-plan.yml"]
-  apply["Terraform Apply<br/>terraform-apply.yml"]
-  deploy["API Deploy to Azure<br/>API-deploy.yml"]
-  azure["Azure resources<br/>rg-hotshot-logistics-dev-eastus"]
+  pr["pull_request / push (main) / schedule / workflow_dispatch"]
+  ci["CI (.github/workflows/ci.yml)<br/>changes -> backend, dashboard, dashboard-e2e, docs-gate, codeql, secret-scanning, terraform-validate -> ci-summary"]
+  rel["Release (.github/workflows/release.yml)<br/>triggered by successful CI push on main, v* tag, or workflow_dispatch"]
+  gate["release-gate<br/>classify changed paths via 7-Deployment/ci/ci_helpers.py"]
+  tf["terraform<br/>Terraform Plan & Apply (same runner, no tfplan artifact upload)"]
+  api["deploy-api<br/>App Service deploy + Key Vault lookup + dotnet fm migrate"]
+  azure["Azure resources<br/>rg-hotshot-logistics-<env>-eastus2"]
 
-  ci -->|workflow_run, pull request only| plan
-  plan -->|workflow_run| apply
-  ci -->|workflow_run| deploy
-  plan -->|terraform plan, plus apply on refs/heads/main| azure
-  apply -->|terraform apply -auto-approve| azure
-  deploy -->|webapps-deploy, then FluentMigrator migrations| azure
+  pr --> ci
+  ci -->|workflow_run success on main push| rel
+  rel --> gate
+  gate -->|deploy_infra=true| tf
+  gate -->|deploy_api=true & infra skipped or succeeded| api
+  tf --> api
+  tf --> azure
+  api --> azure
 ```
 
-All four workflows also accept `workflow_dispatch`.
-
-### Dot Net API Build and Test
-
-`.github/workflows/dotnet-buid-test.yml` is the entry point of the chain. It triggers on
-`pull_request` (path-filtered to `**/*.cs`, `**/*.csproj`, `**/Directory.Build.props`,
-`**/Directory.Build.targets`, `**/.editorconfig`, `stylecop.json`, `.github/workflows/**`),
-on `push` to `main` and `develop`, and on `workflow_dispatch`. Workflow permissions are
-`actions: read`, `contents: read`, `security-events: write`. It installs the .NET `10.0.x` SDK.
-
-| Job | What it does |
-| --- | --- |
-| `build` | Restores every `*.csproj`, runs `dotnet format` (analyzers, style, whitespace) in verify mode over every project, builds each project in Release with `-warnaserror:IDE0005`, then runs `dotnet test` over every project under `5-Test` |
-| `codeql` | Initializes CodeQL for `csharp`, autoloads, and analyzes |
-| `secret-scanning` | Runs TruffleHog over the repository, scoped to verified results, against the PR base/head for pull requests and against the whole tree otherwise |
-| `dependabot` | Reports outdated NuGet packages, and runs only when the actor is `dependabot[bot]` |
-
-### Terraform Plan
-
-`.github/workflows/terraform-plan.yml` triggers on `workflow_run` for "Dot Net API Build and
-Test" completed (branch filter `development`, `main`) with the additional condition
-`github.event.workflow_run.event == 'pull_request'`, and on `workflow_dispatch`. It runs in
-`7-Deployment/Azure-deploy/solution/HotshotLogistics` and performs checkout, Terraform setup,
-Azure login, `terraform init`, writes a `hotshot.tfvars` file, `terraform plan`, and a
-`terraform apply -auto-approve` step gated on `github.ref == 'refs/heads/main'`.
-
-The generated tfvars file sets `location = "East US 2"` and
-`resource_group_name = "rg-hotshot-logistics-dev-eastus2"`. See DR3 and DR4 in the register.
-
-### Terraform Apply
-
-`.github/workflows/terraform-apply.yml` triggers on `workflow_run` for "Terraform Plan"
-completed (branch filter `development`) and on `workflow_dispatch` with an `environment` choice
-offering `dev`, `staging`, and `prod` and defaulting to `dev`. It runs in the same working
-directory and performs checkout, Terraform setup, Azure login, `terraform init`, writes a
-`hotshot.tfvars` file, and `terraform apply -auto-approve`.
-
-The generated tfvars file sets `location = "East US"` and
-`resource_group_name = "rg-hotshot-logistics-dev-eastus"`. See DR3 in the register.
-
-### API Deploy to Azure
-
-`.github/workflows/API-deploy.yml` triggers on `workflow_run` for "Dot Net API Build and Test"
-completed (branch filter `development`, `main`) and on `workflow_dispatch` with an
-`environment` choice offering `dev`, `staging`, and `prod` and defaulting to `dev`. It runs in
-`1-Presentation/HotshotLogistics.Api` and performs checkout, .NET setup, Azure login,
-`dotnet restore`, `dotnet build -c Release`, `dotnet publish -c Release -o ./publish`, the
-App Service deploy, the Key Vault lookup, the migration run, and a verification summary.
-
-| Step | Detail |
-| --- | --- |
-| Deploy | `azure/webapps-deploy@v4` to `<environment>-hotshot-logistics-function` with `package: ./publish` and `startup-command: 'dotnet HotshotLogistics.Api.dll'` |
-| Key Vault lookup | Reads the `sql-connection-string` secret from `<environment>-hotshot-logistics-kv` |
-| Migrations | Installs `FluentMigrator.DotNet.Cli` 3.4.0, builds `4-Persistence/HotshotLogistics.Data`, then runs `dotnet fm migrate` against that assembly with the SQL Server provider and the retrieved connection string |
-| Verify | Prints a summary of the environment, the app name, and the migration result |
-
-### How the API deploy relates to the Terraform workflows
-
-`API-deploy.yml` is independent of both Terraform workflows. It does not run `terraform`, does
-not read Terraform outputs, and does not wait for either Terraform workflow to complete. Both
-sides reconstruct resource names from the same `<environment>` string, but they do so
-separately, and neither validates the other's result. A deployment therefore needs the
-infrastructure workflow and the API workflow to have targeted the same subscription, region,
-and environment for the app to find its own configuration and its own database.
-
-Two further facts about how the chain is wired:
-
-- The build workflow pushes on `main` and `develop`, while the deploy workflows filter
-  `workflow_run` on `development` and `main`. `develop` and `development` are different branch
-  names.
-- The Terraform `tfstate` blob container named in the `azurerm` backend is not created by the
-  launchpad solution, which declares only the resource group and the storage account.
+See [ci-cd-pipelines.md](ci-cd-pipelines.md) for the complete job-by-job breakdown, triggers,
+SHA-pinned action inventory, environment variables, and secrets for both `.github/workflows/ci.yml`
+and `.github/workflows/release.yml`.
 
 ### Dependency updates
 
@@ -300,14 +228,14 @@ The authoritative statements of the migration-inertness fact are
 [dbsetup/architecture.md](../dbsetup/architecture.md) and
 [dbsetup/onboarding.md](../dbsetup/onboarding.md).
 
-Two facts about how it is actually used today:
+Two facts about how it is used today:
 
-1. **No workflow executes DbSetup.** `API-deploy.yml` applies the schema by installing
-   the `FluentMigrator.DotNet.Cli` tool and running `dotnet fm migrate` against
-   `4-Persistence/HotshotLogistics.Data`. The build workflow does compile the DbSetup
-   project and its test project, because it restores and builds every `*.csproj` it finds
-   from the repository root, but nothing in any pipeline runs the CLI. The `dotnet test`
-   step scans only `5-Test`, so the DbSetup test project is compiled but never executed.
+1. **CI executes DbSetup against an ephemeral container; release deploys run `dotnet fm migrate`.**
+   `.github/workflows/ci.yml` (`backend` job) invokes `HotshotLogistics.DbSetup` (`--non-interactive`)
+   against an ephemeral SQL Server 2022 container, runs `4-Persistence/MigrationRunner`, and executes
+   all four test projects including `HotshotLogistics.DbSetup.Tests`. By contrast,
+   `.github/workflows/release.yml` (`deploy-api`) builds `4-Persistence/HotshotLogistics.Data` and
+   runs `FluentMigrator.DotNet.Cli` (`dotnet fm migrate`) directly against Azure SQL.
 2. **The tool's own migration path is currently unreachable.** `Program.cs` composes
    `ArgumentParser`, `EnvironmentManager`, `PasswordManager`, and `SqlServerProvisioner`. The
    `MigrationInvoker` step is a `// TODO` comment, and `MigrationInvoker.RunMigrationsAsync` is
@@ -322,21 +250,21 @@ and [dbsetup/onboarding.md](../dbsetup/onboarding.md) for how to run the tool.
 This section is the single source of truth for deployment drift for this repository. Other
 documents link here rather than restating the items.
 
-- **DR1 — DbSetup composition claim (residual locations).** `Program.cs` carries `// TODO: Implement ... MigrationInvoker` and never calls `MigrationInvoker.RunMigrationsAsync`; `MigrationInvoker` is implemented but dead code. The claim that DbSetup "applies migrations" was recorded in `6-Docs/catalog.md`, `6-Docs/api/onboarding.md`, `7-Deployment/DbSetup/README.md`, `6-Docs/rules/scripts.md`, and `6-Docs/project-overview.md`; all five were corrected on 2026-10-20 within this delivery (see the [register reconciliation note](#register-reconciliation-note)).
-- **DR2 — Hosting model conflict (residual locations).** Terraform `main.tf` provisions a Function App (`kind = "functionapp"`, AVM `web-site`); `API-deploy.yml` uses `azure/webapps-deploy@v4` (App Service) with startup `dotnet HotshotLogistics.Api.dll`. The hosting model is unresolved at the code/infra level. The claim that the API is "hosted on Azure Container Apps" was recorded in `6-Docs/api/architecture.md`, `6-Docs/project-overview.md`, `6-Docs/rules/file-organization.md`, `1-Presentation/HotshotLogistics.Api/README.md`, and the root `README.md`; all five were corrected on 2026-10-20 within this delivery (see the [register reconciliation note](#register-reconciliation-note)).
-- **DR3 — Divergent region/resource-group.** `terraform-plan.yml` hardcodes "East US 2" / `rg-hotshot-logistics-dev-eastus2`; `terraform-apply.yml` hardcodes "East US" / `rg-hotshot-logistics-dev-eastus`.
-- **DR4 — Plan/apply overlap.** `terraform-plan.yml` embeds a `terraform apply -auto-approve` step gated to `refs/heads/main`, overlapping `terraform-apply.yml`.
-- **DR5 — Missing staging/prod environments.** `staging` and `prod` appear in `workflow_dispatch` inputs and the Terraform `environment` variable, but `7-Deployment/Azure-deploy/environments/` contains only `dev/hotshot.tfvars`.
-- **DR6 — Action pinning vs standard.** The draft `github-actions` standard permits version tags or full commit SHAs for third-party actions. `dotnet-buid-test.yml` uses the branch reference `trufflesecurity/trufflehog@main`, which requires a documented exception and a migration plan under that standard. Version tags remain mutable. The `secret-scanning` and `dependabot` jobs also inherit workflow-level `security-events: write` rather than narrowing permissions per job.
-- **DR7 — Key Vault name divergence.** `API-deploy.yml` reads the `sql-connection-string` secret from a vault named `<environment>-hotshot-logistics-kv`; Terraform `main.tf` provisions the Key Vault as `<environment>-hotshot-log-kv-01`. The two names are reconciled only by convention and do not match.
-- **DR8 — `tfstate` container not provisioned.** The `azurerm` backend in both solutions names blob container `tfstate`; the launchpad solution creates only the resource group and the storage account, so the container must be created out of band before `terraform init` can succeed.
-- **DR9 — Serverless knobs on a provisioned tier.** `compute_model = "Serverless"` is commented out and the `modules/database` submodule of `avm-res-sql-server` 0.1.5 declares no `compute_model` input; the database is created `GP_S_Gen5_1`, while `min_capacity` and `auto_pause_delay_in_minutes` are set as literals that do not take effect on that tier.
-- **DR10 — SQL administrator password never supplied.** `administrator_login_password` is `sensitive` with no default; the committed `dev/hotshot.tfvars` omits it and points at `TF_VAR_administrator_login_password`, but no workflow exports that variable, so an unattended `terraform plan`/`apply` has no value for it.
-- **DR11 — SQL admin password and Key Vault password diverge.** The `sql_server` module receives `var.administrator_login_password`, while the Key Vault `sql-admin-password` secret and the embedded `sql-connection-string` use `random_password.sql_password.result` — two different values — and the connection-string template hardcodes the login name rather than `var.administrator_login`.
-- **DR12 — Inert Terraform variables.** `min_capacity`, `max_capacity`, `auto_pause_delay_in_minutes`, `azure_ad_client_id`, and `azure_ad_client_secret` are declared (the last two supplied by the workflows) but referenced by nothing; the launchpad solution's `location` and `environment` variables are hardcoded away in `main.tf`.
-- **DR13 — Branch-name mismatch in the workflow chain.** `dotnet-buid-test.yml` triggers on push to `main` and `develop`, while `API-deploy.yml` and `terraform-plan.yml` filter their `workflow_run` on `development` and `main`, and `terraform-apply.yml` filters on `development` alone. `develop` is not `development`, so a push to `develop` triggers the build but never the deploy chain.
-- **DR14 — Secret values written to a generated tfvars file.** `terraform-plan.yml` and `terraform-apply.yml` interpolate `DAVIDS_AZURE_SUB`, `AZURE_AD_CLIENT_ID`, and `AZURE_AD_CLIENT_SECRET` into a generated `hotshot.tfvars`, diverging from the `github-actions` coding standard's "passed by `env:`" rule (the same values are already passed as `TF_VAR_*` environment variables). The file is created only on the CI runner and is covered by the repository's `*.tfvars` gitignore, so it is **not** a violation of the root `AGENTS.md` absolute secrets ban, which governs the repository working tree; it is a standard-conformance drift whose fix is a workflow change outside this plan.
-- **DR15 — Key Vault secret value written to a step output and echoed into the job log.** `API-deploy.yml` writes the value of the Key Vault secret `sql-connection-string` to `$GITHUB_OUTPUT` and interpolates it into the migration step's script, where the runner prints it, with no `::add-mask::` call to redact it.
+- **DR1 — DbSetup composition claim (open; doc claims corrected).** `Program.cs` carries `// TODO: Implement ... MigrationInvoker` and never calls `MigrationInvoker.RunMigrationsAsync`; `MigrationInvoker` is implemented but dead code. The claim that DbSetup "applies migrations" was recorded in `6-Docs/catalog.md`, `6-Docs/api/onboarding.md`, `7-Deployment/DbSetup/README.md`, `6-Docs/rules/scripts.md`, and `6-Docs/project-overview.md`; all five were corrected on 2026-10-20 within this delivery (see the [register reconciliation note](#register-reconciliation-note)).
+- **DR2 — Hosting model conflict (open; doc claims corrected).** Terraform `main.tf` provisions a Function App (`kind = "functionapp"`, AVM `web-site`); `.github/workflows/release.yml` (`deploy-api`) uses `azure/webapps-deploy` (`v3.0.8`) with startup `dotnet HotshotLogistics.Api.dll`. The hosting model is unresolved at the code/infra level. The prior "Azure Container Apps" claim was removed from all docs on 2026-10-20 (see the [register reconciliation note](#register-reconciliation-note)).
+- **DR3 — Workflow vs `hotshot.tfvars` region/resource-group (partially resolved).** Consolidating plan and apply into `.github/workflows/release.yml` eliminated the plan-vs-apply split (`East US 2` / `rg-hotshot-logistics-<env>-eastus2` across both steps), though the committed `7-Deployment/Azure-deploy/environments/dev/hotshot.tfvars` still specifies `East US` / `rg-hotshot-logistics-dev-eastus`.
+- **DR4 — Plan/apply overlap (resolved).** `terraform-plan.yml` and `terraform-apply.yml` were deleted and replaced by the single `terraform` job in `.github/workflows/release.yml`, which plans to local `tfplan`, applies it on the same runner, and deletes `tfplan` under `if: always()`. Offline validation runs in `.github/workflows/ci.yml` (`terraform-validate`).
+- **DR5 — Missing staging/prod environments (open).** `staging` and `prod` appear in `release.yml` `workflow_dispatch` inputs and the Terraform `environment` variable, but `7-Deployment/Azure-deploy/environments/` contains only `dev/hotshot.tfvars` and all deployments share one backend state key (`hotshotlogistics.tfstate`).
+- **DR6 — Action pinning and least-privilege permissions (resolved).** Every third-party action in `.github/workflows/ci.yml` and `.github/workflows/release.yml` is pinned by full 40-character commit SHA. `ci.yml` declares top-level `contents: read` and scopes `security-events: write` strictly to `codeql`; `release.yml` scopes permissions to `id-token: write` and `contents: read`.
+- **DR7 — Key Vault name divergence (resolved).** `.github/workflows/release.yml` (`deploy-api`) now reads `sql-connection-string` from `${TARGET_ENV}-hotshot-log-kv-01`, matching Terraform `main.tf`.
+- **DR8 — `tfstate` container not provisioned (open).** The `azurerm` backend names blob container `tfstate`; the launchpad solution creates only the resource group and the storage account, so the container must be created out of band before `terraform init` can succeed.
+- **DR9 — Serverless knobs on a provisioned tier (open).** `compute_model = "Serverless"` is commented out and the `modules/database` submodule of `avm-res-sql-server` 0.1.5 declares no `compute_model` input; the database is created `GP_S_Gen5_1`, while `min_capacity` and `auto_pause_delay_in_minutes` are set as literals that do not take effect on that tier.
+- **DR10 — SQL administrator password (resolved in workflow; secret configuration required).** `release.yml` passes `TF_VAR_administrator_login_password` from `secrets.SQL_ADMIN_PASSWORD` and fails early if unset, though `SQL_ADMIN_PASSWORD` (along with `AZURE_AD_CLIENT_ID` and `AZURE_AD_CLIENT_SECRET`) must be configured in repository secrets before `terraform` runs.
+- **DR11 — SQL admin password and Key Vault password diverge (open).** The `sql_server` module receives `var.administrator_login_password`, while the Key Vault `sql-admin-password` secret and the embedded `sql-connection-string` use `random_password.sql_password.result` — two different values — and the connection-string template hardcodes the login name rather than `var.administrator_login`.
+- **DR12 — Inert Terraform variables (open).** `min_capacity`, `max_capacity`, `auto_pause_delay_in_minutes`, `azure_ad_client_id`, and `azure_ad_client_secret` are declared (the last two supplied by `release.yml`) but referenced by nothing; the launchpad solution's `location` and `environment` variables are hardcoded away in `main.tf`.
+- **DR13 — Branch-name mismatch in the workflow chain (resolved).** Default branch is `main`; `ci.yml` triggers on `pull_request`, `push` to `main`, weekly `schedule`, and `workflow_dispatch`, and `release.yml` chains cleanly via `workflow_run` on successful `CI` runs for pushes to `main` (gated by `release-gate` changed-path checks).
+- **DR14 — Secret values written to a generated tfvars file (resolved).** `release.yml` passes all Terraform credentials via `TF_VAR_*` / `ARM_*` environment variables and never writes a generated `hotshot.tfvars` file or uploads a `tfplan` artifact.
+- **DR15 — Key Vault secret written unmasked to script/logs (resolved).** `release.yml` (`deploy-api`) masks the Key Vault `sql-connection-string` output with `::add-mask::` and passes it to `dotnet fm migrate` via `env:` (`CONNECTION_STRING`) rather than inline script interpolation.
 
 ### Register versioning
 
@@ -405,14 +333,6 @@ on 2026-10-20, and the locations in which each of the two claims was recorded.
   `actions/checkout@v5` and `actions/setup-dotnet@v4` are not exempted from the SHA-pinning
   requirement. The 2026-10-19 wording of DR6 is retained verbatim in the
   [Register versioning](#register-versioning) subsection above.
-
-## Out-of-scope pre-existing documentation defects
-
-Recorded for the conductor's awareness. Neither defect is caused by this delivery, and neither
-is fixed by it.
-
-- **P1 —** `6-Docs/admin-dashboard/AZURE_AD_SETUP.md` has no YAML frontmatter (`KW-DOC-SPEC-001`).
-- **P2 —** `6-Docs/todo/README.md` links `../todos/admin-dashboard-job-status-unresolved.md` while the file is `6-Docs/todo/admin-dashboard-job-status-unresolved.md` (`KW-DOC-LIFECYCLE-002`).
 
 ## Related documentation
 

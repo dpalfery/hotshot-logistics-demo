@@ -6,7 +6,7 @@ status: current
 component: DbSetup
 source-root: 7-Deployment/DbSetup
 owner: unassigned
-last-reviewed: 2026-11-09
+last-reviewed: 2026-11-14
 ---
 
 # DbSetup onboarding
@@ -79,9 +79,11 @@ See the source-root [DbSetup README](../../7-Deployment/DbSetup/README.md) for t
 
 ## CI and deployment
 
-The GitHub Actions workflows do **not** invoke the DbSetup CLI. The pipelines apply the schema themselves: `.github/workflows/API-deploy.yml` installs the FluentMigrator CLI and runs `dotnet fm migrate` directly against the `HotshotLogistics.Data` assembly, so the DbSetup migration path is not on the CI/CD path at all. `.github/workflows/dotnet-buid-test.yml` compiles the DbSetup project as part of the whole-repository build, but no workflow executes the tool.
+In continuous integration ([`.github/workflows/ci.yml`](../../.github/workflows/ci.yml)), the `backend` job starts an ephemeral SQL Server 2022 container with a masked per-run `SA` password, builds `HotshotLogistics.sln`, invokes the `DbSetup` CLI (`--non-interactive`, `CI_SA_CONNECTION_STRING`, and `HOTSHOT_DB_PASSWORD`) to create `hotshot_logistics_test` and the `hotshot_app` login, runs `4-Persistence/MigrationRunner` to apply FluentMigrator migrations, and executes all four test projects (including `HotshotLogistics.DbSetup.Tests`).
 
-DbSetup is a provisioning tool, not a runtime service, and it is not part of the CI/CD path. It runs when someone provisions a database by hand. For how the deployed stack and its pipelines are wired, see [deployment architecture](../devops/deployment-architecture.md) and the [DevOps documentation index](../devops/README.md).
+For live Azure deployments, [`.github/workflows/release.yml`](../../.github/workflows/release.yml) (`deploy-api` job) does **not** invoke the `DbSetup` CLI: it builds `4-Persistence/HotshotLogistics.Data`, discovers `HotshotLogistics.Data.dll`, and runs `FluentMigrator.DotNet.Cli` (`dotnet fm migrate`) directly against Azure SQL using the connection string read from Key Vault.
+
+DbSetup is a provisioning tool, not a deployed runtime service. For how the deployed stack and its pipelines are wired, see [deployment architecture](../devops/deployment-architecture.md) and the [DevOps documentation index](../devops/README.md).
 
 ## Non-standard operating procedures
 
