@@ -149,22 +149,17 @@ review:
   #   `dashboard-e2e`: 1-Presentation/admin-dashboard/scripts/task-e2e.sh runs the changed Playwright specs
   #   and the specs covering a changed component by naming convention (chromium only).
   task-gates:
+    # No separate solution build per task: run-task-tests.sh builds what the task's tests need into the
+    # same artifacts path and reports compile errors, so a second full build only added about a minute a run.
     csharp-dev:
-      - &task-build
-        id: dotnet-build
-        include: ["**/*.cs", "**/*.csproj", "**/*.props", "**/*.targets", "**/*.sln", "**/NuGet.config", "**/.editorconfig"]
-        run: [dotnet, build, HotshotLogistics.sln, -c, Release, --artifacts-path, ".agent_scratchpad/{task}/artifacts", -nr:false, -p:UseSharedCompilation=false]
-        timeout: 300
       - &task-tests
         id: tests
         include: ["**/*.cs"]
         run: [bash, 5-Test/run-task-tests.sh, "{tests}", ".agent_scratchpad/{task}/artifacts"]
         timeout: 600
     dal-dev:
-      - *task-build
       - *task-tests
     test-dev:
-      - *task-build
       - *task-tests
       - &task-e2e
         id: dashboard-e2e
