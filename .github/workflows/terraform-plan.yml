@@ -1,13 +1,18 @@
 name: Terraform Plan
 
 on:
-  workflow_run:
-    workflows: ["Dot Net API Build and Test"]
-    types:
-      - completed
+  push:
     branches:
-      - development
       - main
+    paths:
+      - '7-Deployment/Azure-deploy/**'
+      - '.github/workflows/terraform-plan.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '7-Deployment/Azure-deploy/**'
+      - '.github/workflows/terraform-plan.yml'
   workflow_dispatch:
 
 permissions:
@@ -21,21 +26,21 @@ concurrency:
 jobs:
   terraform:
     runs-on: ubuntu-latest
-    # Only run if the triggering workflow was successful and it's a PR, OR if manually triggered
-    if: (github.event.workflow_run.conclusion == 'success' && github.event_name == 'workflow_run' && github.event.workflow_run.event == 'pull_request') || github.event_name == 'workflow_dispatch'
+    # Do not expose Azure OIDC/secrets to fork PRs.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     defaults:
       run:
         working-directory: 7-Deployment/Azure-deploy/solution/HotshotLogistics
-    
+
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v4
+        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
 
       - name: Setup Azure CLI
-        uses: azure/login@v3
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -50,37 +55,12 @@ jobs:
           ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           ARM_USE_OIDC: true
 
-      - name: Create tfvars with secrets
-        run: |
-          cat > hotshot.tfvars << EOF
-          # Azure Region
-          location = "East US 2"
-          
-          # Resource Group
-          resource_group_name = "rg-hotshot-logistics-dev-eastus2"
-          
-          # Azure Subscription ID - Using GitHub Secret
-          subscription_id = "${{ secrets.DAVIDS_AZURE_SUB }}"
-          
-          # Azure AD Authentication
-          azure_ad_client_id = "${{ secrets.AZURE_AD_CLIENT_ID }}"
-          azure_ad_client_secret = "${{ secrets.AZURE_AD_CLIENT_SECRET }}"
-          
-          # Environment
-          environment = "dev"
-          
-          # Tags
-          tags = {
-            Environment = "dev"
-            Project     = "hotshot-logistics"
-            ManagedBy   = "terraform"
-            Owner       = "hotshot-team"
-          }
-          EOF
-
       - name: Terraform Plan
-        run: terraform plan -var-file="hotshot.tfvars"
+        run: terraform plan -no-color
         env:
+          TF_VAR_location: "East US 2"
+          TF_VAR_resource_group_name: "rg-hotshot-logistics-dev-eastus2"
+          TF_VAR_environment: "dev"
           TF_VAR_subscription_id: ${{ secrets.DAVIDS_AZURE_SUB }}
           TF_VAR_azure_ad_client_id: ${{ secrets.AZURE_AD_CLIENT_ID }}
           TF_VAR_azure_ad_client_secret: ${{ secrets.AZURE_AD_CLIENT_SECRET }}
@@ -88,17 +68,3 @@ jobs:
           ARM_SUBSCRIPTION_ID: ${{ secrets.DAVIDS_AZURE_SUB }}
           ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           ARM_USE_OIDC: true
-
-      - name: Terraform Apply
-        if: github.ref == 'refs/heads/main'
-        run: terraform apply -var-file="hotshot.tfvars" -auto-approve
-        env:
-          TF_VAR_subscription_id: ${{ secrets.DAVIDS_AZURE_SUB }}
-          TF_VAR_azure_ad_client_id: ${{ secrets.AZURE_AD_CLIENT_ID }}
-          TF_VAR_azure_ad_client_secret: ${{ secrets.AZURE_AD_CLIENT_SECRET }}
-          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          ARM_SUBSCRIPTION_ID: ${{ secrets.DAVIDS_AZURE_SUB }}
-          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          ARM_USE_OIDC: true
-
-  

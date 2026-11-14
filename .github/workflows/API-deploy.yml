@@ -2,11 +2,10 @@ name: API Deploy to Azure
 
 on:
   workflow_run:
-    workflows: ["Dot Net API Build and Test"]
+    workflows: ["CI"]
     types:
       - completed
     branches:
-      - development
       - main
   workflow_dispatch:
     inputs:
@@ -24,29 +23,38 @@ permissions:
   id-token: write
   contents: read
 
+concurrency:
+  group: api-deploy-${{ github.event.inputs.environment || 'dev' }}
+  cancel-in-progress: false
+
 env:
   DOTNET_VERSION: '10.0.x'
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    # Only run if the .NET CI workflow was successful or if it's a manual trigger
-    if: (github.event.workflow_run.conclusion == 'success' && github.event_name == 'workflow_run') || github.event_name == 'workflow_dispatch'
+    # Only deploy on push to main after CI passes, or on explicit manual dispatch.
+    if: >-
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_branch == 'main') ||
+      github.event_name == 'workflow_dispatch'
     defaults:
       run:
         working-directory: 1-Presentation/HotshotLogistics.Api
-    
+
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
       - name: Setup Azure CLI
-        uses: azure/login@v3
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -63,7 +71,7 @@ jobs:
         run: dotnet publish --configuration Release --output ./publish --no-build
 
       - name: Deploy to Azure App Service
-        uses: azure/webapps-deploy@v4
+        uses: azure/webapps-deploy@02a81bead70021f5284939794bcec79c271ab383 # v3.0.8
         with:
           app-name: ${{ github.event.inputs.environment || 'dev' }}-hotshot-logistics-function
           package: ./publish
@@ -71,22 +79,19 @@ jobs:
 
       - name: Get Key Vault connection string
         id: get-connection-string
+        env:
+          TARGET_ENV: ${{ github.event.inputs.environment || 'dev' }}
         run: |
-          CONNECTION_STRING=$(az keyvault secret show --vault-name "${{ github.event.inputs.environment || 'dev' }}-hotshot-logistics-kv" --name "sql-connection-string" --query value -o tsv)
-          echo "connection_string=$CONNECTION_STRING" >> $GITHUB_OUTPUT
+          CONNECTION_STRING=$(az keyvault secret show --vault-name "${TARGET_ENV}-hotshot-logistics-kv" --name "sql-connection-string" --query value -o tsv)
+          echo "::add-mask::${CONNECTION_STRING}"
+          echo "connection_string=${CONNECTION_STRING}" >> "$GITHUB_OUTPUT"
 
       - name: Run database migrations
+        working-directory: .
         run: |
-          # Install FluentMigrator CLI
           dotnet tool install --global FluentMigrator.DotNet.Cli --version 3.4.0
-          
-          # Set connection string for migrations
           export CONNECTION_STRING="${{ steps.get-connection-string.outputs.connection_string }}"
-          
-          # Build the data project so the assembly is available
           dotnet build 4-Persistence/HotshotLogistics.Data/HotshotLogistics.Data.csproj --configuration Release
-          
-          # Run FluentMigrator migrations against SQL Server
           dotnet fm migrate -a 4-Persistence/HotshotLogistics.Data/bin/Release/net10.0/HotshotLogistics.Data.dll -c "${CONNECTION_STRING}" -p sqlserver
         env:
           ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
@@ -95,8 +100,10 @@ jobs:
           ARM_USE_OIDC: true
 
       - name: Verify deployment
+        env:
+          TARGET_ENV: ${{ github.event.inputs.environment || 'dev' }}
         run: |
           echo "Deployment completed successfully!"
-          echo "Environment: ${{ github.event.inputs.environment || 'dev' }}"
-          echo "App Service: ${{ github.event.inputs.environment || 'dev' }}-hotshot-logistics-function"
-          echo "Database migrations completed" 
+          echo "Environment: ${TARGET_ENV}"
+          echo "App Service: ${TARGET_ENV}-hotshot-logistics-function"
+          echo "Database migrations completed"
