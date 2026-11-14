@@ -61,8 +61,8 @@ namespace HotshotLogistics.Data.Services
 
                     return new GeocodingResult
                     {
-                        Latitude = (decimal)location.Lat,
-                        Longitude = (decimal)location.Lng,
+                        Latitude = location.Lat,
+                        Longitude = location.Lng,
                         FormattedAddress = firstResult.FormattedAddress,
                         IsValid = true,
                         Confidence = 1.0 // Google Maps doesn't provide confidence scores
@@ -305,9 +305,9 @@ namespace HotshotLogistics.Data.Services
 
         private sealed class Coordinate
         {
-            [JsonPropertyName("lat")] public double Lat { get; init; }
+            [JsonPropertyName("lat")] public decimal Lat { get; init; }
 
-            [JsonPropertyName("lng")] public double Lng { get; init; }
+            [JsonPropertyName("lng")] public decimal Lng { get; init; }
         }
 
         private sealed class AddressComponent
