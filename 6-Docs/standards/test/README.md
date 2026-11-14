@@ -12,8 +12,8 @@ last-reviewed: 2026-08-17
 
 How tests are written in this repository. Agents and skills resolve this document as
 `<test-coding-standard>`, so it outranks the defaults a portable agent shipped with.
-Language-level C# in test files follows `<csharp-coding-standard>`; Python and frontend
-tests follow `<python-coding-standard>` and `<react-coding-standard>` the same way.
+Language-level C# in test files follows `<csharp-coding-standard>`; frontend tests
+follow `<react-coding-standard>`.
 
 > Template. Set `owner` to a row in `catalog.md`, review the decisions below, and promote
 > `status` to `current`. Every choice here is a guess about a repository this template has
@@ -24,8 +24,7 @@ tests follow `<python-coding-standard>` and `<react-coding-standard>` the same w
 ### .NET (primary)
 
 - **Runner:** xUnit. Pick one runner and stay on it.
-- **Mocking:** NSubstitute. Prefer it over Moq — leaner syntax, no `Setup`/`Returns`
-  duplication.
+- **Mocking:** Moq.
 - **Assertions:** FluentAssertions (`result.Should().Be(...)`).
 - **Integration:** `WebApplicationFactory<Program>` for API tests;
   `Microsoft.Data.SqlClient` against a real LocalDB, Docker, or dedicated test database
@@ -36,18 +35,10 @@ tests follow `<python-coding-standard>` and `<react-coding-standard>` the same w
   assertion cluster per test; no test logic shared via inheritance — use fixtures and
   builders.
 
-### Python
-
-- **Runner:** pytest, with `parametrize` for table-driven cases.
-- **Mocking:** `unittest.mock` or `pytest-mock`. Mock at the I/O boundary, never inside
-  domain logic.
-- **Naming:** `test_<unit>_<scenario>` snake_case.
-- **Coverage:** meet the threshold declared as **Test Coverage Config**, or `>80%` line
-  coverage with `pytest-cov` when that property is absent.
-
 ### Frontend
 
-- **Unit / component:** Vitest + React Testing Library.
+- **Unit / component:** Vitest + React Testing Library; setup is tracked in the
+  [frontend unit-test tooling todo](../../todo/frontend-unit-test-tooling.md).
 - **E2E:** Playwright. Coordinate scope with `react-dev` — do not duplicate their smoke
   tests.
 
@@ -77,7 +68,7 @@ live next to the tests they serve.
 | Layer | Kind | Infrastructure |
 |---|---|---|
 | Domain | Unit | None — pure logic, no external deps |
-| Application | Unit | Mocked repositories (NSubstitute) |
+| Application | Unit | Mocked repositories (Moq) |
 | Persistence (repository) | Integration | Real SQL Server — LocalDB or Docker |
 | API (controller) | Integration | `WebApplicationFactory` + real DB |
 | E2E | End-to-end | Full stack |
@@ -93,5 +84,4 @@ HTTP.
 ```bash
 dotnet test --filter <TestClass>
 dotnet test
-pytest tests/<module>
 ```

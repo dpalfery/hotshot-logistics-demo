@@ -53,11 +53,10 @@ still costs every write.
 
 ## Naming and layout
 
-- One convention for schemas, tables and columns — `snake_case` unless the platform's own
-  conventions say otherwise — chosen once and applied everywhere.
+- Use PascalCase for user-defined schemas, tables and columns; use plural table names.
+  Keep SQL Server's built-in `dbo` schema name.
 - Keywords uppercase, one clause per line, joins and conditions indented consistently. A
   formatter settles this; the point is that diffs stay readable.
-- Singular or plural table names is a coin flip. Pick one here and stop re-deciding it.
 
 ## Migrations
 

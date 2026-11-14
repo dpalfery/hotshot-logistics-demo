@@ -6,7 +6,7 @@ status: current
 component: Api
 source-root: 1-Presentation/HotshotLogistics.Api
 owner: unassigned
-last-reviewed: 2026-10-20
+last-reviewed: 2026-11-14
 code-refs:
   - JobController
   - TestAuthHandler
@@ -50,7 +50,8 @@ Authorization policies include `Admin`, `Manager`, `Driver`, `Customer`, and com
 
 ## Data models
 
-Request and response DTOs live in Domain. Persistence uses native ADO.NET. See [data access](../data-access.md).
+Request and response DTOs live in Domain. Persistence uses native ADO.NET. See the
+[data access layer coding standard](../standards/data-access-layer/README.md).
 
 ## Error handling
 

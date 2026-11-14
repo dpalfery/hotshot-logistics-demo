@@ -18,9 +18,8 @@ How CI workflows are written in this repository. Agents and skills resolve this 
 
 ## Supply chain
 
-- **Third-party actions are pinned to a full commit SHA**, with the version in a trailing
-  comment. A tag is mutable: the action you reviewed is not necessarily the action that runs.
-  First-party `actions/*` may be pinned to a major tag if the repository says so here.
+- **Third-party actions use version tags or full commit SHAs.** Existing branch references
+  require a documented exception and a migration plan.
 - **`permissions:` is declared explicitly**, at the workflow and narrowed per job. Start from
   `contents: read` and add what a job proves it needs.
 - **Untrusted input never reaches a shell.** A PR title, branch name, or issue body
@@ -63,5 +62,5 @@ disabled test without a linked issue and a date.
 
 ## Determinism
 
-Pin the runner image, the language version, and the tool versions. `latest` in CI means the
-build that passes today fails on a morning nobody changed anything.
+Floating runner images and tool versions are allowed. Document version constraints where
+compatibility requires them, and account for updates that can change CI without a repository edit.
