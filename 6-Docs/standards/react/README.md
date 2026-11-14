@@ -44,10 +44,9 @@ How React code is written in this repository. Agents and skills resolve this doc
 
 ## Styling
 
-- Use the design system's own mechanism — the `sx` prop or `styled()` under MUI — rather than
-  raw inline styles.
-- Theme values come from a central `ThemeProvider`. Do not mutate the theme at runtime, and do
-  not hardcode a colour that the theme already names.
+- Use Tailwind utility classes and existing shared styles rather than raw inline styles.
+- Define reusable theme values with CSS custom properties and Tailwind theme tokens. Do not
+  hardcode a colour that the theme already names.
 
 ## Accessibility
 
@@ -65,8 +64,8 @@ is a requirement, not a polish step.
 
 ## Hygiene
 
-ESLint and Prettier decide formatting and the mechanical rules; do not restate them here, and
-do not merge code that fails them. No `console.log` or commented-out blocks in merged code.
+ESLint checks the configured mechanical rules; do not restate them here, and do not merge code
+that fails them. No `console.log` or commented-out blocks in merged code.
 
 New dependencies need a reason: what it does, why the existing stack cannot, and who
 maintains it.

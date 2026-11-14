@@ -5,7 +5,7 @@ doc-type: coding-standard
 status: draft
 technology: data-access-layer
 owner: unassigned
-last-reviewed: 2026-08-17
+last-reviewed: 2026-11-14
 ---
 
 # Data access layer coding standard
@@ -22,14 +22,17 @@ Those three must not disagree. Where they would, this document yields to them.
 
 - **Data access:** parameterized ADO.NET (`Microsoft.Data.SqlClient`). Dapper and Entity
   Framework are out of scope — no `QueryAsync`, no `DbContext`, no `DbSet`, no
-  `SaveChangesAsync`.
-- **Connections:** `ISqlConnectionFactory` creates and opens connections. Never
-  `new SqlConnection(...)` at a call site.
+  `SaveChangesAsync`, and no LINQ to Entities. Schema changes use FluentMigrator, not
+  Entity Framework migrations.
+- **Connections:** The target is `ISqlConnectionFactory`, which creates and opens
+  connections; its introduction is tracked in the [connection-factory todo](../../todo/sql-connection-factory.md).
+  Never `new SqlConnection(...)` at a call site.
 - **Migrations:** FluentMigrator, versioned `[Migration(yyyyMMddHHmmss)]`. Schema design
   is not authored here — it arrives as an approved table-definition contract.
-- **Abstraction:** `IRepository<T>` in `<Solution>.Contracts`; implementations private to
-  `<Solution>.Persistence`. Persistence rows stay in Persistence and are mapped at the
-  adapter boundary.
+- **Abstraction:** The target is `IRepository<T>` in `<Solution>.Contracts`; its adoption
+  is tracked in the [generic-repository todo](../../todo/generic-repository-migration.md).
+  Implementations are private to `<Solution>.Persistence`. Persistence rows stay in
+  Persistence and are mapped at the adapter boundary.
 
 ## Hard rules
 
@@ -37,11 +40,14 @@ Those three must not disagree. Where they would, this document yields to them.
   injection, including in a migration.
 - List columns explicitly. `SELECT *` is a contract with tomorrow's schema.
 - Dispose connections, commands, and readers with `using` / `await using`.
+- Application and repository database operations use asynchronous ADO.NET APIs and
+  propagate cancellation where supported. FluentMigrator callbacks and database
+  provisioning APIs may use synchronous calls when their frameworks expose no async API.
 - Multi-statement work that must be atomic runs in one transaction, with an explicit
   rollback path. Do not nest transactions.
-- Connection strings and credentials come from configuration / Key Vault / managed
-  identity, as declared by the **Configuration Policy** registry property — never a
-  literal, never a committed file, never a log line.
+- Connection strings and credentials follow the
+  [C# configuration standard](../csharp/README.md#configuration) — never a literal,
+  never a committed file, never a log line.
 - Register the factory as Singleton and repositories as Scoped in
   `ServiceCollectionExtensions.AddSqlPersistenceServices()` (or the host's equivalent).
 - Structured logging on failures: operation, entity, id. Do not swallow database
@@ -59,11 +65,25 @@ Those three must not disagree. Where they would, this document yields to them.
 Application and API code consumes `IRepository<T>`. It does not open connections or
 write SQL.
 
+## Migrations
+
+- Use versioned FluentMigrator migrations in the format
+  `[Migration(yyyyMMddHHmmss)]`; add a migration before deploying code that depends on a
+  schema change.
+- Make migrations individually idempotent where the platform allows it. If a migration
+  cannot be safely re-run, state its preconditions and recovery steps for partial
+  application.
+- Keep migrations forward-only. Separate destructive schema changes from the code that
+  stops using the affected data, so recovery does not depend on restoring dropped data.
+- Provide a `Down()` path when the migration can be safely reversed; do not treat rollback
+  as a substitute for the forward deployment sequence.
+
 ## Commands
 
 ```bash
 dotnet build -c Release
 dotnet test
-fluentmigrator migrate
-fluentmigrator rollback
 ```
+
+See the [DbSetup onboarding guide](../../dbsetup/onboarding.md) for provisioning and
+the [deployment pipeline documentation](../../devops/ci-cd-pipelines.md) for migrations.

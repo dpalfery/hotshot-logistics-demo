@@ -497,7 +497,7 @@ entry.
 | DR3 | The plan and apply workflows generate different `location` and `resource_group_name` values — see [DR3](#dr3--divergent-region-and-resource-group-between-plan-and-apply) |
 | DR4 | Two workflows can apply the same Terraform root — see [DR4](#dr4--planapply-overlap) |
 | DR5 | `staging` and `prod` are offered as dispatch choices with no environment files behind them — see [DR5](#dr5--staging-and-prod-inputs-with-no-matching-environment-files) |
-| DR6 | Third-party actions are referenced by mutable tag or branch — see [DR6](#dr6--action-pinning-vs-standard) |
+| DR6 | TruffleHog uses a branch reference and two jobs inherit excess permissions — see [DR6](#dr6--action-pinning-vs-standard) |
 | DR7 | The API deploy workflow reads the Key Vault secret from `<environment>-hotshot-logistics-kv`, while Terraform creates the vault as `<environment>-hotshot-log-kv-01` — see the [API deploy section](#api-deployyml--api-deploy-to-azure) |
 | DR13 | The build workflow pushes on `main` and `develop`, while the downstream workflows filter `workflow_run` on `development` and `main` — see [the workflow chain](#the-workflow-chain) |
 | DR14 | The plan and apply workflows interpolate secret values into a generated `hotshot.tfvars` — see [DR14](#dr14--secret-values-written-to-a-generated-tfvars-file) |
@@ -533,9 +533,9 @@ The evidence, by file:
 | `API-deploy.yml` | `azure/login@v2`, `azure/webapps-deploy@v4` | major tag |
 
 The table enumerates the nine distinct mutable action references in the corpus. The
-register's DR6 entry states which of them the gap covers, including the treatment of the
-standard's conditional first-party `actions/*` carve-out; the table above is the
-file-level evidence for that entry, and the "Pin form" column records the pin form only.
+draft standard permits version tags or full commit SHAs for third-party actions.
+The TruffleHog branch reference requires a documented exception and a migration plan;
+the "Pin form" column records the form used by each workflow.
 
 On the least-privilege half of DR6, all four workflows do declare `permissions:`
 explicitly, and the two Terraform workflows plus the API deploy take the minimum OIDC
@@ -718,14 +718,9 @@ What bounds the exposure of this divergence, and what does not:
 No entry in the canonical drift register covers these facts; minting an id for them
 belongs to the register, not to this document.
 
-The [github-actions coding standard](../standards/github-actions/README.md) states:
-
-> ## Determinism
->
-> Pin the runner image, the language version, and the tool versions. `latest` in CI means
-> the build that passes today fails on a morning nobody changed anything.
-
-The corpus diverges from that rule on all three counts it names.
+The [github-actions coding standard](../standards/github-actions/README.md) permits floating
+runner images and tool versions while requiring version constraints where compatibility
+needs them. The following facts describe the resulting risk of changes without a repository edit.
 
 **The runner image is the unpinned alias `ubuntu-latest`.** Every job in the corpus
 resolves its runner from it: `terraform-plan.yml:23`, `terraform-apply.yml:27`,
