@@ -12,11 +12,18 @@ namespace HotshotLogistics.Tests.Billing
     /// <summary>
     ///     Integration tests for InvoiceRepository.
     /// </summary>
-    public class InvoiceRepositoryTests : IClassFixture<DatabaseTestFixture>, IDisposable
+    [Collection(DatabaseCollection.Name)]
+    public class InvoiceRepositoryTests : IClassFixture<DatabaseTestFixture>, IAsyncLifetime
     {
+        // Every row this class creates is named from this unique tag, and every query below is scoped to it,
+        // so seed rows and rows from other classes or processes never change the outcome.
+        private readonly string _tag = $"test-{Guid.NewGuid():N}";
+        private readonly TestRowCleanup _cleanup = new();
         private readonly IConfiguration _configuration;
-        private readonly List<string> _createdInvoiceIds = new();
         private readonly InvoiceRepository _invoiceRepository;
+        private readonly string _customerId;
+        private readonly string _otherCustomerId;
+        private int _invoiceSequence;
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="InvoiceRepositoryTests" /> class.
@@ -24,6 +31,8 @@ namespace HotshotLogistics.Tests.Billing
         public InvoiceRepositoryTests(DatabaseTestFixture fixture)
         {
             ArgumentNullException.ThrowIfNull(fixture);
+            _customerId = $"{_tag}-c1";
+            _otherCustomerId = $"{_tag}-c2";
             if (!TestDatabaseHelper.IsConfigured)
             {
                 _configuration = new ConfigurationBuilder().Build();
@@ -41,23 +50,18 @@ namespace HotshotLogistics.Tests.Billing
             _invoiceRepository = new InvoiceRepository(_configuration);
         }
 
-        /// <summary>
-        ///     Cleans up test data.
-        /// </summary>
-        public void Dispose()
+        /// <inheritdoc />
+        public ValueTask InitializeAsync()
         {
-            // Clean up created test invoices
-            foreach (string invoiceId in _createdInvoiceIds)
-            {
-                try
-                {
-                    _invoiceRepository.DeleteAsync(invoiceId).Wait();
-                }
-                catch
-                {
-                    // Ignore cleanup errors
-                }
-            }
+            return ValueTask.CompletedTask;
+        }
+
+        /// <summary>
+        ///     Deletes the rows this test created and fails the test when any remain.
+        /// </summary>
+        public async ValueTask DisposeAsync()
+        {
+            await _cleanup.CleanUpAsync();
         }
 
         /// <summary>
@@ -69,6 +73,7 @@ namespace HotshotLogistics.Tests.Billing
         {
             // Arrange
             Invoice invoice = CreateTestInvoice();
+            _cleanup.TrackInvoice(invoice.Id);
 
             // Act
             Invoice result = await _invoiceRepository.AddAsync(invoice);
@@ -79,8 +84,6 @@ namespace HotshotLogistics.Tests.Billing
             result.InvoiceNumber.Should().Be(invoice.InvoiceNumber);
             result.CustomerId.Should().Be(invoice.CustomerId);
             result.TotalAmount.Should().Be(invoice.TotalAmount);
-
-            _createdInvoiceIds.Add(result.Id);
         }
 
         /// <summary>
@@ -134,7 +137,7 @@ namespace HotshotLogistics.Tests.Billing
         public async Task GetByCustomerIdAsync_ReturnsInvoicesForCorrectCustomer()
         {
             // Arrange
-            string customerId = "CUST001";
+            string customerId = _customerId;
             await CreateTestInvoicesAsync();
 
             // Act
@@ -142,8 +145,8 @@ namespace HotshotLogistics.Tests.Billing
 
             // Assert
             result.Should().NotBeNull();
-            result.Should().NotBeEmpty();
             result.Should().OnlyContain(i => i.CustomerId == customerId);
+            result.Select(i => i.JobId).Should().BeEquivalentTo(Job(1), Job(2));
         }
 
         /// <summary>
@@ -154,7 +157,7 @@ namespace HotshotLogistics.Tests.Billing
         public async Task GetByJobIdAsync_ReturnsInvoicesForCorrectJob()
         {
             // Arrange
-            string jobId = "JOB001";
+            string jobId = Job(1);
             await CreateTestInvoicesAsync();
 
             // Act
@@ -162,7 +165,7 @@ namespace HotshotLogistics.Tests.Billing
 
             // Assert
             result.Should().NotBeNull();
-            result.Should().NotBeEmpty();
+            result.Should().ContainSingle();
             result.Should().OnlyContain(i => i.JobId == jobId);
         }
 
@@ -183,6 +186,7 @@ namespace HotshotLogistics.Tests.Billing
             // Assert
             result.Should().NotBeNull();
             result.Should().OnlyContain(i => i.Status == status);
+            result.Where(i => i.CustomerId == _customerId).Select(i => i.JobId).Should().Equal(Job(2));
         }
 
         /// <summary>
@@ -204,6 +208,7 @@ namespace HotshotLogistics.Tests.Billing
                 i.Status != InvoiceStatus.Paid &&
                 i.Status != InvoiceStatus.Cancelled &&
                 i.DueDate < DateTime.UtcNow.Date);
+            result.Should().ContainSingle(i => i.CustomerId == _otherCustomerId && i.JobId == Job(4));
         }
 
         /// <summary>
@@ -228,6 +233,10 @@ namespace HotshotLogistics.Tests.Billing
                 i.Status != InvoiceStatus.Cancelled &&
                 i.DueDate >= DateTime.UtcNow.Date &&
                 i.DueDate <= futureDate);
+
+            // Own invoices: three unpaid ones are due within 30 days; the paid one is left out
+            result.Where(i => i.CustomerId == _customerId || i.CustomerId == _otherCustomerId)
+                .Select(i => i.JobId).Should().BeEquivalentTo(Job(1), Job(2), Job(3));
         }
 
         /// <summary>
@@ -250,6 +259,7 @@ namespace HotshotLogistics.Tests.Billing
             result.Should().OnlyContain(i =>
                 i.InvoiceDate.Date >= startDate &&
                 i.InvoiceDate.Date <= endDate);
+            result.Count(i => i.CustomerId == _customerId || i.CustomerId == _otherCustomerId).Should().Be(4);
         }
 
         /// <summary>
@@ -263,6 +273,7 @@ namespace HotshotLogistics.Tests.Billing
             await CreateTestInvoicesAsync();
             InvoiceFilter filter = new()
             {
+                CustomerId = _customerId,
                 Status = InvoiceStatus.Draft,
                 PageNumber = 1,
                 PageSize = 2,
@@ -275,12 +286,11 @@ namespace HotshotLogistics.Tests.Billing
 
             // Assert
             result.Should().NotBeNull();
-            result.Items.Should().NotBeEmpty();
-            result.Items.Should().OnlyContain(i => i.Status == InvoiceStatus.Draft);
-            result.Items.Count().Should().BeLessThanOrEqualTo(2);
+            result.Items.Should().OnlyContain(i => i.Status == InvoiceStatus.Draft && i.CustomerId == _customerId);
+            result.Items.Select(i => i.JobId).Should().Equal(Job(1));
             result.PageNumber.Should().Be(1);
             result.PageSize.Should().Be(2);
-            result.TotalCount.Should().BeGreaterThan(0);
+            result.TotalCount.Should().Be(1);
         }
 
         /// <summary>
@@ -306,14 +316,14 @@ namespace HotshotLogistics.Tests.Billing
         public async Task GetOutstandingBalanceAsync_ReturnsCorrectOutstandingBalance()
         {
             // Arrange
-            string customerId = "CUST001";
+            string customerId = _customerId;
             await CreateTestInvoicesAsync();
 
             // Act
             decimal result = await _invoiceRepository.GetOutstandingBalanceAsync(customerId);
 
-            // Assert
-            result.Should().BeGreaterThanOrEqualTo(0);
+            // Assert: a draft of 1080.00 and a sent invoice of 1620.00, both unpaid
+            result.Should().Be(2700.00m);
         }
 
         /// <summary>
@@ -331,8 +341,8 @@ namespace HotshotLogistics.Tests.Billing
 
             // Assert
             result.Should().NotBeNull();
-            result.TotalInvoices.Should().BeGreaterThan(0);
-            result.TotalAmount.Should().BeGreaterThan(0);
+            result.TotalInvoices.Should().BeGreaterThanOrEqualTo(4);
+            result.TotalAmount.Should().BeGreaterThanOrEqualTo(4752.00m);
             result.TotalOutstanding.Should().BeGreaterThanOrEqualTo(0);
         }
 
@@ -345,13 +355,14 @@ namespace HotshotLogistics.Tests.Billing
         {
             // Arrange
             await CreateTestInvoicesAsync();
-            string searchTerm = "INV";
+            string searchTerm = _tag;
 
             // Act
             List<Invoice> result = (await _invoiceRepository.SearchByInvoiceNumberAsync(searchTerm)).ToList();
 
-            // Assert
+            // Assert: the unique tag is in the four created invoice numbers only
             result.Should().NotBeNull();
+            result.Should().HaveCount(4);
             result.Should().OnlyContain(i => i.InvoiceNumber.Contains(searchTerm));
         }
 
@@ -428,8 +439,14 @@ namespace HotshotLogistics.Tests.Billing
             // Arrange
             string jobId = await CreateTestJobAsync();
 
-            // Act
-            Invoice result = await _invoiceRepository.GenerateInvoiceAsync(jobId);
+            // Act: the next INV + 6 digit number is read and then inserted without a lock, so generators in
+            // other test processes are queued behind a machine-wide lock to avoid a duplicate number.
+            Invoice result;
+            await using (await AcquireGenerateInvoiceLockAsync())
+            {
+                result = await _invoiceRepository.GenerateInvoiceAsync(jobId);
+                _cleanup.TrackInvoice(result.Id);
+            }
 
             // Assert
             result.Should().NotBeNull();
@@ -438,8 +455,6 @@ namespace HotshotLogistics.Tests.Billing
             result.TotalAmount.Should().BeGreaterThan(0);
             result.LineItems.Should().NotBeEmpty();
             result.InvoiceNumber.Should().StartWith("INV");
-
-            _createdInvoiceIds.Add(result.Id);
         }
 
         /// <summary>
@@ -457,6 +472,34 @@ namespace HotshotLogistics.Tests.Billing
                 _invoiceRepository.GenerateInvoiceAsync(nonExistentJobId));
         }
 
+        private string Job(int number)
+        {
+            return $"{_tag}-j{number}";
+        }
+
+        private static async Task<FileStream> AcquireGenerateInvoiceLockAsync()
+        {
+            // An exclusive open of a shared file is the machine-wide lock (advisory, released on dispose or exit).
+            string path = Path.Combine(Path.GetTempPath(), "hotshot-logistics-generate-invoice.lock");
+            DateTime giveUp = DateTime.UtcNow.AddMinutes(2);
+            while (true)
+            {
+                try
+                {
+                    return new FileStream(path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+                }
+                catch (IOException) when (DateTime.UtcNow < giveUp)
+                {
+                    await Task.Delay(50);
+                }
+            }
+        }
+
+        private string NextInvoiceNumber()
+        {
+            return $"INV-{_tag}-{++_invoiceSequence}";
+        }
+
         /// <summary>
         ///     Creates a test invoice.
         /// </summary>
@@ -466,9 +509,9 @@ namespace HotshotLogistics.Tests.Billing
             Invoice invoice = new()
             {
                 Id = Guid.NewGuid().ToString(),
-                InvoiceNumber = $"INV{DateTime.UtcNow.Ticks}",
-                CustomerId = "CUST001",
-                JobId = "JOB001",
+                InvoiceNumber = NextInvoiceNumber(),
+                CustomerId = _customerId,
+                JobId = Job(1),
                 InvoiceDate = DateTime.UtcNow.Date,
                 DueDate = DateTime.UtcNow.Date.AddDays(30),
                 Status = InvoiceStatus.Draft,
@@ -508,9 +551,8 @@ namespace HotshotLogistics.Tests.Billing
         private async Task<Invoice> CreateAndSaveTestInvoiceAsync()
         {
             Invoice invoice = CreateTestInvoice();
-            Invoice result = await _invoiceRepository.AddAsync(invoice);
-            _createdInvoiceIds.Add(result.Id);
-            return result;
+            _cleanup.TrackInvoice(invoice.Id);
+            return await _invoiceRepository.AddAsync(invoice);
         }
 
         /// <summary>
@@ -526,17 +568,20 @@ namespace HotshotLogistics.Tests.Billing
             {
                 new
                 {
-                    CustomerId = "CUST001", JobId = (string?)"JOB001", Status = InvoiceStatus.Draft, Amount = 1000.00m
+                    CustomerId = _customerId, JobId = (string?)Job(1), Status = InvoiceStatus.Draft, Amount = 1000.00m
                 },
                 new
                 {
-                    CustomerId = "CUST001", JobId = (string?)"JOB002", Status = InvoiceStatus.Sent, Amount = 1500.00m
+                    CustomerId = _customerId, JobId = (string?)Job(2), Status = InvoiceStatus.Sent, Amount = 1500.00m
                 },
                 new
                 {
-                    CustomerId = "CUST002", JobId = (string?)"JOB003", Status = InvoiceStatus.Draft, Amount = 800.00m
+                    CustomerId = _otherCustomerId, JobId = (string?)Job(3), Status = InvoiceStatus.Draft, Amount = 800.00m
                 },
-                new { CustomerId = "CUST002", JobId = (string?)null, Status = InvoiceStatus.Paid, Amount = 1200.00m }
+                new
+                {
+                    CustomerId = _otherCustomerId, JobId = (string?)null, Status = InvoiceStatus.Paid, Amount = 1200.00m
+                }
             };
 
             foreach (var data in testData)
@@ -544,7 +589,7 @@ namespace HotshotLogistics.Tests.Billing
                 Invoice invoice = new()
                 {
                     Id = Guid.NewGuid().ToString(),
-                    InvoiceNumber = $"INV{DateTime.UtcNow.Ticks}{invoices.Count}",
+                    InvoiceNumber = NextInvoiceNumber(),
                     CustomerId = data.CustomerId,
                     JobId = data.JobId,
                     InvoiceDate = DateTime.UtcNow.Date.AddDays(-invoices.Count),
@@ -569,9 +614,9 @@ namespace HotshotLogistics.Tests.Billing
                     TaxApplicable = true
                 });
 
+                _cleanup.TrackInvoice(invoice.Id);
                 Invoice result = await _invoiceRepository.AddAsync(invoice);
                 invoices.Add(result);
-                _createdInvoiceIds.Add(result.Id);
             }
         }
 
@@ -584,9 +629,9 @@ namespace HotshotLogistics.Tests.Billing
             Invoice invoice = new()
             {
                 Id = Guid.NewGuid().ToString(),
-                InvoiceNumber = $"INV{DateTime.UtcNow.Ticks}OVERDUE",
-                CustomerId = "CUST003",
-                JobId = "JOB004",
+                InvoiceNumber = NextInvoiceNumber(),
+                CustomerId = _otherCustomerId,
+                JobId = Job(4),
                 InvoiceDate = DateTime.UtcNow.Date.AddDays(-60),
                 DueDate = DateTime.UtcNow.Date.AddDays(-30), // 30 days overdue
                 Status = InvoiceStatus.Sent,
@@ -609,8 +654,8 @@ namespace HotshotLogistics.Tests.Billing
                 TaxApplicable = true
             });
 
-            Invoice result = await _invoiceRepository.AddAsync(invoice);
-            _createdInvoiceIds.Add(result.Id);
+            _cleanup.TrackInvoice(invoice.Id);
+            _ = await _invoiceRepository.AddAsync(invoice);
         }
 
         /// <summary>
@@ -620,6 +665,7 @@ namespace HotshotLogistics.Tests.Billing
         private async Task<string> CreateTestJobAsync()
         {
             string jobId = Guid.NewGuid().ToString();
+            _cleanup.TrackJob(jobId);
             const string sql = @"
                 INSERT INTO Jobs (
                     Id, CustomerId, Title, PickupAddress, PickupLatitude, PickupLongitude,
@@ -637,7 +683,7 @@ namespace HotshotLogistics.Tests.Billing
             SqlParameter[] parameters =
             [
                 new("@Id", jobId),
-                new("@CustomerId", "CUST001"),
+                new("@CustomerId", _customerId),
                 new("@Title", "Test Job for Invoice Generation"),
                 new("@PickupAddress", "123 Pickup St"),
                 new("@PickupCity", "Pickup City"),

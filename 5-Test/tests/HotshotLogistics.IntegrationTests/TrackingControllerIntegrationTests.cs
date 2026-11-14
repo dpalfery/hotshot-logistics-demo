@@ -11,7 +11,7 @@ namespace HotshotLogistics.IntegrationTests
     /// <summary>
     ///     Integration tests for the TrackingController.
     /// </summary>
-    [Collection("DatabaseCollection")]
+    [Collection(DatabaseCollection.Name)]
     public class TrackingControllerIntegrationTests : IntegrationTestBase
     {
         /// <summary>
@@ -33,7 +33,7 @@ namespace HotshotLogistics.IntegrationTests
         public async Task GetCurrentLocation_WhenJobNotTracked_ReturnsNotFound()
         {
             // Arrange
-            string jobId = "job-cust-001-001"; // A job that exists but we assume is not tracked yet
+            string jobId = $"test-untracked-{Guid.NewGuid():N}"; // Never has location rows: nothing writes them
 
             // Act
             HttpResponseMessage response = await Client.GetAsync($"/api/Tracking/location/{jobId}");

@@ -4,7 +4,7 @@ using FluentAssertions;
 
 namespace HotshotLogistics.IntegrationTests
 {
-    [Collection("DatabaseCollection")]
+    [Collection(DatabaseCollection.Name)]
     public class AuthenticationAndAuthorizationTests : IntegrationTestBase
     {
         public AuthenticationAndAuthorizationTests(CustomWebApplicationFactory<Program> factory)

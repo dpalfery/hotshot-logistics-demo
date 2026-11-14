@@ -7,7 +7,7 @@ using HotshotLogistics.Domain.ValueObjects;
 
 namespace HotshotLogistics.IntegrationTests
 {
-    [Collection("DatabaseCollection")]
+    [Collection(DatabaseCollection.Name)]
     public class CustomerControllerIntegrationTests : IntegrationTestBase
     {
         public CustomerControllerIntegrationTests(CustomWebApplicationFactory<Program> factory) : base(factory)
@@ -66,6 +66,7 @@ namespace HotshotLogistics.IntegrationTests
         {
             // Arrange
             string uniqueId = $"test-{Guid.NewGuid():N}";
+            Cleanup.TrackCustomer(uniqueId);
             Customer newCustomer = new()
             {
                 Id = uniqueId,
@@ -121,6 +122,7 @@ namespace HotshotLogistics.IntegrationTests
         {
             // Arrange - First create a customer to update
             string uniqueId = $"test-update-{Guid.NewGuid():N}";
+            Cleanup.TrackCustomer(uniqueId);
             Customer initialCustomer = new()
             {
                 Id = uniqueId,
@@ -220,6 +222,7 @@ namespace HotshotLogistics.IntegrationTests
         {
             // Arrange - First create a customer to delete
             string uniqueId = $"test-delete-{Guid.NewGuid():N}";
+            Cleanup.TrackCustomer(uniqueId);
             Customer testCustomer = new()
             {
                 Id = uniqueId,
@@ -322,7 +325,7 @@ namespace HotshotLogistics.IntegrationTests
         public async Task UpdateCreditLimit_WithValidData_ReturnsNoContent()
         {
             // Arrange
-            string customerId = "cust-004";
+            string customerId = await CreateOwnCustomerAsync();
             var request = new { NewLimit = 5000.00m };
 
             // Act
@@ -337,7 +340,7 @@ namespace HotshotLogistics.IntegrationTests
         public async Task UpdateCreditTerms_WithValidData_ReturnsNoContent()
         {
             // Arrange
-            string customerId = "cust-005";
+            string customerId = await CreateOwnCustomerAsync();
             CreditTerms creditTerms = new() { PaymentTermsDays = 45, Status = CreditStatus.Approved };
 
             // Act
@@ -346,6 +349,41 @@ namespace HotshotLogistics.IntegrationTests
 
             // Assert
             Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        }
+
+        /// <summary>
+        ///     Creates a customer owned by the calling test, so tests that change credit data never touch seed rows.
+        /// </summary>
+        /// <returns>The new customer's id.</returns>
+        private async Task<string> CreateOwnCustomerAsync()
+        {
+            string id = $"test-credit-{Guid.NewGuid():N}";
+            Cleanup.TrackCustomer(id);
+            Customer customer = new()
+            {
+                Id = id,
+                CompanyName = "Customer For Credit Changes",
+                Email = "credit.test@example.com",
+                Phone = "555-0188",
+                TaxId = "TAX-CREDIT-001",
+                BillingAddress = new Address
+                {
+                    Street = "1 Credit Way",
+                    City = "Testville",
+                    State = "TS",
+                    ZipCode = "12345",
+                    Country = "USA",
+                    Latitude = 40.0,
+                    Longitude = -75.0
+                },
+                CreditTerms = new CreditTerms { PaymentTermsDays = 30, Status = CreditStatus.Approved },
+                CreditLimit = 1000m,
+                IsActive = true
+            };
+
+            HttpResponseMessage response = await Client.PostAsJsonAsync("/api/Customer", customer);
+            response.EnsureSuccessStatusCode();
+            return id;
         }
     }
 }
