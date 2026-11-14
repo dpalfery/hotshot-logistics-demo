@@ -57,12 +57,14 @@ jobs:
           }
 
           [ "${EVENT_NAME}" = "pull_request" ] || all
-          git fetch --no-tags --depth=1 origin "${BASE_SHA}"
-          files="$(git diff --name-only "${BASE_SHA}" HEAD)"
+          if ! git fetch --no-tags --depth=1 origin "${BASE_SHA}" || ! files="$(git diff --name-only "${BASE_SHA}" HEAD 2>/dev/null)"; then
+            echo "Could not fetch or diff against ${BASE_SHA}; running all CI jobs."
+            all
+          fi
           printf 'Changed files:\n%s\n' "${files}"
           [ -n "${files}" ] || all
 
-          if grep -Eq '^\.github/(workflows/ci\.yml|codeql/)' <<<"${files}"; then
+          if grep -Eq '^\.github/(workflows/ci\.yml|codeql/)|^7-Deployment/ci/' <<<"${files}"; then
             all
           fi
 
@@ -146,12 +148,8 @@ jobs:
       - name: Audit vulnerable NuGet packages
         run: |
           set -euo pipefail
-          output="$(dotnet list HotshotLogistics.sln package --vulnerable --include-transitive 2>&1)"
-          printf '%s\n' "$output"
-          if printf '%s\n' "$output" | grep -Eqi 'has the following vulnerable packages'; then
-            echo "::error::Vulnerable NuGet packages detected"
-            exit 1
-          fi
+          dotnet list HotshotLogistics.sln package --vulnerable --include-transitive --format json |
+            python3 7-Deployment/ci/ci_helpers.py check-nuget-json
 
       - name: Build solution
         run: dotnet build HotshotLogistics.sln -c Release --no-restore -nr:false -p:UseSharedCompilation=false
@@ -268,43 +266,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - name: Validate markdown links and todo index
+      - name: Validate markdown links, todo index, and CI helpers
         run: |
-          python3 - <<'PY'
-          import pathlib, re, sys
-
-          root = pathlib.Path(".")
-          docs_root = root / "6-Docs"
-          files = [root / "AGENTS.md"] + [p for p in docs_root.rglob("*.md") if "archive" not in p.parts]
-          pat = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
-
-          broken = []
-          for f in files:
-              txt = f.read_text(encoding="utf-8")
-              for m in pat.finditer(txt):
-                  target = m.group(1).split("#")[0].strip()
-                  if not target or target.startswith(("http://", "https://", "mailto:", "<")):
-                      continue
-                  resolved = (f.parent / target).resolve()
-                  if not resolved.exists():
-                      broken.append((str(f), m.group(1)))
-
-          if broken:
-              for f, t in broken:
-                  print(f"Broken link in {f}: {t}", file=sys.stderr)
-              sys.exit(1)
-
-          todo_index = (docs_root / "todo" / "README.md").read_text(encoding="utf-8")
-          missing_todos = [
-              p.name for p in sorted((docs_root / "todo").glob("*.md"))
-              if p.name != "README.md" and p.name not in todo_index
-          ]
-          if missing_todos:
-              print(f"Todos missing from 6-Docs/todo/README.md: {missing_todos}", file=sys.stderr)
-              sys.exit(1)
-
-          print(f"Checked {len(files)} governed markdown files: 0 broken links, 0 unlisted todos.")
-          PY
+          python3 -m unittest discover -s 7-Deployment/ci -v
+          python3 7-Deployment/ci/ci_helpers.py check-docs --root .
 
   codeql:
     name: CodeQL (${{ matrix.language }})
