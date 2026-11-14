@@ -11,7 +11,7 @@ import sys
 import urllib.parse
 from typing import Iterable
 
-LINK_PATTERN = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
+LINK_OPEN_PATTERN = re.compile(r"(?<!\\)\[(?:[^\[\]\\]|\\.)*\]\(")
 SCHEME_PATTERN = re.compile(r"^[a-zA-Z][a-zA-Z0-9+.-]*:")
 INFRA_PATH_PATTERN = re.compile(
     r"^(?:7-Deployment/Azure-deploy/|\.github/workflows/release\.yml$)"
@@ -21,6 +21,41 @@ API_PATH_PATTERN = re.compile(
     r"4-Persistence/|7-Deployment/Azure-deploy/|\.github/workflows/release\.yml$|"
     r"Directory\.Build\.props$|global\.json$|nuget\.config$|HotshotLogistics\.slnx?$)"
 )
+
+
+def _iter_markdown_destinations(text: str) -> Iterable[str]:
+    """Yield raw link destinations from markdown [label](dest) constructs, balancing parens."""
+    for match in LINK_OPEN_PATTERN.finditer(text):
+        pos = match.end()
+        length = len(text)
+        depth = 1
+        in_angle = False
+        quote: str | None = None
+
+        while pos < length and depth > 0:
+            ch = text[pos]
+            if ch == "\\" and pos + 1 < length:
+                pos += 2
+                continue
+            if quote is not None:
+                if ch == quote:
+                    quote = None
+            elif in_angle:
+                if ch == ">":
+                    in_angle = False
+            else:
+                if ch == "<" and pos == match.end():
+                    in_angle = True
+                elif ch in ('"', "'"):
+                    quote = ch
+                elif ch == "(":
+                    depth += 1
+                elif ch == ")":
+                    depth -= 1
+                    if depth == 0:
+                        yield text[match.end() : pos]
+                        break
+            pos += 1
 
 
 def _extract_local_link_path(raw_destination: str) -> str | None:
@@ -62,14 +97,14 @@ def validate_docs(repo_root: pathlib.Path) -> tuple[int, list[str]]:
 
     for md_file in files:
         text = md_file.read_text(encoding="utf-8")
-        for match in LINK_PATTERN.finditer(text):
-            local_target = _extract_local_link_path(match.group(1))
+        for dest in _iter_markdown_destinations(text):
+            local_target = _extract_local_link_path(dest)
             if local_target is None:
                 continue
             resolved = (md_file.parent / local_target).resolve()
             if not resolved.exists():
                 errors.append(
-                    f"Broken link in {md_file.relative_to(repo_root)}: {match.group(1)}"
+                    f"Broken link in {md_file.relative_to(repo_root)}: {dest}"
                 )
 
     todo_dir = docs_root / "todo"
@@ -79,10 +114,15 @@ def validate_docs(repo_root: pathlib.Path) -> tuple[int, list[str]]:
             errors.append("Missing required todo index: 6-Docs/todo/README.md")
         else:
             todo_index = todo_readme.read_text(encoding="utf-8")
+            indexed_names: set[str] = set()
+            for dest in _iter_markdown_destinations(todo_index):
+                local_target = _extract_local_link_path(dest)
+                if local_target is not None:
+                    indexed_names.add(pathlib.Path(local_target).name)
             missing_todos = [
                 path.name
                 for path in sorted(todo_dir.glob("*.md"))
-                if path.name != "README.md" and path.name not in todo_index
+                if path.name != "README.md" and path.name not in indexed_names
             ]
             if missing_todos:
                 errors.append(
@@ -97,16 +137,17 @@ def find_nuget_vulnerabilities(report: dict) -> tuple[list[str], list[dict]]:
     problems: list[str] = []
     findings: list[dict] = []
 
-    for project in report.get("projects", []):
+    for project in report.get("projects") or []:
         project_path = project.get("path", "<unknown>")
-        for prob in project.get("problems", []):
+        for prob in project.get("problems") or []:
             text = prob.get("text") if isinstance(prob, dict) else str(prob)
             problems.append(f"{project_path}: {text}")
 
-        for fw in project.get("frameworks", []):
+        for fw in project.get("frameworks") or []:
             fw_name = fw.get("framework", "<unknown>")
-            packages = fw.get("topLevelPackages", []) + fw.get("transitivePackages", [])
-            for pkg in packages:
+            top_level = fw.get("topLevelPackages") or []
+            transitive = fw.get("transitivePackages") or []
+            for pkg in top_level + transitive:
                 vulns = pkg.get("vulnerabilities") or []
                 for vuln in vulns:
                     findings.append(

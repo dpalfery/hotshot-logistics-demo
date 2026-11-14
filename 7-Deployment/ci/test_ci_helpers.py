@@ -54,6 +54,37 @@ class ValidateDocsTests(unittest.TestCase):
             self.assertEqual(len(errors), 1)
             self.assertIn("missing.md", errors[0])
 
+    def test_links_with_parentheses_are_not_truncated(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            self._make_repo(root)
+            (root / "6-Docs" / "file_(v2).md").write_text("# V2\n", encoding="utf-8")
+            (root / "6-Docs" / "guide.md").write_text(
+                "\n".join(
+                    [
+                        "[Parens](file_(v2).md)",
+                        '[Parens with title](file_(v2).md "Title (v2)")',
+                        "[External parens](https://en.wikipedia.org/wiki/Foo_(bar))",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            _, errors = ci_helpers.validate_docs(root)
+            self.assertEqual(errors, [])
+
+    def test_todo_index_does_not_match_substrings(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            self._make_repo(root)
+            (root / "6-Docs" / "todo" / "1.md").write_text("# 1\n", encoding="utf-8")
+            (root / "6-Docs" / "todo" / "11.md").write_text("# 11\n", encoding="utf-8")
+            (root / "6-Docs" / "todo" / "README.md").write_text(
+                "# Todos\n- [Todo 11](11.md)\n",
+                encoding="utf-8",
+            )
+            _, errors = ci_helpers.validate_docs(root)
+            self.assertTrue(any("1.md" in err for err in errors))
+
     def test_missing_agents_returns_error_instead_of_traceback(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)
@@ -113,6 +144,27 @@ class NuGetVulnerabilityTests(unittest.TestCase):
         self.assertEqual(len(problems), 1)
         self.assertEqual(len(vulns), 2)
         self.assertEqual({v["id"] for v in vulns}, {"Pkg.A", "Pkg.B"})
+
+    def test_json_null_package_lists_do_not_crash(self) -> None:
+        report = {
+            "version": 1,
+            "projects": [
+                {
+                    "path": "/repo/App.csproj",
+                    "problems": [{"text": "Restore failed"}],
+                    "frameworks": [
+                        {
+                            "framework": "net10.0",
+                            "topLevelPackages": None,
+                            "transitivePackages": None,
+                        }
+                    ],
+                }
+            ],
+        }
+        problems, vulns = ci_helpers.find_nuget_vulnerabilities(report)
+        self.assertEqual(len(problems), 1)
+        self.assertEqual(vulns, [])
 
 
 class ClassifyReleasePathsTests(unittest.TestCase):
