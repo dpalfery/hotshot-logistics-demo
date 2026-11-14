@@ -2,9 +2,9 @@
 id: standards/index
 title: Coding standards
 doc-type: index
-status: draft
+status: current
 owner: 'unassigned'
-last-reviewed: 2026-08-17
+last-reviewed: 2026-11-14
 ---
 
 # Coding standards

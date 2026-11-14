@@ -2,7 +2,7 @@
 id: standards/csharp
 title: "C# coding standard"
 doc-type: coding-standard
-status: draft
+status: current
 technology: csharp
 owner: unassigned
 last-reviewed: 2026-11-14
@@ -17,9 +17,10 @@ How C# is written in this repository. Agents and skills resolve this document as
 
 - **Target:** ASP.NET Core on .NET 10, using its default C# 14 language version.
 - **HTTP surface:** MVC controllers (`ControllerBase`), not minimal APIs. Use MVC
-  `ActionResult` / `ActionResult<T>` and `ControllerBase` helpers. Request and response
-  bodies are `sealed record` DTOs; never return a domain entity or persistence row
-  from an action.
+  `ActionResult` / `ActionResult<T>` and `ControllerBase` helpers. Target request and
+  response bodies are `sealed record` DTOs (tracked in the
+  [sealed-record DTOs todo](../../todo/api-platform-hardening.md)); never return a
+  domain entity or persistence row from an action.
 - **Data access:** parameterized ADO.NET in the persistence project. Dapper and Entity
   Framework are out of scope. FluentMigrator owns schema change.
 - **Composition:** constructor DI. Configuration follows the Options pattern.
@@ -40,7 +41,8 @@ abstraction). It does not open connections, write SQL, or author migrations.
 `.editorconfig` and the analyzers are authoritative for formatting and mechanical rules.
 `TreatWarningsAsErrors` is on with `AnalysisMode=Default`. A warning is a failed build.
 Adding an id to `NoWarn` is a repository-wide decision and needs a reason you can state
-in the file.
+in the file (`Directory.Build.props` currently suppresses `CS1591` while `GenerateDocumentationFile`
+is enabled for `IDE0005` until a repository-wide XML-doc pass is completed).
 
 Do not merge code that fails the build, and do not restate analyzer rules here.
 
@@ -125,25 +127,25 @@ with the classification below.
 
 ## Model classification and placement
 
-Replace `<Solution>` with this repository's root namespace. A database key, a set of
-public auto-properties, a default initializer, an attribute, or a property count does
-not make a type an Entity.
+A database key, a set of public auto-properties, a default initializer, an attribute, or
+a property count does not make a type an Entity.
 
 | Kind | Where | Shape |
 |---|---|---|
-| Shared DTO | `<Solution>.Contracts.Models` | Property bag, no domain invariant. Suffix `Dto`. |
-| Use-case DTO | `<Solution>.Application` | Same shape, same `Dto` suffix, not shared across layers. |
-| Entity | `<Solution>.Domain/Entities` | Stable identity plus a business invariant or legal state transition. Controlled construction and mutation; no getter/setter-only padding. |
-| Value object | `<Solution>.Domain/ValueObjects` | Immutable, equality by value. May carry domain behaviour; has no independent identity. |
-| Persistence row | `<Solution>.Persistence` (private) | Storage/schema projection. Mapped at the adapter boundary. Not a shared contract and not a Domain entity. |
+| Shared DTO | `HotshotLogistics.Contracts.Models` (target; see [contracts todo](../../todo/contracts-model-placement.md)) | Property bag, no domain invariant. Suffix `Dto`. |
+| Use-case DTO | `HotshotLogistics.Application` | Same shape, same `Dto` suffix, not shared across layers. |
+| Entity | `HotshotLogistics.Domain/Entities` | Stable identity plus a business invariant or legal state transition. Controlled construction and mutation; no getter/setter-only padding. |
+| Value object | `HotshotLogistics.Domain/ValueObjects` | Immutable, equality by value. May carry domain behaviour; has no independent identity. |
+| Persistence row | `HotshotLogistics.Data` (internal) | Storage/schema projection. Mapped at the adapter boundary. Not a shared contract and not a Domain entity. |
 
-`<Solution>.Contracts` contains interfaces only; `<Solution>.Contracts.Models` is the
-approved location for shared DTOs. Any exception is an architecture decision with
-focused behaviour tests, not a convenience.
+`HotshotLogistics.Contracts` contains interfaces only; `HotshotLogistics.Contracts.Models`
+is the approved target location for shared DTOs (tracked in the
+[contracts todo](../../todo/contracts-model-placement.md)). Any exception is an
+architecture decision with focused behaviour tests, not a convenience.
 
 Server-side C# follows Clean Architecture: inner layers never depend on outer layers;
 business invariants belong in Domain; application services belong in
-`<Solution>.Application/Services`.
+`HotshotLogistics.Application/Services`.
 
 Do not add getter/setter-only tests to pad coverage.
 
@@ -181,7 +183,8 @@ call site in its own policy.
   comment says why.
 - Rethrow with `throw;`, never `throw ex;`.
 - Use MVC `ValidationProblem` / `ProblemDetails` for invalid input, not a bare
-  string. Register `AddProblemDetails()` and `UseExceptionHandler()`.
+  string. Target setup registers `AddProblemDetails()` and `UseExceptionHandler()`
+  (tracked in the [ProblemDetails todo](../../todo/problem-details.md)).
 - Validate every endpoint input on the server even when the client validates. Use data
   annotations or FluentValidation; validate file type and size on uploads. Return 400
   for validation failures and never leak internals in an error body.
@@ -196,8 +199,9 @@ call site in its own policy.
   `Console.WriteLine` is not production logging. Configure providers per environment.
 - Middleware creates or accepts the correlation id and propagates it to outbound calls,
   logs, traces, and `ProblemDetails` responses.
-- Emit metrics (latency, error rate, throughput) and distributed traces to Application
-  Insights through OpenTelemetry.
+- Target: emit metrics (latency, error rate, throughput) and distributed traces to
+  Application Insights through OpenTelemetry (tracked in the
+  [telemetry todo](../../todo/telemetry.md)).
 - HTTPS and HSTS are on. Authenticate, then authorize. CORS is explicit. CSRF
   protection is on wherever cookie-authenticated browser clients can POST. Persist
   Data Protection keys and rotate them.
@@ -209,16 +213,17 @@ Middleware order is:
 `UseHttpsRedirection` → `UseCors` → `UseRateLimiter` → `UseAuthentication` →
 `UseAuthorization` → `UseOutputCaching` / `UseResponseCaching` → endpoints.
 
-Version the API. Emit OpenAPI with `Microsoft.AspNetCore.OpenApi` (`AddOpenApi` /
-`MapOpenApi`) and serve the UI with Swashbuckle.
-Public API members carry XML documentation comments.
+Version the API. OpenAPI is served with Swashbuckle (`AddSwaggerGen` / `UseSwagger` /
+`UseSwaggerUI`).
+New and modified public API members carry XML documentation comments.
 
-Expose `/health` with checks for the dependencies this process needs (database,
-queue, downstream API) so an orchestrator can tell liveness from readiness. gRPC
-services add `Grpc.AspNetCore.HealthChecks`.
+Target: expose `/health` with checks for the dependencies this process needs (database,
+queue, downstream API) so an orchestrator can tell liveness from readiness (tracked in
+the [health-checks todo](../../todo/health-checks.md)).
 
-Cache responses only where the data is safe to reuse. Rate-limit public endpoints.
-Measure with the platform diagnostics rather than guessing.
+Cache responses only where the data is safe to reuse. Rate-limit public endpoints (see the
+[rate-limiting todo](../../todo/rate-limiting.md)). Measure with the platform diagnostics
+rather than guessing.
 
 ## Dependencies
 

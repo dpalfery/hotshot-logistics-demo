@@ -2,7 +2,7 @@
 id: standards/test
 title: "Test coding standard"
 doc-type: coding-standard
-status: draft
+status: current
 technology: test
 owner: unassigned
 last-reviewed: 2026-11-14
@@ -12,7 +12,6 @@ last-reviewed: 2026-11-14
 
 How tests work in this repository. Agents resolve this as `<test-coding-standard>`. C# in test
 files also follows `<csharp-coding-standard>`; dashboard code follows `<react-coding-standard>`.
-While `status: draft` this is a proposal: say so and ask a human before relying on it.
 
 ## Projects and the task command
 
@@ -22,7 +21,7 @@ While `status: draft` this is a proposal: say so and ask a human before relying 
 | `tests/HotshotLogistics.IntegrationTests` | HTTP controller tests (`WebApplicationFactory`) | yes |
 | `HotshotLogistics.Api.Tests` | auth pipeline tests | no |
 | `7-Deployment/DbSetup/HotshotLogistics.DbSetup.Tests` | DbSetup CLI | no |
-| `1-Presentation/admin-dashboard/tests` | Playwright specs (no unit runner) | no |
+| `1-Presentation/admin-dashboard/tests` | Playwright specs (no unit runner yet; see [frontend unit-test todo](../../todo/frontend-unit-test-tooling.md)) | no |
 
 Stack: xUnit v3, Moq (not NSubstitute), FluentAssertions 8 (`Assert.*` also appears), NetArchTest.
 

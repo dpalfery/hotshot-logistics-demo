@@ -2,13 +2,15 @@
 id: todos/reconcile-test-locations
 title: Reconcile test locations with file organization rule
 doc-type: todo
-status: current
+status: superseded
 component: admin-dashboard
 owner: unassigned
 last-reviewed: 2026-11-14
 ---
 
 # Reconcile test locations with file organization rule
+
+Closed on 2026-11-14 by documenting scoped exceptions for `1-Presentation/admin-dashboard/tests/` and `7-Deployment/DbSetup/HotshotLogistics.DbSetup.Tests/` in [File Organization Rule](../../rules/file-organization.md).
 
 The file organization rule (`6-Docs/rules/file-organization.md`) specifies that all testing infrastructure and test files belong under `5-Test/`. Currently, two test suites live outside `5-Test/`:
 

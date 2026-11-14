@@ -10,9 +10,10 @@ last-reviewed: 2026-11-14
 
 # Add frontend unit-test tooling
 
-The test standard specifies Vitest and React Testing Library for frontend unit
-and component tests. The dashboard currently declares Playwright but does not
-declare either unit-test dependency.
+The dashboard currently declares Playwright for E2E tests and has no unit or
+component test runner (see the [test coding standard](../standards/test/README.md)).
+Adding Vitest and React Testing Library is proposed to cover frontend unit and
+component tests.
 
 ## Next action
 

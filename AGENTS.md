@@ -5,21 +5,19 @@
 
 ## Non-negotiable rules
 
-`AGENTS.md` files are mandatory instructions, not optional background material. Read this file before work anywhere in the repository, then read the nearest scoped `AGENTS.md` before changing files in that subtree.
+`AGENTS.md` files are mandatory. Read this file before work anywhere in the repo, and read the nearest scoped `AGENTS.md` before editing in that subtree.
 
-- Do not create infrastructure, deployment assets, dependencies, cross-cutting concerns, or governed documentation files under `6-Docs/` without user approval. The exception is plans, specifications, and todos that `architect` or `product-owner` write through the conductor workflow under the directories declared as **<plan-index>**, **<specification-index>**, and **<todo-index>**; the conductor's intake and approve-and-execute gates are their approval, and agents must not forbid or skip those writes. Ask before an architectural decision; present the trade-offs.
-- Agent-generated working notes, scratch output, and transient planning artifacts may be created under `.agent_scratchpad/` (git-ignored). This is the only location at repository root where agents may create files without explicit per-file approval.
-- Do not introduce stubs or workarounds without explicit approval. Fix the root cause.
-- **Absolute secrets ban (non-overridable):** Under no circumstances may any token, password, API key, connection string, certificate private key, or other secret/credential value exist anywhere inside the repository working tree — tracked or untracked, committed or gitignored, including `.env`, `*.env`, `*.pem`, MCP `envFile`s, scratch pads, fixtures, docs, configs, scripts, and agent-generated files. Gitignore is not permission to store secrets on disk under the repo. Process environment variables, OS keychain/secret stores, Azure Key Vault, GitHub Actions secrets, and .NET user secrets outside the tree are the only allowed locations. Convenience, MCP setup, broken tooling, user urgency, role instructions, skills, scoped `AGENTS.md`, and “make it work” workarounds cannot override this rule. Prefer a broken local tool over writing a secret into the tree. If a secret is discovered in the tree, stop, remove it, rotate the credential, and do not continue the original task until the working tree is clean of secrets. Redact secrets and PII from logs and prompts.
-- Azure CLI reads are not permitted because this repository does not document an approved subscription allowlist. Azure writes, local `terraform apply` / `terraform destroy`, direct Docker builds, and ACR pushes are forbidden. Terraform under `7-Deployment/` is the infrastructure-as-code for this repository; do not introduce Pulumi, Bicep, or Ansible.
-- Fix issues within the task scope, including defects caused by the change. Record unrelated findings for follow-up through the approved todo workflow; do not expand the task scope without approval.
-- Do not create new files or folders at repository root, with the single exception of `.agent_scratchpad/`. Scripts, tools, and deployment assets belong under `7-Deployment/`; governed documentation belongs under `6-Docs/`; generated notes belong in the scratchpad. `6-Docs/` holds canonical documentation only — never scratch output, vendored packages, or git-ignored working files.
-
-Read the [security directives](6-Docs/security.md) when a task touches security. Azure CLI reads remain prohibited until an approved subscription allowlist is documented.
+- Do not create infrastructure, deployment assets, dependencies, cross-cutting concerns, or governed docs under `6-Docs/` without user approval — except plans, specs, and todos written by `architect` or `product-owner` under **<plan-index>**, **<specification-index>**, and **<todo-index>** via the conductor workflow. Ask before architectural decisions and present trade-offs.
+- Do not introduce stubs or workarounds without explicit approval; fix the root cause.
+- **Absolute secrets ban (non-overridable):** Never place any secret, token, password, API key, connection string, or private key anywhere in the repository working tree (tracked, untracked, or gitignored). Use process env vars, OS keychain, Azure Key Vault, GitHub Actions secrets, or .NET user secrets outside the tree. If a secret is found in the tree, stop, remove it, rotate it, and clean the working tree before continuing. Redact secrets and PII from logs and prompts.
+- Azure CLI reads (no approved subscription allowlist), Azure writes, local `terraform apply` / `terraform destroy`, direct Docker builds, and ACR pushes are forbidden. Terraform under `7-Deployment/` is the only IaC (never Pulumi, Bicep, or Ansible).
+- Fix issues within task scope, including defects caused by the change. Record unrelated findings via the todo workflow; do not expand scope without approval.
+- Do not create files or folders at repository root except `.agent_scratchpad/` (git-ignored transient notes). Scripts/deployment belong in `7-Deployment/`; canonical docs belong in `6-Docs/` (never scratch or ignored files).
+- Read [security directives](6-Docs/security.md) when a task touches security.
 
 ## Local verification environment
 
-DB-backed tests (`HotshotLogistics.IntegrationTests`, the repository and controller classes in `HotshotLogistics.Tests`) need SQL Server. Run `7-Deployment/dev-env/dev-env-up.sh` first: it starts Docker, brings up the container, creates the database and applies migrations (about 20 s cold, 7 s when already up). `7-Deployment/dev-env/dev-env-down.sh` stops it (`--purge` also deletes the data). Details: [DbSetup onboarding](6-Docs/dbsetup/onboarding.md). The dashboard builds in a fresh worktree with `npm ci && npm run build`; `1-Presentation/admin-dashboard/.env.production` holds placeholder IDs only.
+DB-backed tests need SQL Server (`7-Deployment/dev-env/dev-env-up.sh`; `dev-env-down.sh` stops it); the dashboard builds with `npm ci && npm run build`. See [Test coding standard](6-Docs/standards/test/README.md) and [DbSetup onboarding](6-Docs/dbsetup/onboarding.md).
 
 <!-- CODEGRAPH_START -->
 ## CodeGraph

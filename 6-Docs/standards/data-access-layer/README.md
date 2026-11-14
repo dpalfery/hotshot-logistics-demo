@@ -2,7 +2,7 @@
 id: standards/data-access-layer
 title: "Data access layer coding standard"
 doc-type: coding-standard
-status: draft
+status: current
 technology: data-access-layer
 owner: unassigned
 last-reviewed: 2026-11-14
@@ -15,9 +15,6 @@ document as `<data-access-layer-coding-standard>`. Language-level C# is in the p
 declared as **<csharp-coding-standard>**; SQL shape is in **<sql-coding-standard>**.
 Those three must not disagree. Where they would, this document yields to them.
 
-> Template. Set `owner` to a row in `catalog.md`, replace `<Solution>` with the host's
-> root namespace, review the decisions below, and promote `status` to `current`.
-
 ## Stack
 
 - **Data access:** parameterized ADO.NET (`Microsoft.Data.SqlClient`). Dapper and Entity
@@ -29,10 +26,10 @@ Those three must not disagree. Where they would, this document yields to them.
   Never `new SqlConnection(...)` at a call site.
 - **Migrations:** FluentMigrator, versioned `[Migration(yyyyMMddHHmmss)]`. Schema design
   is not authored here — it arrives as an approved table-definition contract.
-- **Abstraction:** The target is `IRepository<T>` in `<Solution>.Contracts`; its adoption
+- **Abstraction:** The target is `IRepository<T>` in `HotshotLogistics.Contracts`; its adoption
   is tracked in the [generic-repository todo](../../todo/generic-repository-migration.md).
-  Implementations are private to `<Solution>.Persistence`. Persistence rows stay in
-  Persistence and are mapped at the adapter boundary.
+  Implementations are internal to `HotshotLogistics.Data`. Persistence rows stay in
+  `HotshotLogistics.Data` and are mapped at the adapter boundary.
 
 ## Hard rules
 
@@ -49,7 +46,7 @@ Those three must not disagree. Where they would, this document yields to them.
   [C# configuration standard](../csharp/README.md#configuration) — never a literal,
   never a committed file, never a log line.
 - Register the factory as Singleton and repositories as Scoped in
-  `ServiceCollectionExtensions.AddSqlPersistenceServices()` (or the host's equivalent).
+  `ServiceCollectionExtensions.AddHotshotRepositories()`.
 - Structured logging on failures: operation, entity, id. Do not swallow database
   exceptions.
 
@@ -57,10 +54,10 @@ Those three must not disagree. Where they would, this document yields to them.
 
 | Kind | Where |
 |---|---|
-| Repository interface | `<Solution>.Contracts` |
-| Repository implementation | `<Solution>.Persistence` |
-| Persistence row | `<Solution>.Persistence` (private) |
-| FluentMigrator scripts | `<Solution>.Persistence` (or the host's migrations project) |
+| Repository interface | `HotshotLogistics.Contracts` |
+| Repository implementation | `HotshotLogistics.Data` |
+| Persistence row | `HotshotLogistics.Data` (internal) |
+| FluentMigrator scripts | `HotshotLogistics.Data/Migrations` |
 
 Application and API code consumes `IRepository<T>`. It does not open connections or
 write SQL.

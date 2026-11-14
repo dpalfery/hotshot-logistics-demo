@@ -2,19 +2,16 @@
 id: standards/react
 title: react coding standard
 doc-type: coding-standard
-status: draft
+status: current
 technology: react
 owner: unassigned
-last-reviewed: 2026-08-17
+last-reviewed: 2026-11-14
 ---
 
 # react coding standard
 
 How React code is written in this repository. Agents and skills resolve this document as
 `<react-coding-standard>`, so it outranks the defaults a portable agent shipped with.
-
-> Template. Set `owner` to a row in `catalog.md`, review the decisions below, and promote
-> `status` to `current`.
 
 ## Components
 

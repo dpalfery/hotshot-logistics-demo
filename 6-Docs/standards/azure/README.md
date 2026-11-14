@@ -2,10 +2,10 @@
 id: standards/azure
 title: azure coding standard
 doc-type: coding-standard
-status: draft
+status: current
 technology: azure
 owner: unassigned
-last-reviewed: 2026-08-17
+last-reviewed: 2026-11-14
 ---
 
 # azure coding standard
@@ -13,9 +13,6 @@ last-reviewed: 2026-08-17
 How code that talks to Azure is written in this repository. Agents and skills resolve this
 document as `<azure-coding-standard>`, so it outranks the defaults a portable agent shipped
 with.
-
-> Template. Set `owner` to a row in `catalog.md`, review the decisions below, and promote
-> `status` to `current`.
 
 ## Identity before secrets
 

@@ -2,9 +2,9 @@
 id: rules/index
 title: Rules
 doc-type: index
-status: draft
+status: current
 owner: 'unassigned'
-last-reviewed: 2026-08-17
+last-reviewed: 2026-11-14
 ---
 
 # Rules

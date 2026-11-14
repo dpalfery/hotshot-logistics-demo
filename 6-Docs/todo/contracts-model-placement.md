@@ -21,8 +21,9 @@ contains nine classes alongside interfaces:
   `PaymentProcessingResult`, `WebhookEventData`, `WebhookProcessingResult`, and
   `PaymentStatusUpdate`.
 
-There is no tracked `Contracts.Models` project. Domain also contains DTOs whose
-intended sharing and placement need review.
+There is no tracked `Contracts.Models` project, `HotshotLogistics.Contracts.csproj`
+currently references `HotshotLogistics.Domain.csproj`, and Domain also contains
+DTOs whose intended sharing and placement need review.
 
 ## Next action
 
