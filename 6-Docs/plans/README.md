@@ -2,7 +2,7 @@
 id: plans/index
 title: Plans
 doc-type: index
-status: draft
+status: current
 owner: 'unassigned'
 last-reviewed: 2026-11-10
 ---
@@ -13,8 +13,7 @@ Sequenced implementation work: what will be done, in what order, and how it will
 verified. A plan is a record of intent rather than current guidance — retrieval
 demotes it accordingly, and it is archived once closed.
 
-**No active plan.** Every plan in this index has been delivered, verified against the
-implemented behavior and its canonical documentation, and archived. `Archived` plans are
+`Archived` plans are
 historical records, not implementation authority; a new plan appears here as `Draft`,
 `Ready`, `In progress`, or `Blocked` only while it is open, and it moves to the archived
 row below — with its implementation reference and archive date — when it closes.
