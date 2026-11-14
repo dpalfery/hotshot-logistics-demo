@@ -2,19 +2,16 @@
 id: standards/sql
 title: sql coding standard
 doc-type: coding-standard
-status: draft
+status: current
 technology: sql
 owner: unassigned
-last-reviewed: 2026-08-17
+last-reviewed: 2026-11-14
 ---
 
 # sql coding standard
 
 How SQL is written in this repository. Agents and skills resolve this document as
 `<sql-coding-standard>`, so it outranks the defaults a portable agent shipped with.
-
-> Template. Set `owner` to a row in `catalog.md`, review the decisions below, and promote
-> `status` to `current`.
 
 ## Parameters, always
 
@@ -53,11 +50,10 @@ still costs every write.
 
 ## Naming and layout
 
-- One convention for schemas, tables and columns — `snake_case` unless the platform's own
-  conventions say otherwise — chosen once and applied everywhere.
+- Use PascalCase for user-defined schemas, tables and columns; use plural table names.
+  Keep SQL Server's built-in `dbo` schema name.
 - Keywords uppercase, one clause per line, joins and conditions indented consistently. A
   formatter settles this; the point is that diffs stay readable.
-- Singular or plural table names is a coin flip. Pick one here and stop re-deciding it.
 
 ## Migrations
 

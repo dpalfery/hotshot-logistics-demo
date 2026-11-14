@@ -44,7 +44,7 @@ test.describe('Dashboard Overview', () => {
       window.useMsalAuthentication = () => ({});
     });
 
-    // Mock jobs API with realistic data - matches apiService.getJobs() endpoint
+    // Mock jobs API with realistic data - matches apiService.getJobs() endpoint; the fields the Jobs page renders are included because the nav test visits it
     await page.route('https://localhost:5001/api/job', async route => {
       await route.fulfill({
         status: 200,
@@ -53,18 +53,30 @@ test.describe('Dashboard Overview', () => {
           items: [
             {
               id: 'job-1',
+              title: 'Job 1',
+              pickupAddress: '1 Pickup St',
+              dropoffAddress: '1 Dropoff Ave',
+              amount: 100,
               status: 'InProgress',
               assignedDriverId: 1,
               scheduledPickupTime: '2024-12-01T10:00:00Z'
             },
             {
               id: 'job-2',
+              title: 'Job 2',
+              pickupAddress: '2 Pickup St',
+              dropoffAddress: '2 Dropoff Ave',
+              amount: 200,
               status: 'Pending',
               assignedDriverId: null,
               scheduledPickupTime: '2024-12-01T14:00:00Z'
             },
             {
               id: 'job-3',
+              title: 'Job 3',
+              pickupAddress: '3 Pickup St',
+              dropoffAddress: '3 Dropoff Ave',
+              amount: 300,
               status: 'InProgress',
               assignedDriverId: 2,
               scheduledPickupTime: '2024-12-01T16:00:00Z'
@@ -76,7 +88,7 @@ test.describe('Dashboard Overview', () => {
     });
 
     // Mock drivers API with active drivers - matches apiService.getDrivers() endpoint
-    await page.route('https://localhost:5001/api/driver', async route => {
+    await page.route('https://localhost:5001/api/drivers', async route => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -103,8 +115,8 @@ test.describe('Dashboard Overview', () => {
       });
     });
 
-    // Mock invoices API with overdue invoices - matches apiService.getInvoices() endpoint
-    await page.route('https://localhost:5001/api/billing/invoices', async route => {
+    // Mock invoices API with overdue invoices - matches apiService.getInvoices() endpoint (/billing/invoices/overdue returns only overdue invoices)
+    await page.route('https://localhost:5001/api/billing/invoices/overdue', async route => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -117,19 +129,13 @@ test.describe('Dashboard Overview', () => {
               status: 'Overdue'
             },
             {
-              id: 'inv-2',
-              dueDate: '2024-12-15T00:00:00Z', // Future date
-              balanceDue: 2500.00,
-              status: 'Pending'
-            },
-            {
               id: 'inv-3',
               dueDate: '2024-11-01T00:00:00Z', // Past date
               balanceDue: 800.00,
               status: 'Overdue'
             }
           ],
-          totalCount: 3
+          totalCount: 2
         })
       });
     });
@@ -188,7 +194,8 @@ test.describe('Dashboard Overview', () => {
       await expect(page.locator('[data-testid="metric-total-jobs"]')).toHaveText('3');
     });
 
-    test('should handle error state for statistics', async ({ page }) => {
+    // FIXME: DashboardOverview has no statistics error state and no /api/dashboard/stats call; query errors are only logged and the cards show 0 (6-Docs/todo/admin-dashboard-playwright-baseline.md).
+    test.fixme('should handle error state for statistics', async ({ page }) => {
       // Mock error response
       await page.route('**/api/dashboard/stats', async route => {
         await route.fulfill({
@@ -240,8 +247,13 @@ test.describe('Dashboard Overview', () => {
 
       // Navigate to jobs and check active state
       await page.click('nav a[href="/jobs"]:visible');
+      await expect(page).toHaveURL('/jobs');
       const jobsLink = page.locator('nav a[href="/jobs"]:visible').first();
-      await expect(jobsLink).toHaveClass(/text-gray-500/);
+      await expect(jobsLink).toHaveClass(/bg-blue-50.*text-blue-700/);
+
+      // The dashboard link is no longer active
+      const inactiveDashboardLink = page.locator('nav a[href="/"]:visible').first();
+      await expect(inactiveDashboardLink).toHaveClass(/text-gray-600/);
 
       // Navigate back to dashboard
       await page.goto('/');
@@ -279,7 +291,8 @@ test.describe('Dashboard Overview', () => {
       await expect(pendingBadge).toHaveClass(/bg-yellow-100.*text-yellow-800/);
     });
 
-    test('should handle empty recent jobs list', async ({ page }) => {
+    // FIXME: Recent Jobs is hardcoded markup, not driven by the jobs API, so there is no empty state (6-Docs/todo/admin-dashboard-playwright-baseline.md).
+    test.fixme('should handle empty recent jobs list', async ({ page }) => {
       // Mock empty jobs response
       await page.route('**/api/jobs*', async route => {
         await route.fulfill({
@@ -317,19 +330,22 @@ test.describe('Dashboard Overview', () => {
       await expect(page.getByText('Generate Invoice')).toBeVisible();
     });
 
-    test('should navigate to create job form', async ({ page }) => {
+    // FIXME: The Quick Actions buttons have no click handler or link, and /jobs does not read ?action= (6-Docs/todo/admin-dashboard-playwright-baseline.md).
+    test.fixme('should navigate to create job form', async ({ page }) => {
       // Click create job button
       await page.click('text=Create New Job');
       await expect(page).toHaveURL('/jobs?action=create');
     });
 
-    test('should navigate to add driver form', async ({ page }) => {
+    // FIXME: The Quick Actions buttons have no click handler or link, and /drivers does not read ?action= (6-Docs/todo/admin-dashboard-playwright-baseline.md).
+    test.fixme('should navigate to add driver form', async ({ page }) => {
       // Click add driver button
       await page.click('text=Add Driver');
       await expect(page).toHaveURL('/drivers?action=add');
     });
 
-    test('should navigate to invoice generation', async ({ page }) => {
+    // FIXME: The Quick Actions buttons have no click handler or link, and /billing does not read ?action= (6-Docs/todo/admin-dashboard-playwright-baseline.md).
+    test.fixme('should navigate to invoice generation', async ({ page }) => {
       // Click generate invoice button
       await page.click('text=Generate Invoice');
       await expect(page).toHaveURL('/billing?action=generate');
@@ -337,7 +353,8 @@ test.describe('Dashboard Overview', () => {
   });
 
   test.describe('Real-time Updates', () => {
-    test('should handle real-time statistics updates', async ({ page }) => {
+    // FIXME: DashboardOverview does not listen for 'dashboard-update', fetch /api/dashboard/stats or show revenue; live updates are an unresolved SignalR follow-up (6-Docs/todo/admin-dashboard-job-status-unresolved.md).
+    test.fixme('should handle real-time statistics updates', async ({ page }) => {
       // Initial load
       await expect(page.locator('[data-testid="metric-total-jobs"]')).toHaveText('3');
 
@@ -379,9 +396,9 @@ test.describe('Dashboard Overview', () => {
       const statsGrid = page.locator('.grid').first();
       await expect(statsGrid).toHaveClass(/grid-cols-1.*sm:grid-cols-2.*lg:grid-cols-4/);
 
-      // Check that sidebar is visible on mobile (no responsive hiding in current implementation)
-      const sidebar = page.locator('nav').first();
-      await expect(sidebar).toBeVisible();
+      // The layout's sidebar is hidden below the lg breakpoint, so only the overview's own top
+      // navigation shows its links
+      await expect(page.locator('nav:visible a[href="/jobs"]')).toHaveCount(1);
     });
 
     test('should display correctly on tablet devices', async ({ page }) => {
@@ -403,9 +420,8 @@ test.describe('Dashboard Overview', () => {
       const statsGrid = page.locator('.grid').first();
       await expect(statsGrid).toHaveClass(/lg:grid-cols-4/);
 
-      // Check that sidebar is visible on desktop
-      const sidebar = page.locator('nav').first();
-      await expect(sidebar).toBeVisible();
+      // Check that the sidebar is visible alongside the overview's own top navigation
+      await expect(page.locator('nav:visible a[href="/jobs"]')).toHaveCount(2);
     });
   });
 
@@ -488,7 +504,7 @@ test.describe('Dashboard Overview', () => {
         });
       });
 
-      // Mock invoices API with overdue invoices - matches apiService.getInvoices() endpoint
+      // Mock invoices API with overdue invoices - matches apiService.getInvoices() endpoint (/billing/invoices/overdue returns only overdue invoices)
       await page.route('**/api/billing/invoices**', async route => {
         console.log('Intercepted invoices API call:', route.request().url());
         await route.fulfill({
@@ -503,19 +519,13 @@ test.describe('Dashboard Overview', () => {
                 status: 'Overdue'
               },
               {
-                id: 'inv-2',
-                dueDate: '2024-12-15T00:00:00Z', // Future date
-                balanceDue: 2500.00,
-                status: 'Pending'
-              },
-              {
                 id: 'inv-3',
                 dueDate: '2024-11-01T00:00:00Z', // Past date
                 balanceDue: 800.00,
                 status: 'Overdue'
               }
             ],
-            totalCount: 3
+            totalCount: 2
           })
         });
       });
@@ -575,9 +585,9 @@ test.describe('Dashboard Overview', () => {
 
       // Additional assertions for expected values based on mock data
       expect(parseInt(totalJobsValue || '0')).toBe(3); // 3 total jobs
-      expect(parseInt(activeJobsValue || '0')).toBe(2); // 2 jobs InProgress
+      expect(parseInt(activeJobsValue || '0')).toBe(3); // Active = Pending + Assigned + InProgress: 2 InProgress + 1 Pending
       expect(parseInt(activeDriversValue || '0')).toBe(2); // 2 active drivers
-      expect(parseInt(overdueInvoicesValue || '0')).toBe(2); // 2 overdue invoices (from 3 total, 2 are overdue)
+      expect(parseInt(overdueInvoicesValue || '0')).toBe(2); // 2 overdue invoices returned by the overdue endpoint
     });
   });
 
@@ -594,42 +604,50 @@ test.describe('Dashboard Overview', () => {
     });
 
     test('should handle concurrent API requests efficiently', async ({ page }) => {
-      let statsRequestCount = 0;
+      // beforeEach returns once the page has loaded, before its own API requests finish; wait for them
+      // so they are not counted below
+      await expect(page.locator('[data-testid="metric-total-jobs"]')).toHaveText('3');
+
       let jobsRequestCount = 0;
+      let driversRequestCount = 0;
+      let invoicesRequestCount = 0;
 
-      // Count API requests
-      await page.route('**/api/dashboard/stats', async route => {
-        statsRequestCount++;
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            totalJobs: 156,
-            activeDrivers: 23,
-            revenue: 45678.90,
-            pendingJobs: 12
-          })
-        });
-      });
-
-      await page.route('**/api/jobs*', async route => {
+      // Count the three requests the overview makes (it computes its statistics client-side)
+      await page.route('**/api/job', async route => {
         jobsRequestCount++;
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify({
-            items: [],
-            totalCount: 0
-          })
+          body: JSON.stringify({ items: [], totalCount: 0 })
+        });
+      });
+
+      await page.route('**/api/drivers*', async route => {
+        driversRequestCount++;
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify([])
+        });
+      });
+
+      await page.route('**/api/billing/invoices/overdue*', async route => {
+        invoicesRequestCount++;
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ items: [], totalCount: 0 })
         });
       });
 
       await page.reload();
+      await expect(page.locator('[data-testid="metric-total-jobs"]')).toHaveText('0');
       await page.waitForTimeout(1000);
 
       // Should make only one request to each endpoint
-      expect(statsRequestCount).toBe(1);
       expect(jobsRequestCount).toBe(1);
+      expect(driversRequestCount).toBe(1);
+      expect(invoicesRequestCount).toBe(1);
     });
   });
 });

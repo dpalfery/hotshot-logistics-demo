@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { mockInvoices, buildInvoicesResponse, buildInvoiceResponse } from './fixtures/invoice-mocks';
+import { buildInvoicesResponse, buildInvoiceResponse } from './fixtures/invoice-mocks';
 import { TestHelpers } from './utils/test-helpers';
 
 test.describe('Billing Management', () => {
@@ -306,13 +306,14 @@ test.describe('Billing Management', () => {
       // Check for action buttons (view, edit, send, etc.)
       const viewButton = page.getByRole('button', { name: /view/i });
       const editButton = page.getByRole('button', { name: /edit/i });
-      const sendButton = page.getByRole('button', { name: /send/i });
-      const downloadButton = page.getByRole('button', { name: /download/i });
 
       // Test view action if available
       if (await viewButton.isVisible()) {
         await viewButton.click();
         await expect(page.getByText(/invoice.*details|view.*invoice/i)).toBeVisible();
+
+        // The details modal covers the page, so close it before using the next action
+        await page.getByRole('button', { name: 'Close' }).click();
       }
 
       // Test edit action if available

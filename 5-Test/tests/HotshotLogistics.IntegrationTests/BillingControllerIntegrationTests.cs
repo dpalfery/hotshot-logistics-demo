@@ -13,7 +13,7 @@ namespace HotshotLogistics.IntegrationTests
     /// <summary>
     ///     Integration tests for the BillingController.
     /// </summary>
-    [Collection("DatabaseCollection")]
+    [Collection(DatabaseCollection.Name)]
     public class BillingControllerIntegrationTests : IntegrationTestBase
     {
         /// <summary>

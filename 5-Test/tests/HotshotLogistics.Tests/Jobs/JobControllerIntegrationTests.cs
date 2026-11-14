@@ -14,7 +14,7 @@ namespace HotshotLogistics.Tests.Jobs
     /// <summary>
     ///     Integration tests for the JobController.
     /// </summary>
-    [Collection("DatabaseCollection")]
+    [Collection(DatabaseCollection.Name)]
     public class JobControllerIntegrationTests : IntegrationTestBase
     {
         /// <summary>

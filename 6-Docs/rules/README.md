@@ -2,9 +2,9 @@
 id: rules/index
 title: Rules
 doc-type: index
-status: draft
+status: current
 owner: 'unassigned'
-last-reviewed: 2026-08-17
+last-reviewed: 2026-11-14
 ---
 
 # Rules
@@ -13,3 +13,7 @@ Repository-wide rules that govern how the system is built, independent of any on
 technology. A rule about one language belongs in that technology's coding standard.
 
 Add one document per rule and list it here.
+
+| Rule | Scope |
+|---|---|
+| [File organization](file-organization.md) | Repository layout and project placement |

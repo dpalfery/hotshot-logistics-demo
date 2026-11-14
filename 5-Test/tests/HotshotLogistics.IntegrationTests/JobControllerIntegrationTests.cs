@@ -11,7 +11,7 @@ namespace HotshotLogistics.IntegrationTests
     /// <summary>
     ///     Integration tests for the JobController.
     /// </summary>
-    [Collection("DatabaseCollection")]
+    [Collection(DatabaseCollection.Name)]
     public class JobControllerIntegrationTests : IntegrationTestBase
     {
         public JobControllerIntegrationTests(CustomWebApplicationFactory<Program> factory) : base(factory)
@@ -55,11 +55,8 @@ namespace HotshotLogistics.IntegrationTests
         public async Task GetJob_WithValidId_ReturnsJob()
         {
             // Arrange
-            HttpResponseMessage jobsResponse = await Client.GetAsync("/api/Job");
-            PagedResult<Job>? pagedResult = await jobsResponse.Content.ReadFromJsonAsync<PagedResult<Job>>();
-            Assert.NotNull(pagedResult);
-            Assert.NotNull(pagedResult.Items);
-            string validJobId = pagedResult.Items.First().Id;
+            Job ownJob = await CreateOwnJobAsync("get-job");
+            string validJobId = ownJob.Id;
 
             // Act
             HttpResponseMessage response = await Client.GetAsync($"/api/Job/{validJobId}");
@@ -89,6 +86,7 @@ namespace HotshotLogistics.IntegrationTests
         {
             // Arrange
             string uniqueId = $"test-job-{Guid.NewGuid():N}";
+            Cleanup.TrackJob(uniqueId);
             DateTime baseTime = DateTime.UtcNow.AddMinutes(10); // Start 10 minutes from now to avoid timing issues
             DateTime pickupTime = new(baseTime.Year, baseTime.Month, baseTime.Day, baseTime.Hour, baseTime.Minute, 0,
                 DateTimeKind.Utc);
@@ -179,11 +177,7 @@ namespace HotshotLogistics.IntegrationTests
         public async Task UpdateJob_WithValidData_ReturnsNoContent()
         {
             // Arrange
-            HttpResponseMessage jobsResponse = await Client.GetAsync("/api/Job");
-            PagedResult<Job>? pagedResult = await jobsResponse.Content.ReadFromJsonAsync<PagedResult<Job>>();
-            Assert.NotNull(pagedResult);
-            Assert.NotNull(pagedResult.Items);
-            Job jobToUpdate = pagedResult.Items.Skip(1).First(); // Get second job
+            Job jobToUpdate = await CreateOwnJobAsync("update-job");
 
             // Create a simple Job with minimal valid data for update
             DateTime pickupTime = DateTime.UtcNow.AddHours(2);
@@ -259,6 +253,7 @@ namespace HotshotLogistics.IntegrationTests
         {
             // Arrange - First create a job to delete using Job
             string uniqueId = $"delete-job-{Guid.NewGuid():N}";
+            Cleanup.TrackJob(uniqueId);
             DateTime pickupTime = DateTime.UtcNow.AddHours(2);
             Job testJob = new()
             {
@@ -328,6 +323,72 @@ namespace HotshotLogistics.IntegrationTests
             // Verify it was deleted
             HttpResponseMessage getResponse = await Client.GetAsync($"/api/Job/{jobIdToDelete}");
             Assert.Equal(HttpStatusCode.NotFound, getResponse.StatusCode);
+        }
+
+        /// <summary>
+        ///     Creates a job owned by the calling test through the API, so tests never read or change seed jobs
+        ///     picked by position.
+        /// </summary>
+        /// <param name="idPrefix">Short label put in the job id.</param>
+        /// <returns>The created job.</returns>
+        private async Task<Job> CreateOwnJobAsync(string idPrefix)
+        {
+            string id = $"test-{idPrefix}-{Guid.NewGuid():N}";
+            Cleanup.TrackJob(id);
+            DateTime pickupTime = DateTime.UtcNow.AddHours(2);
+            Job job = new()
+            {
+                Id = id,
+                CustomerId = "cust-001", // Seeded customer, only referenced
+                Title = $"Own job {idPrefix}",
+                PickupLocation = new Location
+                {
+                    Address = "1 Own Pickup St",
+                    City = "OwnCity",
+                    State = "CA",
+                    PostalCode = "94043",
+                    Country = "USA",
+                    Latitude = 37.4220m,
+                    Longitude = -122.0841m
+                },
+                DeliveryLocation = new Location
+                {
+                    Address = "2 Own Delivery Ave",
+                    City = "OwnCity",
+                    State = "CA",
+                    PostalCode = "94041",
+                    Country = "USA",
+                    Latitude = 37.3861m,
+                    Longitude = -122.0839m
+                },
+                Amount = 150m,
+                Cargo = new CargoDetails
+                {
+                    Description = "Own test cargo",
+                    Weight = 25,
+                    IsHazardous = false,
+                    Quantity = 1,
+                    Value = 100
+                },
+                Status = JobStatus.Pending,
+                Priority = JobPriority.Medium,
+                Pricing = new PricingDetails
+                { BaseRate = 100, MileageRate = 1.5m, TotalAmount = 150, Currency = "USD" },
+                ScheduledPickupTime = pickupTime,
+                EstimatedDeliveryTime = pickupTime.AddHours(8),
+                SpecialInstructions = "Created by an integration test"
+            };
+
+            HttpResponseMessage response = await Client.PostAsJsonAsync("/api/Job", job);
+            if (!response.IsSuccessStatusCode)
+            {
+                string errorContent = await response.Content.ReadAsStringAsync();
+                throw new Exception($"Job creation failed with status {response.StatusCode}: {errorContent}");
+            }
+
+            Job? created = await response.Content.ReadFromJsonAsync<Job>();
+            Assert.NotNull(created);
+            return created;
         }
     }
 }

@@ -10,7 +10,7 @@ namespace HotshotLogistics.IntegrationTests
     // Copyright (c) PlaceholderCompany. All rights reserved.
     // </copyright>
 
-    [Collection("DatabaseCollection")]
+    [Collection(DatabaseCollection.Name)]
     public class DriversControllerIntegrationTests : IntegrationTestBase
     {
         public DriversControllerIntegrationTests(CustomWebApplicationFactory<Program> factory) : base(factory)
@@ -72,6 +72,7 @@ namespace HotshotLogistics.IntegrationTests
         {
             // Arrange
             string uniqueEmail = $"test.driver.{Guid.NewGuid():N}@test.com";
+            Cleanup.TrackDriverEmail(uniqueEmail);
             DriverDto newDriver = new()
             {
                 FirstName = "Test",
@@ -99,6 +100,7 @@ namespace HotshotLogistics.IntegrationTests
             response.StatusCode.Should().Be(HttpStatusCode.Created);
             DriverDto? createdDriver = await response.Content.ReadFromJsonAsync<DriverDto>();
             createdDriver.Should().NotBeNull();
+            Cleanup.TrackDriver(createdDriver.Id);
             createdDriver.Email.Should().Be(uniqueEmail);
             createdDriver.Id.Should().BeGreaterThan(0);
         }
@@ -108,6 +110,9 @@ namespace HotshotLogistics.IntegrationTests
         {
             // Arrange — create a driver to update so the test does not depend on seed identity values.
             string uniqueCreateEmail = $"update.create.{Guid.NewGuid():N}@test.com";
+            string uniqueUpdateEmail = $"updated.driver.{Guid.NewGuid():N}@test.com";
+            Cleanup.TrackDriverEmail(uniqueCreateEmail);
+            Cleanup.TrackDriverEmail(uniqueUpdateEmail);
             HttpResponseMessage createResponse = await Client.PostAsJsonAsync("/api/Drivers", new DriverDto
             {
                 FirstName = "Update",
@@ -121,8 +126,8 @@ namespace HotshotLogistics.IntegrationTests
             createResponse.EnsureSuccessStatusCode();
             DriverDto? createdDriver = await createResponse.Content.ReadFromJsonAsync<DriverDto>();
             createdDriver.Should().NotBeNull();
+            Cleanup.TrackDriver(createdDriver.Id);
 
-            string uniqueUpdateEmail = $"updated.driver.{Guid.NewGuid():N}@test.com";
             DriverDto driverToUpdate = new()
             {
                 Id = createdDriver.Id,
@@ -159,6 +164,7 @@ namespace HotshotLogistics.IntegrationTests
         {
             // Arrange - First create a driver to delete
             string uniqueDeleteEmail = $"delete.test.driver.{Guid.NewGuid():N}@example.com";
+            Cleanup.TrackDriverEmail(uniqueDeleteEmail);
             DriverDto testDriver = new()
             {
                 FirstName = "Delete",
@@ -175,6 +181,7 @@ namespace HotshotLogistics.IntegrationTests
             createResponse.EnsureSuccessStatusCode();
             DriverDto? createdDriver = await createResponse.Content.ReadFromJsonAsync<DriverDto>();
             createdDriver.Should().NotBeNull();
+            Cleanup.TrackDriver(createdDriver.Id);
             int driverIdToDelete = createdDriver.Id;
 
             // Act - Delete the driver

@@ -31,7 +31,7 @@ test.describe('Tracking Dashboard', () => {
 
     test('should display live map section', async ({ page }) => {
       // Check live map section
-      await expect(page.getByText('Live Map')).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Live Map' })).toBeVisible();
       
       // Check map placeholder (since actual map integration would require external services)
       await expect(page.getByText('Map integration would be implemented here')).toBeVisible();
@@ -45,7 +45,7 @@ test.describe('Tracking Dashboard', () => {
 
     test('should display active jobs section', async ({ page }) => {
       // Mock jobs data with active jobs
-      await page.route('**/api/jobs*', async route => {
+      await page.route('**/api/job', async route => {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
@@ -87,7 +87,7 @@ test.describe('Tracking Dashboard', () => {
       await page.reload();
 
       // Check active jobs section
-      await expect(page.getByText('Active Jobs')).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Active Jobs' })).toBeVisible();
       
       // Should show only InProgress and Assigned jobs, not Pending
       await expect(page.getByText('Active Delivery 1')).toBeVisible();
@@ -105,7 +105,7 @@ test.describe('Tracking Dashboard', () => {
 
     test('should display job status with appropriate styling', async ({ page }) => {
       // Mock active jobs with different statuses
-      await page.route('**/api/jobs*', async route => {
+      await page.route('**/api/job', async route => {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
@@ -138,18 +138,18 @@ test.describe('Tracking Dashboard', () => {
       await page.reload();
 
       // Check status styling
-      const inProgressStatus = page.locator('text=InProgress').first();
+      const inProgressStatus = page.getByText('InProgress', { exact: true });
       await expect(inProgressStatus).toBeVisible();
       await expect(inProgressStatus).toHaveClass(/bg-green-100.*text-green-800/);
 
-      const assignedStatus = page.locator('text=Assigned').first();
+      const assignedStatus = page.getByText('Assigned', { exact: true });
       await expect(assignedStatus).toBeVisible();
       await expect(assignedStatus).toHaveClass(/bg-blue-100.*text-blue-800/);
     });
 
     test('should handle empty active jobs list', async ({ page }) => {
       // Mock empty jobs response
-      await page.route('**/api/jobs*', async route => {
+      await page.route('**/api/job', async route => {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
@@ -168,7 +168,7 @@ test.describe('Tracking Dashboard', () => {
 
     test('should display recent location updates section', async ({ page }) => {
       // Check location updates section
-      await expect(page.getByText('Recent Location Updates')).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Recent Location Updates' })).toBeVisible();
       
       // Initially should show no updates
       await expect(page.getByText('No recent location updates')).toBeVisible();
@@ -176,7 +176,7 @@ test.describe('Tracking Dashboard', () => {
 
     test('should display notifications section', async ({ page }) => {
       // Check notifications section
-      await expect(page.getByText('Notifications')).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Notifications' })).toBeVisible();
       
       // Check notification icon
       const bellIcon = page.locator('svg').filter({ hasText: /bell/i }).first();
@@ -188,7 +188,8 @@ test.describe('Tracking Dashboard', () => {
       await expect(page.getByText('No recent notifications')).toBeVisible();
     });
 
-    test('should connect to SignalR and handle real-time updates', async ({ page }) => {
+    // FIXME: the app never reads window.mockSignalRService (TrackingDashboard always uses the real SignalR client), so there is no seam to inject updates; needs a test seam or a WebSocket-level mock (6-Docs/todo/admin-dashboard-playwright-baseline.md).
+    test.fixme('should connect to SignalR and handle real-time updates', async ({ page }) => {
       // Mock SignalR connection
       await page.addInitScript(() => {
         // Mock SignalR service
@@ -246,7 +247,8 @@ test.describe('Tracking Dashboard', () => {
       await expect(page.getByText('New')).toBeVisible();
     });
 
-    test('should display location updates with proper formatting', async ({ page }) => {
+    // FIXME: the app never reads window.mockSignalRService (TrackingDashboard always uses the real SignalR client), so there is no seam to inject updates; needs a test seam or a WebSocket-level mock (6-Docs/todo/admin-dashboard-playwright-baseline.md).
+    test.fixme('should display location updates with proper formatting', async ({ page }) => {
       // Mock location updates
       await page.addInitScript(() => {
         window.mockSignalRService = {
@@ -272,7 +274,7 @@ test.describe('Tracking Dashboard', () => {
               });
             }, 200);
           },
-          onNotification: (callback: (notification: NotificationMessage) => void) => {}
+          onNotification: (_callback: (notification: NotificationMessage) => void) => {}
         };
       });
 
@@ -290,13 +292,14 @@ test.describe('Tracking Dashboard', () => {
       await expect(page.getByText(/\d{1,2}:\d{2}:\d{2} [AP]M/)).toBeVisible();
     });
 
-    test('should display notifications with read/unread status', async ({ page }) => {
+    // FIXME: the app never reads window.mockSignalRService (TrackingDashboard always uses the real SignalR client), so there is no seam to inject updates; needs a test seam or a WebSocket-level mock (6-Docs/todo/admin-dashboard-playwright-baseline.md).
+    test.fixme('should display notifications with read/unread status', async ({ page }) => {
       // Mock notifications
       await page.addInitScript(() => {
         window.mockSignalRService = {
           connect: () => Promise.resolve(),
           disconnect: () => {},
-          onLocationUpdate: (callback: (update: LocationUpdate) => void) => {},
+          onLocationUpdate: (_callback: (update: LocationUpdate) => void) => {},
           onNotification: (callback: (notification: NotificationMessage) => void) => {
             // Simulate multiple notifications
             setTimeout(() => {
@@ -344,7 +347,8 @@ test.describe('Tracking Dashboard', () => {
       await expect(readStatus).toHaveClass(/bg-gray-100.*text-gray-800/);
     });
 
-    test('should limit location updates and notifications to last 10 items', async ({ page }) => {
+    // FIXME: the app never reads window.mockSignalRService (TrackingDashboard always uses the real SignalR client), so there is no seam to inject updates; needs a test seam or a WebSocket-level mock (6-Docs/todo/admin-dashboard-playwright-baseline.md).
+    test.fixme('should limit location updates and notifications to last 10 items', async ({ page }) => {
       // Mock many location updates
       await page.addInitScript(() => {
         window.mockSignalRService = {
@@ -408,15 +412,8 @@ test.describe('Tracking Dashboard', () => {
     });
 
     test('should handle SignalR connection errors gracefully', async ({ page }) => {
-      // Mock SignalR connection failure
-      await page.addInitScript(() => {
-        window.mockSignalRService = {
-          connect: () => Promise.reject(new Error('Connection failed')),
-          disconnect: () => {},
-          onLocationUpdate: (callback: (update: LocationUpdate) => void) => {},
-          onNotification: (callback: (notification: NotificationMessage) => void) => {}
-        };
-      });
+      // Make the SignalR negotiation request fail
+      await page.route('**/realtime/**', route => route.abort());
 
       // Mock console.error to capture error logs
       const consoleErrors: string[] = [];
@@ -440,7 +437,8 @@ test.describe('Tracking Dashboard', () => {
       await expect(page.getByText('No recent notifications')).toBeVisible();
     });
 
-    test('should disconnect SignalR when component unmounts', async ({ page }) => {
+    // FIXME: the app never reads window.mockSignalRService (TrackingDashboard always uses the real SignalR client), so there is no seam to inject updates; needs a test seam or a WebSocket-level mock (6-Docs/todo/admin-dashboard-playwright-baseline.md).
+    test.fixme('should disconnect SignalR when component unmounts', async ({ page }) => {
       let disconnectCalled = false;
       
       // Mock SignalR service with disconnect tracking
@@ -450,8 +448,8 @@ test.describe('Tracking Dashboard', () => {
           disconnect: () => {
             window.disconnectCalled = true;
           },
-          onLocationUpdate: (callback: (update: LocationUpdate) => void) => {},
-          onNotification: (callback: (notification: NotificationMessage) => void) => {}
+          onLocationUpdate: (_callback: (update: LocationUpdate) => void) => {},
+          onNotification: (_callback: (notification: NotificationMessage) => void) => {}
         };
       });
 

@@ -13,7 +13,7 @@ namespace HotshotLogistics.IntegrationTests
     /// <summary>
     ///     Integration tests for the JobAssignmentsController.
     /// </summary>
-    [Collection("DatabaseCollection")]
+    [Collection(DatabaseCollection.Name)]
     public class JobAssignmentsControllerIntegrationTests : IntegrationTestBase
     {
         /// <summary>
