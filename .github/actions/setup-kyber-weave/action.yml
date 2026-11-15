@@ -3,9 +3,9 @@ description: Download, SHA-256 verify, and install the Kyber-Weave CLI for CI ga
 
 inputs:
   version:
-    description: Optional Kyber-Weave release version tag (defaults to latest stable release).
+    description: Kyber-Weave release version tag (defaults to 0.1.8-rc.27, which includes docs validate --merge-ready --base).
     required: false
-    default: ""
+    default: "0.1.8-rc.27"
 
 runs:
   using: composite
