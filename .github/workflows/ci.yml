@@ -327,27 +327,53 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Ensure PR head commit is available
+      - name: Ensure PR commits are available
+        id: pr_commits
         if: github.event_name == 'pull_request'
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
+          set -euo pipefail
+          if ! git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
+            git fetch --no-tags origin "${BASE_SHA}" 2>/dev/null || git fetch --no-tags --depth=1 origin "${BASE_SHA}" 2>/dev/null || true
+          fi
           if ! git cat-file -e "${HEAD_SHA}^{commit}" 2>/dev/null; then
-            git fetch --no-tags origin "refs/pull/${PR_NUMBER}/head"
+            git fetch --no-tags origin "refs/pull/${PR_NUMBER}/head" 2>/dev/null || git fetch --no-tags origin "${HEAD_SHA}" 2>/dev/null || true
+          fi
+
+          if git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null \
+            && git cat-file -e "${HEAD_SHA}^{commit}" 2>/dev/null \
+            && git rev-list --count "${BASE_SHA}..${HEAD_SHA}" >/dev/null 2>&1; then
+            {
+              echo "mode=range"
+              echo "base=${BASE_SHA}"
+              echo "head=${HEAD_SHA}"
+            } >> "$GITHUB_OUTPUT"
+          elif git cat-file -e "HEAD^1^{commit}" 2>/dev/null && git cat-file -e "HEAD^2^{commit}" 2>/dev/null; then
+            echo "::warning::Could not verify ${BASE_SHA}..${HEAD_SHA} directly; falling back to merge commit parents."
+            {
+              echo "mode=range"
+              echo "base=$(git rev-parse HEAD^1)"
+              echo "head=$(git rev-parse HEAD^2)"
+            } >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::Could not resolve PR commit range (${BASE_SHA}..${HEAD_SHA}); falling back to full repository TruffleHog scan."
+            echo "mode=repo" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Run TruffleHog (Pull Request)
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && steps.pr_commits.outputs.mode == 'range'
         uses: trufflesecurity/trufflehog@3bd2b5887eb0efb8fa18bfd1d296032924e4ffdc # v3.99.9
         with:
           path: ./
-          base: ${{ github.event.pull_request.base.sha }}
-          head: ${{ github.event.pull_request.head.sha }}
+          base: ${{ steps.pr_commits.outputs.base }}
+          head: ${{ steps.pr_commits.outputs.head }}
           extra_args: --results=verified
 
-      - name: Run TruffleHog (Push/Schedule/Dispatch)
-        if: github.event_name != 'pull_request'
+      - name: Run TruffleHog (Push/Schedule/Dispatch or Fallback)
+        if: github.event_name != 'pull_request' || steps.pr_commits.outputs.mode != 'range'
         uses: trufflesecurity/trufflehog@3bd2b5887eb0efb8fa18bfd1d296032924e4ffdc # v3.99.9
         with:
           path: ./

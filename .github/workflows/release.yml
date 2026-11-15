@@ -94,7 +94,7 @@ jobs:
     needs: release-gate
     if: needs.release-gate.outputs.deploy_infra == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     defaults:
       run:
         working-directory: 7-Deployment/Azure-deploy/solution/HotshotLogistics

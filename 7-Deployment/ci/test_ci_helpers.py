@@ -83,7 +83,10 @@ class ValidateDocsTests(unittest.TestCase):
                 encoding="utf-8",
             )
             _, errors = ci_helpers.validate_docs(root)
-            self.assertTrue(any("1.md" in err for err in errors))
+            self.assertEqual(
+                errors,
+                ["Todos missing from 6-Docs/todo/README.md: ['1.md']"],
+            )
 
     def test_missing_agents_returns_error_instead_of_traceback(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
