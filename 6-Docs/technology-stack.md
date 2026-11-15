@@ -4,7 +4,7 @@ title: Technology stack
 doc-type: reference
 status: current
 owner: unassigned
-last-reviewed: 2026-11-09
+last-reviewed: 2026-11-14
 ---
 
 # Technology Stack
@@ -45,8 +45,10 @@ The API's hosting model is **unresolved**, and this document does not pick a win
 
 - **Actual deployment path**: Azure App Service / Function App. Terraform under
   `7-Deployment/Azure-deploy/` provisions an App Service plan, a Function App
-  (`kind = "functionapp"`), and related resources; `API-deploy.yml` deploys with
-  `azure/webapps-deploy@v4` and the startup command `dotnet HotshotLogistics.Api.dll`.
+  (`kind = "functionapp"`), and related resources;
+  [`.github/workflows/release.yml`](../.github/workflows/release.yml) (`deploy-api` job)
+  deploys with `azure/webapps-deploy` (`v3.0.8`) and the startup command
+  `dotnet HotshotLogistics.Api.dll`.
 - **Why it is unresolved**: a Terraform-provisioned Function App and an App Service
   deploy action are not the same thing, so the code and the infrastructure do not agree
   on the hosting target.

@@ -1,0 +1,242 @@
+name: Release
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
+    branches:
+      - main
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        default: "dev"
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+      skip_terraform:
+        description: "Skip Terraform plan/apply and only deploy the API and migrations"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: release-${{ github.event.inputs.environment || 'dev' }}
+  cancel-in-progress: false
+
+env:
+  DOTNET_VERSION: "10.0.x"
+  DOTNET_NOLOGO: "true"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+
+jobs:
+  release-gate:
+    name: Evaluate release scope
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    if: >-
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_branch == 'main') ||
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) ||
+      github.event_name == 'workflow_dispatch'
+    outputs:
+      deploy_infra: ${{ steps.scope.outputs.deploy_infra }}
+      deploy_api: ${{ steps.scope.outputs.deploy_api }}
+    steps:
+      - name: Checkout tested commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          fetch-depth: 2
+
+      - name: Classify changed files for release
+        id: scope
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          SKIP_TERRAFORM: ${{ github.event_name == 'workflow_dispatch' && inputs.skip_terraform == true }}
+        run: |
+          set -euo pipefail
+          args=(classify-release --event "${EVENT_NAME}")
+          if [ "${SKIP_TERRAFORM}" = "true" ]; then
+            args+=(--skip-terraform)
+          fi
+
+          if [ "${EVENT_NAME}" = "workflow_run" ]; then
+            if git rev-parse --verify HEAD^1 >/dev/null 2>&1 && mapfile -t changed < <(git diff --name-only HEAD^1 HEAD); then
+              if [ "${#changed[@]}" -gt 0 ]; then
+                args+=(--files "${changed[@]}")
+              fi
+            else
+              args+=(--diff-unavailable)
+            fi
+          fi
+
+          python3 7-Deployment/ci/ci_helpers.py "${args[@]}" >> "$GITHUB_OUTPUT"
+          cat "$GITHUB_OUTPUT"
+
+  terraform:
+    name: Terraform Plan & Apply
+    needs: release-gate
+    if: needs.release-gate.outputs.deploy_infra == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: 7-Deployment/Azure-deploy/solution/HotshotLogistics
+    steps:
+      - name: Checkout tested commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Verify required Terraform secrets
+        env:
+          SQL_ADMIN_PASSWORD: ${{ secrets.SQL_ADMIN_PASSWORD }}
+          AZURE_AD_CLIENT_ID: ${{ secrets.AZURE_AD_CLIENT_ID }}
+          AZURE_AD_CLIENT_SECRET: ${{ secrets.AZURE_AD_CLIENT_SECRET }}
+        run: |
+          set -euo pipefail
+          for var in SQL_ADMIN_PASSWORD AZURE_AD_CLIENT_ID AZURE_AD_CLIENT_SECRET; do
+            if [ -z "${!var:-}" ]; then
+              echo "::error::Missing required GitHub secret ${var} for Terraform plan/apply."
+              exit 1
+            fi
+          done
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.DAVIDS_AZURE_SUB }}
+          enable-AzPSSession: true
+
+      - name: Terraform Init
+        run: terraform init -input=false
+        env:
+          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          ARM_SUBSCRIPTION_ID: ${{ secrets.DAVIDS_AZURE_SUB }}
+          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          ARM_USE_OIDC: true
+
+      - name: Terraform Plan
+        run: terraform plan -input=false -out=tfplan -no-color
+        env:
+          TF_VAR_location: "East US 2"
+          TF_VAR_resource_group_name: "rg-hotshot-logistics-${{ github.event.inputs.environment || 'dev' }}-eastus2"
+          TF_VAR_environment: ${{ github.event.inputs.environment || 'dev' }}
+          TF_VAR_subscription_id: ${{ secrets.DAVIDS_AZURE_SUB }}
+          TF_VAR_azure_ad_client_id: ${{ secrets.AZURE_AD_CLIENT_ID }}
+          TF_VAR_azure_ad_client_secret: ${{ secrets.AZURE_AD_CLIENT_SECRET }}
+          TF_VAR_administrator_login_password: ${{ secrets.SQL_ADMIN_PASSWORD }}
+          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          ARM_SUBSCRIPTION_ID: ${{ secrets.DAVIDS_AZURE_SUB }}
+          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          ARM_USE_OIDC: true
+
+      - name: Terraform Apply
+        run: terraform apply -input=false -auto-approve tfplan
+        env:
+          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          ARM_SUBSCRIPTION_ID: ${{ secrets.DAVIDS_AZURE_SUB }}
+          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          ARM_USE_OIDC: true
+
+      - name: Remove local plan file
+        if: always()
+        run: rm -f tfplan
+
+  deploy-api:
+    name: Deploy API & Run Migrations
+    needs:
+      - release-gate
+      - terraform
+    if: >-
+      always() &&
+      needs.release-gate.outputs.deploy_api == 'true' &&
+      (needs.release-gate.outputs.deploy_infra != 'true' || needs.terraform.result == 'success')
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: 1-Presentation/HotshotLogistics.Api
+    steps:
+      - name: Checkout tested commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.DAVIDS_AZURE_SUB }}
+          enable-AzPSSession: true
+
+      - name: Restore API dependencies
+        run: dotnet restore
+
+      - name: Build API
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Publish API
+        run: dotnet publish --configuration Release --output ./publish --no-build
+
+      - name: Deploy to Azure App Service
+        uses: azure/webapps-deploy@02a81bead70021f5284939794bcec79c271ab383 # v3.0.8
+        with:
+          app-name: ${{ github.event.inputs.environment || 'dev' }}-hotshot-logistics-function
+          package: ./publish
+          startup-command: "dotnet HotshotLogistics.Api.dll"
+
+      - name: Get Key Vault connection string
+        id: get-connection-string
+        env:
+          TARGET_ENV: ${{ github.event.inputs.environment || 'dev' }}
+        run: |
+          CONNECTION_STRING=$(az keyvault secret show --vault-name "${TARGET_ENV}-hotshot-log-kv-01" --name "sql-connection-string" --query value -o tsv)
+          echo "::add-mask::${CONNECTION_STRING}"
+          echo "connection_string=${CONNECTION_STRING}" >> "$GITHUB_OUTPUT"
+
+      - name: Run database migrations
+        working-directory: .
+        env:
+          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          ARM_SUBSCRIPTION_ID: ${{ secrets.DAVIDS_AZURE_SUB }}
+          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          ARM_USE_OIDC: true
+          CONNECTION_STRING: ${{ steps.get-connection-string.outputs.connection_string }}
+        run: |
+          set -euo pipefail
+          dotnet tool install --global FluentMigrator.DotNet.Cli --version 3.4.0
+          dotnet build 4-Persistence/HotshotLogistics.Data/HotshotLogistics.Data.csproj --configuration Release
+          mapfile -t data_dlls < <(find 4-Persistence/HotshotLogistics.Data/bin/Release -maxdepth 2 -type f -name 'HotshotLogistics.Data.dll' | sort)
+          if [ "${#data_dlls[@]}" -ne 1 ]; then
+            echo "::error::Expected exactly 1 HotshotLogistics.Data.dll under bin/Release, found ${#data_dlls[@]}"
+            exit 1
+          fi
+          dotnet fm migrate -a "${data_dlls[0]}" -c "${CONNECTION_STRING}" -p sqlserver

@@ -4,7 +4,7 @@ title: Terraform modules and infrastructure
 doc-type: reference
 status: current
 owner: unassigned
-last-reviewed: 2026-10-20
+last-reviewed: 2026-11-14
 ---
 
 # Terraform modules and infrastructure
@@ -279,36 +279,44 @@ it: every `tags` assignment in `main.tf` reads the separate `tags` variable, a
 never reaches a tag. There is no per-environment module, no per-environment state key, and
 no per-environment backend.
 
-`dev`, `staging`, and `prod` are not separated by configuration in the Terraform tree.
-`staging` and `prod` exist as `workflow_dispatch` choices in the workflows and as
-documented values of the `environment` variable, but no environment file exists for
-either, and the `environment` input the apply workflow offers is not passed to Terraform
-— the generated tfvars always sets `environment = "dev"`. The environment separation gap
-is recorded as **DR5** in the canonical drift register; see
+The `dev`, `staging`, and `prod` environments are not separated by configuration in the Terraform tree.
+`staging` and `prod` exist as `workflow_dispatch` choices in `.github/workflows/release.yml` and as
+documented values of the `environment` variable, but no environment `.tfvars` file exists for
+either. The `release.yml` workflow passes the selected `environment` input via
+`TF_VAR_environment` and `TF_VAR_resource_group_name`, while all environments share the single
+`azurerm` backend key `hotshotlogistics.tfstate`. The environment separation gap is recorded as
+**DR5** in the canonical drift register; see
 [the deployment architecture document](deployment-architecture.md).
 
-Neither workflow reads `environments/dev/hotshot.tfvars`. Both write their own
-`hotshot.tfvars` into the working directory at run time, from GitHub Actions secrets, and
-pass it with `-var-file`. The committed file is therefore not the input either workflow
-applies, and the two workflows generate different values for `location` and
-`resource_group_name` — recorded as **DR3** in the same register.
+Neither `ci.yml` nor `release.yml` reads `environments/dev/hotshot.tfvars`. Instead, `release.yml`
+passes all inputs via `TF_VAR_*` environment variables (`location = "East US 2"` and
+`resource_group_name = "rg-hotshot-logistics-<env>-eastus2"`, whereas
+`environments/dev/hotshot.tfvars` specifies `"East US"` and `rg-hotshot-logistics-dev-eastus` —
+**DR3**).
 
 ## How Terraform is invoked
 
-Both Terraform workflows set `working-directory` to
-`7-Deployment/Azure-deploy/solution/HotshotLogistics` and run the same sequence:
-checkout, `hashicorp/setup-terraform@v3`, `azure/login@v2` with OIDC, `terraform init`
-with `ARM_USE_OIDC: true`, write `hotshot.tfvars`, then `terraform plan` or
-`terraform apply -auto-approve` with `-var-file="hotshot.tfvars"`.
+Both workflows set `working-directory` to
+`7-Deployment/Azure-deploy/solution/HotshotLogistics`:
 
-`terraform-plan.yml` runs on `workflow_run` of the .NET build workflow and on
-`workflow_dispatch`, and additionally applies when `github.ref == 'refs/heads/main'`.
-`terraform-apply.yml` runs on `workflow_run` of the plan workflow and on
-`workflow_dispatch`. The full workflow inventory, including every secret and environment
-variable each workflow declares, is in [the CI/CD pipelines document](ci-cd-pipelines.md).
+- **Offline validation (`.github/workflows/ci.yml` — `terraform-validate`):** runs when
+  `7-Deployment/Azure-deploy/` (or `ci.yml` / `7-Deployment/ci/`) changes, using
+  `hashicorp/setup-terraform`, `terraform init -backend=false -input=false`, and
+  `terraform validate` with no Azure credentials.
+- **Release deployment (`.github/workflows/release.yml` — `terraform`):** gated by
+  `release-gate` so it executes only on `main` pushes changing `7-Deployment/Azure-deploy/` or
+  `release.yml` (after `CI` succeeds), `v*` tag pushes, or `workflow_dispatch` when
+  `skip_terraform` is `false`. It verifies that `SQL_ADMIN_PASSWORD`, `AZURE_AD_CLIENT_ID`, and
+  `AZURE_AD_CLIENT_SECRET` are set, logs into Azure via OIDC (`azure/login`), runs
+  `terraform init -input=false`, `terraform plan -input=false -out=tfplan -no-color`, and
+  `terraform apply -input=false -auto-approve tfplan` in one job using `TF_VAR_*` and `ARM_*`
+  environment variables, and deletes the local `tfplan` file under `if: always()`.
 
-The launchpad solution has no workflow. It must be applied by hand before either
-workflow can initialise the backend.
+The full workflow inventory, including every secret and environment variable each workflow
+declares, is in [the CI/CD pipelines document](ci-cd-pipelines.md).
+
+The launchpad solution has no workflow. It must be applied by hand before `release.yml` can
+initialise the remote-state backend.
 
 ## Declared-behaviour notes
 
@@ -351,7 +359,7 @@ supports — where the register has one.
 
 - [Deployment architecture](deployment-architecture.md) — deployment narrative, workflow
   chain, and the canonical drift register
-- [CI/CD pipelines](ci-cd-pipelines.md) — the four GitHub Actions workflows
+- [CI/CD pipelines](ci-cd-pipelines.md) — `.github/workflows/ci.yml`, `.github/workflows/release.yml`, and `.github/dependabot.yml`
 - [Architecture guidelines](../architecture.md) — the Clean Architecture folder layout
 - [Security guidelines](../security.md) — repository-wide secret handling rules
 - [Documentation standard](../documentation-standard.md) and

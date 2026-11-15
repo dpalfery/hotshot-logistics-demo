@@ -59,8 +59,8 @@ namespace HotshotLogistics.Data.Services
                     GeocodeResultItem firstResult = result.Results[0];
                     return new GeocodingResult
                     {
-                        Latitude = (decimal)firstResult.Position.Lat,
-                        Longitude = (decimal)firstResult.Position.Lon,
+                        Latitude = firstResult.Position.Lat,
+                        Longitude = firstResult.Position.Lon,
                         FormattedAddress = firstResult.Address.FreeformAddress.Length > 0
                             ? firstResult.Address.FreeformAddress
                             : address,
@@ -289,8 +289,8 @@ namespace HotshotLogistics.Data.Services
 
         private sealed class Position
         {
-            public double Lat { get; init; }
-            public double Lon { get; init; }
+            public decimal Lat { get; init; }
+            public decimal Lon { get; init; }
         }
 
         private sealed class AzureMapsAddress

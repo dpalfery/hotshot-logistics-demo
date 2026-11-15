@@ -4,7 +4,7 @@ title: Deployment and build documentation
 doc-type: index
 status: current
 owner: unassigned
-last-reviewed: 2026-10-20
+last-reviewed: 2026-11-14
 ---
 
 # Deployment and build documentation
@@ -18,7 +18,7 @@ from the source files, not from the intent behind them.
 | Document | Covers |
 |---|---|
 | [Deployment architecture](deployment-architecture.md) | The deployment model, the environments, the resource topology, and the workflow chain. It also hosts the canonical drift register. |
-| [CI/CD pipelines](ci-cd-pipelines.md) | The four GitHub Actions workflows and the dependabot configuration — triggers, jobs, steps, and the secret and environment variable names each one references. |
+| [CI/CD pipelines](ci-cd-pipelines.md) | The two GitHub Actions workflows (`ci.yml` and `release.yml`), helper module (`7-Deployment/ci/`), and dependabot configuration — triggers, jobs, steps, and secret/environment handling. |
 | [Terraform modules and infrastructure](terraform-modules.md) | The two Terraform solutions, the remote-state backend, the providers, and the module, variable, and output inventory. |
 
 The DbSetup CLI is a provisioning tool rather than a runtime service, and it is
@@ -42,7 +42,7 @@ for how it relates to the deployed platform.
 ```mermaid
 flowchart TD
   arch["deployment-architecture.md<br/>deployment model, workflow chain,<br/>canonical drift register"]
-  cicd["ci-cd-pipelines.md<br/>four GitHub Actions workflows + dependabot"]
+  cicd["ci-cd-pipelines.md<br/>ci.yml, release.yml, dependabot.yml"]
   tf["terraform-modules.md<br/>two Terraform solutions, backend, inventory"]
   dbs["dbsetup/architecture.md and onboarding.md<br/>the DbSetup CLI"]
   cicd -.->|"workflow evidence for the register"| arch
