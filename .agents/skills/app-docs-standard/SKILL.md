@@ -1,6 +1,6 @@
 ---
 name: app-docs-standard
-description: Apply the repository documentation standard when creating or updating application, service, tool, or system documentation.
+description: Apply the repository documentation standard. Use when creating or updating application, service, tool, or system documentation, or checking catalog coverage. Do not use for writing application code, Terraform infrastructure, or feature specs.
 license: MIT
 metadata:
   author: David R Palfery
