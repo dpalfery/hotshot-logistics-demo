@@ -222,14 +222,18 @@ docs-dev harvests the Design harvest rows into `6-Docs/admin-dashboard/architect
 
 - Backend evidence: `.agent_scratchpad/t1/logs/tests.log` reports 12 integration
   and 43 unit/repository tests passed, including the scoped SQL-backed suite.
-- Dashboard evidence: `.agent_scratchpad/t2/logs/dashboard-e2e.log` reports
-  24 passed, 6 skipped, 2 failed on ambiguous alert locators. The current spec
-  narrows those locators, but no subsequent passing run evidence was available
-  to this review. A passing T2 gate remains required.
-- NOT VERIFIED: T3 live SQL-to-API-to-browser comparison — independent live
-  verification was not supplied to this documentation review.
+- Dashboard evidence: the earlier `.agent_scratchpad/t2/logs/dashboard-e2e.log`
+  failed two ambiguous alert locators before their fix. The current targeted
+  run in `.agent_scratchpad/t2/verification-20261116/targeted-playwright.log`
+  passed 26 tests with 6 pre-existing skips; the task gate log in the same
+  directory reports lint, typecheck, build and e2e passed. The implementation
+  and tests are from commit `1b73d65`.
+- T3 independent verifier reported SQL status 0/1/2/3 counts `77/83/83/3260`
+  and API JSON `{"pending":77,"assigned":83,"enRoute":83,"received":3260}`.
+  The reviewed `.agent_scratchpad/T3/dashboard-status-cards.png` shows the
+  same four counts. Temporary services were stopped per the verifier.
 - Documentation impact: update the API and dashboard architecture and catalog;
-  no new component or ADR. The plan stays active pending the T2 evidence.
+  no new component or ADR. The plan remains active for the conductor's archive.
 
 ## Closeout mapping
 
