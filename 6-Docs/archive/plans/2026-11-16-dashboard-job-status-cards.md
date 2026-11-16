@@ -2,7 +2,7 @@
 id: plans/2026-11-16-dashboard-job-status-cards
 title: Admin dashboard job status cards
 doc-type: plan
-status: current
+status: archived
 component: admin-dashboard
 owner: unassigned
 last-reviewed: 2026-11-16
@@ -15,7 +15,7 @@ impact-components:
 
 # Admin dashboard job status cards
 
-**Status: Ready, 2026-11-16.**
+**Status: Archived, 2026-11-16.**
 
 - **Autonomy:** autonomous (the owner's standing approval for every decision recorded below).
 - **Development mode:** test-first.
