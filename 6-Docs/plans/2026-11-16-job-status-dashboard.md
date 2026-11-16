@@ -200,3 +200,36 @@ T1 and T2 run in parallel.
 ## docs-dev closeout
 
 `docs-dev` harvests the Design harvest rows into `6-Docs/api/architecture.md` and `6-Docs/admin-dashboard/architecture.md` / `onboarding.md`, then archives this plan.
+
+## Completion summary
+
+The dispatch reports T1 and T2 committed as `57d64c8` and `6933160` with task
+gates passing. Independent T3 reported matching API and display counts before
+`{pending:77,assigned:83,enRoute:83,received:3260}` and after
+`{pending:78,assigned:83,enRoute:83,received:3260}`; scoped counts were
+`{pending:1,assigned:0,enRoute:0,received:0}`, and cleanup confirmed both
+records deleted and scoped counts zero. Screenshot paths and individual gate
+reports were not supplied in the closeout dispatch.
+
+NOT VERIFIED: T1/T2 red-phase evidence and individual gate results — their
+reports were not supplied to this closeout.
+NOT VERIFIED: T3 screenshot paths and visual evidence — not supplied to this closeout.
+
+## Closeout mapping
+
+All rows reviewed 2026-11-16; status archived denotes the intended archive
+record, not the current plan status. No ADR — ADR waiver: the decisions apply
+existing architecture and patterns or are implementation and verification details.
+
+| ID | Destination | documentation-impact | impact-components | last-reviewed | status |
+|---|---|---|---|---|---|
+| D1, D10, D11, D12, D13, D14, D15 | [Dashboard overview](../../admin-dashboard/architecture.md#dashboard-overview) | extends-component | admin-dashboard | 2026-11-16 | archived |
+| D2, D3, D4, D5, D6 | [Job status counts](../../api/architecture.md#job-status-counts) and [data models](../../api/architecture.md#data-models); [dashboard overview](../../admin-dashboard/architecture.md#dashboard-overview) | extends-component | Api, admin-dashboard | 2026-11-16 | archived |
+| D7, D8, D9, D17, D18 | [Local live status-count verification](../../admin-dashboard/onboarding.md#local-live-status-count-verification) | extends-component | admin-dashboard | 2026-11-16 | archived |
+| D16, AP1 | Documentation waiver — task scheduling and approval provenance are historical, with no surviving behavioral invariant. | none | admin-dashboard, Api | 2026-11-16 | archived |
+| Api | [API architecture](../../api/architecture.md#job-status-counts) | extends-component | Api | 2026-11-16 | archived |
+| admin-dashboard | [Dashboard architecture](../../admin-dashboard/architecture.md#dashboard-overview) and [onboarding](../../admin-dashboard/onboarding.md#local-live-status-count-verification) | extends-component | admin-dashboard | 2026-11-16 | archived |
+| Api job endpoints | [Job status counts](../../api/architecture.md#job-status-counts) | extends-component | Api | 2026-11-16 | archived |
+| Api model placement | [Data models](../../api/architecture.md#data-models) | extends-component | Api | 2026-11-16 | archived |
+| admin-dashboard overview | [Dashboard overview](../../admin-dashboard/architecture.md#dashboard-overview) | extends-component | admin-dashboard | 2026-11-16 | archived |
+| admin-dashboard local live verification | [Local live status-count verification](../../admin-dashboard/onboarding.md#local-live-status-count-verification) | extends-component | admin-dashboard | 2026-11-16 | archived |

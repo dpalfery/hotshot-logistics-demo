@@ -6,7 +6,7 @@ status: current
 component: Api
 source-root: 1-Presentation/HotshotLogistics.Api
 owner: unassigned
-last-reviewed: 2026-11-14
+last-reviewed: 2026-11-16
 code-refs:
   - JobController
   - TestAuthHandler
@@ -48,10 +48,24 @@ flowchart TD
 
 Authorization policies include `Admin`, `Manager`, `Driver`, `Customer`, and combined roles.
 
+### Job status counts
+
+`GET /api/job/status-counts` requires `ManagerOrAdmin`. An optional `customerId`
+restricts the aggregate to that customer; without it, all jobs are included.
+The response contains `pending`, `assigned`, `enRoute`, and `received` integer
+counts, including zero for missing statuses. Unknown stored status values are ignored.
+The controller delegates through `IJobService.GetJobStatusCountsAsync` and
+`IJobRepository.GetJobStatusCountsAsync` to one parameterized SQL `GROUP BY Status`
+over `Jobs`. The backend status values are Pending (0), Assigned (1), EnRoute (2),
+and Received (3). The repository currently opens its own SQL connection; the
+[connection-factory todo](../todo/sql-connection-factory.md) tracks the target pattern.
+
 ## Data models
 
 Request and response DTOs live in Domain. Persistence uses native ADO.NET. See the
 [data access layer coding standard](../standards/data-access-layer/README.md).
+The shared sealed `JobStatusCountsDto` record lives in
+`HotshotLogistics.Contracts.Models` in the Contracts project.
 
 ## Error handling
 

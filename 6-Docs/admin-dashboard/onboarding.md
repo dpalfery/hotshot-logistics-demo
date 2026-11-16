@@ -6,7 +6,7 @@ status: current
 component: admin-dashboard
 source-root: 1-Presentation/admin-dashboard
 owner: unassigned
-last-reviewed: 2026-11-10
+last-reviewed: 2026-11-16
 ---
 
 # Admin dashboard onboarding
@@ -43,6 +43,25 @@ tree. Open the URL printed by the dev server (typically https://localhost:3000).
 - Real-time updates use `@microsoft/signalr`.
 - Playwright: `npm run test:install` once (installs browsers), then `npm test`
   (`playwright test`). There is no `pretest` hook.
+
+### Local live status-count verification
+
+For browser-to-database verification, use a development database configured via
+the API's user secrets, without printing its connection string. Check that the
+ASP.NET Core development certificate is already trusted with
+`dotnet dev-certs https --check --trust` and that ports 5001 and 3000 are free.
+Run the API from the repository root with
+`ASPNETCORE_ENVIRONMENT=Development ASPNETCORE_URLS=https://localhost:5001 dotnet run --project 1-Presentation/HotshotLogistics.Api --no-launch-profile`.
+Run the dashboard from its source directory with
+`NEXT_PUBLIC_API_BASE_URL=https://localhost:5001/api npx next dev --port 3000`
+and the public identifiers from Setup in the environment. This HTTP dashboard
+origin and HTTPS API origin are permitted by development CORS and CSP.
+
+Use a browser with normal TLS validation to compare the displayed cards with the
+unscoped API response. A uniquely owned customer and Pending job can verify a
+one-count increase and the customer-scoped response; delete both afterwards and
+confirm scoped counts are zero. Do not bypass certificate validation or change
+security configuration to make the check pass.
 
 ## Non-standard operating procedures
 

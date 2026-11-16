@@ -6,7 +6,7 @@ status: current
 component: admin-dashboard
 source-root: 1-Presentation/admin-dashboard
 owner: unassigned
-last-reviewed: 2026-11-10
+last-reviewed: 2026-11-16
 code-refs:
   - JobsManagement
 ---
@@ -31,6 +31,26 @@ flowchart LR
 ```
 
 TanStack Query caches server state. MSAL handles Azure AD sign-in. SignalR connects to the API `/realtime` hub for live updates.
+
+### Dashboard overview
+
+Between the existing metrics and Recent Jobs, the overview displays Pending,
+Assigned, EnRoute and Received counts from the
+[job status counts endpoint](../api/architecture.md#job-status-counts).
+`useJobStatusCounts` validates all four values as non-negative integers with
+zod; it does not fabricate fallback counts. Loading shows an ellipsis and marks
+the section busy; a request or validation error shows dashes and an unavailable
+alert. This state is independent of the existing overview loading skeleton.
+
+`JobStatusCards` and `JobStatusCard` are presentational; `jobStatusCardConfig`
+defines the ordered labels, icons and badge colors. The grid stacks on small
+screens, uses two columns at `sm`, and five tracks at `lg` for four cards.
+The badges use Hourglass `#3B82F6`, ClipboardList `#0EA5E9`, Truck `#0284C7`,
+and Inbox `#0369A1`, respectively; icons are decorative.
+The hook exports `jobStatusCountsQueryKey` as a future SignalR invalidation
+seam; no status-count broadcast or invalidation handler is added by this feature.
+The existing frontend job status enum remains out of sync with the backend;
+see the [dashboard status todo](../todo/admin-dashboard-job-status-unresolved.md).
 
 ## Components and interfaces
 
