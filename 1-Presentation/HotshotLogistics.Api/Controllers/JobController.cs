@@ -447,9 +447,18 @@ namespace HotshotLogistics.Api.Controllers
         [HttpGet("status-summary")]
         [Authorize(Policy = AuthorizationPolicies.ManagerOrAdmin)]
         [ProducesResponseType(typeof(JobStatusSummaryDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<ActionResult<JobStatusSummaryDto>> GetJobStatusSummary(
             [FromQuery] string? customerId, CancellationToken cancellationToken = default)
         {
+            if (Request.Query.TryGetValue("customerId", out var values) &&
+                (values.Count != 1 || string.IsNullOrWhiteSpace(customerId) ||
+                 customerId.Length > 50 || customerId.Any(char.IsControl)))
+            {
+                ModelState.AddModelError(nameof(customerId), "Provide one non-empty customer identifier of at most 50 characters without control characters.");
+                return ValidationProblem(ModelState);
+            }
+
             return Ok(await _jobService.GetJobStatusSummaryAsync(customerId, cancellationToken));
         }
 

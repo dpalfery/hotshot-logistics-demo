@@ -20,6 +20,31 @@ namespace HotshotLogistics.IntegrationTests
             Client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Test");
         }
 
+        [Theory]
+        [InlineData("?customerId=")]
+        [InlineData("?customerId=%20%20")]
+        [InlineData("?customerId=one&customerId=two")]
+        [InlineData("?customerId=&customerId=one")]
+        [InlineData("?customerId=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
+        [InlineData("?customerId=%00")]
+        public async Task GetJobStatusSummary_WithInvalidCustomerId_ReturnsBadRequest(string query)
+        {
+            HttpResponseMessage response = await Client.GetAsync("/api/job/status-summary" + query);
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        }
+
+        [Theory]
+        [InlineData("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")]
+        [InlineData("'%20OR%201%3D1--")]
+        [InlineData("-1")]
+        public async Task GetJobStatusSummary_WithUnknownCustomerId_ReturnsZeroCounts(string customerId)
+        {
+            HttpResponseMessage response = await Client.GetAsync("/api/job/status-summary?customerId=" + customerId);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            using System.Text.Json.JsonDocument json = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            Assert.All(json.RootElement.EnumerateObject(), property => Assert.Equal(0, property.Value.GetInt32()));
+        }
+
         [Fact]
         public async Task GetJobStatusSummary_WithCustomerId_ReturnsCountsOfThatCustomersJobs()
         {
