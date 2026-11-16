@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.Json;
 using HotshotLogistics.Core.Enums;
 using HotshotLogistics.Domain.DTOs;
 using HotshotLogistics.Domain.Entities;
@@ -18,6 +19,34 @@ namespace HotshotLogistics.IntegrationTests
         {
             // Set the test authentication header
             Client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Test");
+        }
+
+        [Fact]
+        public async Task GetJobStatusCounts_ForOwnCustomer_ReturnsPersistedCountsPerStatus()
+        {
+            Client.DefaultRequestHeaders.Add("X-Test-Role", "Manager");
+            string customerId = $"test-{Guid.NewGuid():N}";
+            Cleanup.TrackCustomer(customerId);
+            Customer customer = new() { Id = customerId, CompanyName = "Status counts test", Email = "counts@example.com" };
+            HttpResponseMessage customerResponse = await Client.PostAsJsonAsync("/api/Customer", customer);
+            customerResponse.EnsureSuccessStatusCode();
+
+            foreach (JobStatus status in new[] { JobStatus.Pending, JobStatus.Pending, JobStatus.Pending,
+                         JobStatus.Assigned, JobStatus.Assigned, JobStatus.EnRoute })
+            {
+                await CreateJobWithStatusAsync(customerId, status);
+            }
+
+            HttpResponseMessage response = await Client.GetAsync($"/api/Job/status-counts?customerId={Uri.EscapeDataString(customerId)}");
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            using JsonDocument json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            JsonElement root = json.RootElement;
+            Assert.Equal(new[] { "assigned", "enRoute", "pending", "received" },
+                root.EnumerateObject().Select(property => property.Name).OrderBy(name => name, StringComparer.Ordinal).ToArray());
+            Assert.Equal(3, root.GetProperty("pending").GetInt32());
+            Assert.Equal(2, root.GetProperty("assigned").GetInt32());
+            Assert.Equal(1, root.GetProperty("enRoute").GetInt32());
+            Assert.Equal(0, root.GetProperty("received").GetInt32());
         }
 
         [Fact]
@@ -330,8 +359,9 @@ namespace HotshotLogistics.IntegrationTests
         ///     picked by position.
         /// </summary>
         /// <param name="idPrefix">Short label put in the job id.</param>
+        /// <param name="customerId">The customer owning the job.</param>
         /// <returns>The created job.</returns>
-        private async Task<Job> CreateOwnJobAsync(string idPrefix)
+        private async Task<Job> CreateOwnJobAsync(string idPrefix, string customerId = "cust-001")
         {
             string id = $"test-{idPrefix}-{Guid.NewGuid():N}";
             Cleanup.TrackJob(id);
@@ -339,7 +369,7 @@ namespace HotshotLogistics.IntegrationTests
             Job job = new()
             {
                 Id = id,
-                CustomerId = "cust-001", // Seeded customer, only referenced
+                CustomerId = customerId,
                 Title = $"Own job {idPrefix}",
                 PickupLocation = new Location
                 {
@@ -389,6 +419,16 @@ namespace HotshotLogistics.IntegrationTests
             Job? created = await response.Content.ReadFromJsonAsync<Job>();
             Assert.NotNull(created);
             return created;
+        }
+
+        private async Task CreateJobWithStatusAsync(string customerId, JobStatus status)
+        {
+            Job job = await CreateOwnJobAsync("status-count", customerId);
+            if (status != JobStatus.Pending)
+            {
+                HttpResponseMessage response = await Client.PutAsJsonAsync($"/api/Job/{job.Id}/status", new { Status = status });
+                response.EnsureSuccessStatusCode();
+            }
         }
     }
 }

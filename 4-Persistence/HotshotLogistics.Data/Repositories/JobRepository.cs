@@ -3,6 +3,7 @@
 // </copyright>
 
 using System.Data;
+using HotshotLogistics.Contracts.Models;
 using HotshotLogistics.Contracts.Repositories;
 using HotshotLogistics.Core.Enums;
 using HotshotLogistics.Core.Repositories;
@@ -27,6 +28,32 @@ namespace HotshotLogistics.Data.Repositories
         public JobRepository(IConfiguration configuration)
             : base(configuration)
         {
+        }
+
+        /// <inheritdoc />
+        public async Task<JobStatusCountsDto> GetJobStatusCountsAsync(string? customerId = null,
+            CancellationToken cancellationToken = default)
+        {
+            const string query = "SELECT Status, COUNT(*) AS JobCount FROM Jobs WHERE (@CustomerId IS NULL OR CustomerId = @CustomerId) GROUP BY Status";
+            int pending = 0, assigned = 0, enRoute = 0, received = 0;
+            await using SqlConnection connection = new(ConnectionString);
+            await connection.OpenAsync(cancellationToken);
+            await using SqlCommand command = new(query, connection);
+            command.Parameters.Add(new SqlParameter("@CustomerId", SqlDbType.NVarChar) { Value = (object?)customerId ?? DBNull.Value });
+            await using SqlDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                int count = reader.GetInt32(1);
+                switch ((JobStatus)reader.GetInt32(0))
+                {
+                    case JobStatus.Pending: pending = count; break;
+                    case JobStatus.Assigned: assigned = count; break;
+                    case JobStatus.EnRoute: enRoute = count; break;
+                    case JobStatus.Received: received = count; break;
+                }
+            }
+
+            return new JobStatusCountsDto(pending, assigned, enRoute, received);
         }
 
         /// <inheritdoc />

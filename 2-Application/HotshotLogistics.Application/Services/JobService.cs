@@ -2,6 +2,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
+using HotshotLogistics.Contracts.Models;
 using HotshotLogistics.Contracts.Repositories;
 using HotshotLogistics.Contracts.Services;
 using HotshotLogistics.Core.Enums;
@@ -114,6 +115,14 @@ namespace HotshotLogistics.Application.Services
         public Task<Job?> GetJobByIdAsync(string id, CancellationToken cancellationToken = default)
         {
             return _jobRepository.GetJobByIdAsync(id, cancellationToken);
+        }
+
+        /// <inheritdoc />
+        public Task<JobStatusCountsDto> GetJobStatusCountsAsync(string? customerId = null,
+            CancellationToken cancellationToken = default)
+        {
+            _logger.LogInformation("Getting job status counts for customer {CustomerId}", customerId);
+            return _jobRepository.GetJobStatusCountsAsync(customerId, cancellationToken);
         }
 
         /// <inheritdoc />
