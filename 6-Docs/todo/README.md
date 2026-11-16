@@ -21,13 +21,16 @@ Add one document per todo and list it here, ordered by priority (`P1` high, `P2`
 | [Standardize API ProblemDetails responses](problem-details.md) | P1 | Open | Api | Register `AddProblemDetails()` / `UseExceptionHandler()` and standardize error payloads. |
 | [Add API health checks](health-checks.md) | P1 | Open | Api | Add `/health` dependency, readiness, and liveness checks. |
 | [Make invoice number generation concurrency-safe](invoice-number-concurrency.md) | P2 | Open | Api | Replace unlocked `MAX() + 1` in `GetNextInvoiceNumberAsync` with a sequence or lock-safe allocation. |
+| [Remove DashboardOverview test-mode fallback data and debug logging](admin-dashboard-overview-test-fallback.md) | P2 | Open | admin-dashboard | Hard-coded fallback jobs/drivers/invoices and `console.log` debug block ship in production `DashboardOverview`. |
 | [Admin dashboard Playwright tests marked fixme](admin-dashboard-playwright-baseline.md) | P2 | Open | admin-dashboard | Eleven dashboard e2e tests check behaviour the app lacks: overview error/empty states, Quick Actions, live stats, SignalR injection. |
+| [Isolate the global job status summary delta test from concurrent writers](job-status-summary-global-test-isolation.md) | P2 | Open | Api | Exact global deltas in `GetJobStatusSummary_WithoutCustomerId_IncludesJobsFromBothCustomers` break when other suites or worktrees write the shared test database. |
 | [Define external-call resilience policies](resilience-policies.md) | P2 | Open | Api | Narrow `BillingService` retry exceptions and add Polly timeouts/circuit breakers on outbound HTTP clients. |
 | [Define metrics and tracing](telemetry.md) | P2 | Open | Api | Configure OpenTelemetry metrics, distributed tracing, and Application Insights export. |
 | [Add API rate limiting](rate-limiting.md) | P2 | Open | Api | Define global and endpoint rate limits and configure `AddRateLimiter()` / `UseRateLimiter()`. |
 | [Remove Data dependency on Application](persistence-application-dependency.md) | P2 | Open | Api | Remove `HotshotLogistics.Data` project reference to `HotshotLogistics.Application`. |
-| [Introduce a SQL connection factory](sql-connection-factory.md) | P2 | Open | Api | Plan a factory and migrate direct repository connection creation. |
+| [Introduce a SQL connection factory](sql-connection-factory.md) | P2 | Open | Api | Plan a factory and migrate direct repository connection creation, including the job status summary query deferred by D8. |
 | [Migrate to the generic repository contract](generic-repository-migration.md) | P2 | Open | Api | Design and adopt `IRepository<T>` while preserving repository behavior. |
 | [Align C# contract model placement](contracts-model-placement.md) | P3 | Open | Api | Plan a migration of contract classes, project references, and shared DTOs to their prescribed locations. |
+| [Fix MigrationRunner MSB3539 build warning](migrationrunner-msb3539-warning.md) | P3 | Open | Api | `MigrationRunner.csproj` sets `BaseIntermediateOutputPath` after the SDK reads it. |
 | [Adopt sealed record HTTP DTOs](api-platform-hardening.md) | P3 | Open | Api | Migrate controller request/response DTOs to `sealed record` types. |
 | [Add frontend unit-test tooling](frontend-unit-test-tooling.md) | P3 | Open | admin-dashboard | Add Vitest and React Testing Library for frontend unit and component tests. |
