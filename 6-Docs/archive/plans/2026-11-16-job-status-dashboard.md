@@ -2,7 +2,7 @@
 id: plans/2026-11-16-job-status-dashboard
 title: Job status cards on the dashboard overview
 doc-type: plan
-status: current
+status: archived
 component: admin-dashboard
 owner: unassigned
 last-reviewed: 2026-11-16
@@ -16,7 +16,7 @@ impact-components:
 
 # Job status cards on the dashboard overview
 
-**Status: Ready, 2026-11-16.**
+**Status: Archived, 2026-11-16.**
 
 ## Problem and goal
 
