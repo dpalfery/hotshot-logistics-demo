@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using HotshotLogistics.Contracts.Models;
 using HotshotLogistics.Core.Enums;
 using HotshotLogistics.Domain.DTOs;
 using HotshotLogistics.Domain.Entities;
@@ -19,6 +20,56 @@ namespace HotshotLogistics.IntegrationTests
         {
             // Set the test authentication header
             Client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Test");
+        }
+
+        [Fact]
+        public async Task GetJobStatusCounts_WithoutCustomerId_IncludesJobsFromMultipleCustomers()
+        {
+            Client.DefaultRequestHeaders.Add("X-Test-Role", "Manager");
+            string firstCustomer = $"test-{Guid.NewGuid():N}";
+            string secondCustomer = $"test-{Guid.NewGuid():N}";
+            foreach (string customerId in new[] { firstCustomer, secondCustomer })
+            {
+                Cleanup.TrackCustomer(customerId);
+                Customer customer = new() { Id = customerId, CompanyName = "Global counts test", Email = "counts@example.com" };
+                HttpResponseMessage createResponse = await Client.PostAsJsonAsync("/api/Customer", customer);
+                createResponse.EnsureSuccessStatusCode();
+            }
+
+            await CreateJobWithStatusAsync(firstCustomer, JobStatus.Pending);
+            await CreateJobWithStatusAsync(firstCustomer, JobStatus.Assigned);
+            await CreateJobWithStatusAsync(secondCustomer, JobStatus.EnRoute);
+            await CreateJobWithStatusAsync(secondCustomer, JobStatus.Received);
+
+            HttpResponseMessage response = await Client.GetAsync("/api/Job/status-counts");
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            JobStatusCountsDto? global = await response.Content.ReadFromJsonAsync<JobStatusCountsDto>();
+            Assert.NotNull(global);
+            Assert.True(global.Pending >= 1);
+            Assert.True(global.Assigned >= 1);
+            Assert.True(global.EnRoute >= 1);
+            Assert.True(global.Received >= 1);
+
+            HttpResponseMessage emptyResponse = await Client.GetAsync($"/api/Job/status-counts?customerId={Uri.EscapeDataString($"test-{Guid.NewGuid():N}")}");
+            emptyResponse.EnsureSuccessStatusCode();
+            JobStatusCountsDto? empty = await emptyResponse.Content.ReadFromJsonAsync<JobStatusCountsDto>();
+            Assert.Equal(new JobStatusCountsDto(0, 0, 0, 0), empty);
+        }
+
+        [Fact]
+        public async Task GetJobStatusCounts_WithoutAuthentication_ReturnsUnauthorized()
+        {
+            Client.DefaultRequestHeaders.Authorization = null;
+            HttpResponseMessage response = await Client.GetAsync("/api/Job/status-counts");
+            Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        }
+
+        [Fact]
+        public async Task GetJobStatusCounts_AsDriver_ReturnsForbidden()
+        {
+            Client.DefaultRequestHeaders.Add("X-Test-Role", "Driver");
+            HttpResponseMessage response = await Client.GetAsync("/api/Job/status-counts");
+            Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         }
 
         [Fact]
