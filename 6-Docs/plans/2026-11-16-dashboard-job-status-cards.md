@@ -217,3 +217,36 @@ T1 and T2 run in parallel (disjoint files; T2 depends only on the D4 JSON contra
 ## docs-dev closeout
 
 docs-dev harvests the Design harvest rows into `6-Docs/admin-dashboard/architecture.md` and `6-Docs/api/architecture.md` (including the D5 correction of "Request and response DTOs live in Domain"), adds `code-refs` for `JobStatusCards`, `JobStatusSummarySection`, `GetJobStatusSummary` and `JobStatusSummaryDto` where the docs cite them, updates catalog review dates for `admin-dashboard` and `Api`, and maps each decision to its canonical destination in a Closeout mapping before archive.
+
+## Completion summary
+
+- Backend evidence: `.agent_scratchpad/t1/logs/tests.log` reports 12 integration
+  and 43 unit/repository tests passed, including the scoped SQL-backed suite.
+- Dashboard evidence: `.agent_scratchpad/t2/logs/dashboard-e2e.log` reports
+  24 passed, 6 skipped, 2 failed on ambiguous alert locators. The current spec
+  narrows those locators, but no subsequent passing run evidence was available
+  to this review. A passing T2 gate remains required.
+- NOT VERIFIED: T3 live SQL-to-API-to-browser comparison — independent live
+  verification was not supplied to this documentation review.
+- Documentation impact: update the API and dashboard architecture and catalog;
+  no new component or ADR. The plan stays active pending the T2 evidence.
+
+## Closeout mapping
+
+All migrated rows have documentation-impact `extends-component`, impact-components
+`admin-dashboard, Api`, last-reviewed `2026-11-16`, and status `archived` for
+the eventual archive record. No ADR — ADR waiver: these decisions extend existing
+component behavior or apply existing standards rather than establish new architecture.
+
+| ID | Destination |
+|---|---|
+| D1 | [Dashboard architecture](../../admin-dashboard/architecture.md#overview) |
+| D2, D3, D4, D5, D6, D7, D8 | [API architecture](../../api/architecture.md#components-and-interfaces) and [data models](../../api/architecture.md#data-models) |
+| D9, D10, D11, D12, D13, D14, D15 | [Dashboard architecture](../../admin-dashboard/architecture.md#components-and-interfaces) and [error handling](../../admin-dashboard/architecture.md#error-handling) |
+| D16 | Documentation waiver — historical removal of debugging output, with no surviving behavior. |
+| D17, D18 | [Dashboard testing strategy](../../admin-dashboard/architecture.md#testing-strategy) and [API testing strategy](../../api/architecture.md#testing-strategy) |
+| D19, AP1 | Documentation waiver — historical execution approval, with no surviving behavioral invariant. |
+| admin-dashboard | [Dashboard architecture](../../admin-dashboard/architecture.md) — components, models, errors and testing. |
+| Api | [API architecture](../../api/architecture.md) — interface and data model. |
+| Dashboard components and interfaces, data models, error handling, testing strategy | [Dashboard architecture](../../admin-dashboard/architecture.md) |
+| API components and interfaces, data models | [API architecture](../../api/architecture.md) |
