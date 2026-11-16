@@ -220,3 +220,9 @@ export interface NotificationMessage {
   read: boolean;
   data?: Record<string, unknown>;
 }
+export interface JobStatusSummary {
+  pending: number;
+  assigned: number;
+  enRoute: number;
+  received: number;
+}

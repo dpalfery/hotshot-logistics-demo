@@ -87,6 +87,14 @@ test.describe('Dashboard Overview', () => {
       });
     });
 
+    await page.route('https://localhost:5001/api/job/status-summary', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ pending: 4, assigned: 3, enRoute: 2, received: 7 })
+      });
+    });
+
     // Mock drivers API with active drivers - matches apiService.getDrivers() endpoint
     await page.route('https://localhost:5001/api/drivers', async route => {
       await route.fulfill({
@@ -141,6 +149,59 @@ test.describe('Dashboard Overview', () => {
     });
 
     await page.goto('/');
+  });
+
+  test.describe('Job Status Cards', () => {
+    test('should render four job status cards in order with counts from the API', async ({ page }) => {
+      const cards = page.getByTestId('job-status-card');
+      await expect(cards).toHaveCount(4);
+      for (const [index, [label, count]] of [['Pending', '4'], ['Assigned', '3'], ['EnRoute', '2'], ['Received', '7']].entries()) {
+        await expect(cards.nth(index)).toContainText(label);
+        await expect(cards.nth(index)).toContainText(count);
+      }
+    });
+
+    test('should place job status cards between metrics and recent jobs', async ({ page }) => {
+      const metrics = await page.getByTestId('stats-container').boundingBox();
+      const cards = await page.getByTestId('job-status-cards').boundingBox();
+      const recent = await page.getByRole('heading', { name: 'Recent Jobs' }).boundingBox();
+      expect(metrics).not.toBeNull();
+      expect(cards).not.toBeNull();
+      expect(recent).not.toBeNull();
+      expect(metrics!.y + metrics!.height).toBeLessThan(cards!.y);
+      expect(cards!.y + cards!.height).toBeLessThan(recent!.y);
+    });
+
+    test('should style job status cards like the metric cards', async ({ page }) => {
+      const cards = page.getByTestId('job-status-card');
+      await expect(cards).toHaveCount(4);
+      for (const [index, color] of ['bg-blue-500', 'bg-sky-500', 'bg-sky-600', 'bg-sky-700'].entries()) {
+        const card = cards.nth(index);
+        for (const className of ['bg-white', 'rounded-lg', 'shadow', 'p-6']) {
+          await expect(card).toHaveClass(new RegExp(`\\b${className}\\b`));
+        }
+        await expect(card.locator(`.${color}`)).toHaveClass(/rounded-md/);
+      }
+    });
+
+    test('should show an error message when the status summary request fails', async ({ page }) => {
+      await page.route('https://localhost:5001/api/job/status-summary', route => route.fulfill({ status: 500 }));
+      await page.reload();
+      await expect(page.getByTestId('job-status-cards').getByRole('alert')).toHaveText('Unable to load job status counts', { timeout: 15000 });
+      await expect(page.getByTestId('job-status-card')).toHaveCount(0);
+    });
+
+    test('should lay out job status cards responsively', async ({ page }) => {
+      const cards = page.getByTestId('job-status-card');
+      await expect(cards).toHaveCount(4);
+      for (const [width, columns] of [[375, 1], [768, 2], [1200, 4]]) {
+        await page.setViewportSize({ width, height: 900 });
+        const boxes = await Promise.all((await cards.all()).map(card => card.boundingBox()));
+        expect(boxes.every(box => box !== null)).toBe(true);
+        expect(new Set(boxes.map(box => box!.y)).size).toBe(4 / columns);
+        expect(new Set(boxes.map(box => box!.x)).size).toBe(columns);
+      }
+    });
   });
 
   test.describe('Dashboard Statistics Cards', () => {
@@ -282,11 +343,12 @@ test.describe('Dashboard Overview', () => {
 
     test('should display job status badges with correct styling', async ({ page }) => {
       // Check status badges
-      const inProgressBadge = page.locator('text=InProgress').first();
+      const recentJobs = page.locator('div.bg-white.shadow.rounded-lg', { has: page.getByRole('heading', { name: 'Recent Jobs' }) });
+      const inProgressBadge = recentJobs.locator('text=InProgress').first();
       await expect(inProgressBadge).toBeVisible();
       await expect(inProgressBadge).toHaveClass(/bg-green-100.*text-green-800/);
 
-      const pendingBadge = page.locator('text=Pending').first();
+      const pendingBadge = recentJobs.locator('text=Pending').first();
       await expect(pendingBadge).toBeVisible();
       await expect(pendingBadge).toHaveClass(/bg-yellow-100.*text-yellow-800/);
     });

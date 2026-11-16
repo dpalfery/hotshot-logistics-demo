@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { apiService } from '@/services/api';
 import { JobStatus } from '@/types';
+import { JobStatusCards } from './JobStatusCards';
 
 export function DashboardOverview() {
   const { data: jobs, isLoading: jobsLoading, error: jobsError } = useQuery({
@@ -203,6 +204,8 @@ export function DashboardOverview() {
           </div>
         </div>
       </div>
+
+            <JobStatusCards />
 
             {/* Recent Activity */}
             <div className="bg-white shadow rounded-lg">
