@@ -4,6 +4,7 @@
 
 using HotshotLogistics.Contracts.Repositories;
 using HotshotLogistics.Contracts.Services;
+using HotshotLogistics.Contracts.Models;
 using HotshotLogistics.Core.Enums;
 using HotshotLogistics.Core.Exceptions;
 using HotshotLogistics.Domain.DTOs;
@@ -108,6 +109,13 @@ namespace HotshotLogistics.Application.Services
 
             _logger.LogInformation("Job created successfully with ID: {JobId}", createdJob.Id);
             return createdJob;
+        }
+
+        /// <inheritdoc />
+        public Task<JobStatusSummaryDto> GetJobStatusSummaryAsync(string? customerId = null, CancellationToken cancellationToken = default)
+        {
+            JobFilterDto? filter = customerId == null ? null : new JobFilterDto { CustomerId = customerId };
+            return _jobRepository.GetJobStatusCountsAsync(filter, cancellationToken);
         }
 
         /// <inheritdoc />

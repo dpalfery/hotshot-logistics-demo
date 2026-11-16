@@ -3,6 +3,7 @@
 // </copyright>
 
 using System.Data;
+using HotshotLogistics.Contracts.Models;
 using HotshotLogistics.Contracts.Repositories;
 using HotshotLogistics.Core.Enums;
 using HotshotLogistics.Core.Repositories;
@@ -11,6 +12,7 @@ using HotshotLogistics.Domain.Entities;
 using HotshotLogistics.Domain.ValueObjects;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 namespace HotshotLogistics.Data.Repositories
 #pragma warning disable SA1202 // False positive - public members are correctly ordered before private members
@@ -20,13 +22,17 @@ namespace HotshotLogistics.Data.Repositories
     /// </summary>
     internal class JobRepository : BaseRepository<Job>, IJobRepository
     {
+        private readonly ILogger<JobRepository> _logger;
+
         /// <summary>
         ///     Initializes a new instance of the <see cref="JobRepository" /> class.
         /// </summary>
         /// <param name="configuration">The application configuration.</param>
-        public JobRepository(IConfiguration configuration)
+        /// <param name="logger">The repository logger.</param>
+        public JobRepository(IConfiguration configuration, ILogger<JobRepository> logger)
             : base(configuration)
         {
+            _logger = logger;
         }
 
         /// <inheritdoc />
@@ -242,6 +248,40 @@ namespace HotshotLogistics.Data.Repositories
             }
 
             return jobs;
+        }
+
+        /// <inheritdoc />
+        public async Task<JobStatusSummaryDto> GetJobStatusCountsAsync(JobFilterDto? filter = null,
+            CancellationToken cancellationToken = default)
+        {
+            (string whereClause, IReadOnlyList<SqlParameter> parameters) = BuildWhereClause(filter);
+            string query = $"SELECT Status, COUNT(*) AS JobCount FROM Jobs{whereClause} GROUP BY Status";
+            int pending = 0, assigned = 0, enRoute = 0, received = 0;
+            try
+            {
+                await using SqlConnection connection = new(ConnectionString);
+                await connection.OpenAsync(cancellationToken);
+                await using SqlCommand command = new(query, connection);
+                AddParametersToCommand(command, parameters);
+                await using SqlDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
+                while (await reader.ReadAsync(cancellationToken))
+                {
+                    switch ((JobStatus)reader.GetInt32(0))
+                    {
+                        case JobStatus.Pending: pending = reader.GetInt32(1); break;
+                        case JobStatus.Assigned: assigned = reader.GetInt32(1); break;
+                        case JobStatus.EnRoute: enRoute = reader.GetInt32(1); break;
+                        case JobStatus.Received: received = reader.GetInt32(1); break;
+                    }
+                }
+            }
+            catch (SqlException ex)
+            {
+                _logger.LogError(ex, "Failed to get status counts for {Entity}", "Job");
+                throw;
+            }
+
+            return new JobStatusSummaryDto(pending, assigned, enRoute, received);
         }
 
         /// <inheritdoc />

@@ -1,3 +1,4 @@
+using HotshotLogistics.Contracts.Models;
 using HotshotLogistics.Core.Enums;
 using HotshotLogistics.Domain.DTOs;
 using HotshotLogistics.Domain.Entities;
@@ -7,6 +8,12 @@ namespace HotshotLogistics.Contracts.Services
 {
     public interface IJobService
     {
+        /// <summary>Gets job counts by status.</summary>
+        /// <param name="customerId">Optional customer identifier.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>Counts for each status.</returns>
+        Task<JobStatusSummaryDto> GetJobStatusSummaryAsync(string? customerId = null, CancellationToken cancellationToken = default);
+
         Task<IEnumerable<Job>> GetJobsAsync(CancellationToken cancellationToken = default);
 
         /// <summary>

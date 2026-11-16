@@ -21,6 +21,51 @@ namespace HotshotLogistics.IntegrationTests
         }
 
         [Fact]
+        public async Task GetJobStatusSummary_WithCustomerId_ReturnsCountsOfThatCustomersJobs()
+        {
+            string customerId = $"test-{Guid.NewGuid():N}";
+            Cleanup.TrackCustomer(customerId);
+            Customer customer = new() { Id = customerId, CompanyName = "Summary test", Email = "summary@example.com" };
+            (await Client.PostAsJsonAsync("/api/customer", customer)).EnsureSuccessStatusCode();
+            Job pending = await CreateOwnJobAsync("pend", customerId);
+            Job assigned = await CreateOwnJobAsync("assign", customerId);
+            Job enRoute = await CreateOwnJobAsync("route", customerId);
+            Client.DefaultRequestHeaders.Add("X-Test-Role", "Manager");
+            (await Client.PutAsJsonAsync($"/api/job/{assigned.Id}/status", new { status = JobStatus.Assigned })).EnsureSuccessStatusCode();
+            (await Client.PutAsJsonAsync($"/api/job/{enRoute.Id}/status", new { status = JobStatus.EnRoute })).EnsureSuccessStatusCode();
+            HttpResponseMessage response = await Client.GetAsync($"/api/job/status-summary?customerId={customerId}");
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            using System.Text.Json.JsonDocument json = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            Assert.Equal(4, json.RootElement.EnumerateObject().Count());
+            Assert.Equal(1, json.RootElement.GetProperty("pending").GetInt32());
+            Assert.Equal(1, json.RootElement.GetProperty("assigned").GetInt32());
+            Assert.Equal(1, json.RootElement.GetProperty("enRoute").GetInt32());
+            Assert.Equal(0, json.RootElement.GetProperty("received").GetInt32());
+        }
+
+        [Fact]
+        public async Task GetJobStatusSummary_WithoutCustomerId_ReturnsOkWithNonNegativeCounts()
+        {
+            HttpResponseMessage response = await Client.GetAsync("/api/job/status-summary");
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            using System.Text.Json.JsonDocument json = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            Assert.Equal(4, json.RootElement.EnumerateObject().Count());
+            foreach (string key in new[] { "pending", "assigned", "enRoute", "received" })
+            {
+                Assert.True(json.RootElement.GetProperty(key).GetInt32() >= 0);
+            }
+        }
+
+        [Fact]
+        public async Task GetJobStatusSummary_AsDriver_ReturnsForbidden()
+        {
+            using HttpRequestMessage request = new(HttpMethod.Get, "/api/job/status-summary");
+            request.Headers.Add("X-Test-Role", "Driver");
+            HttpResponseMessage response = await Client.SendAsync(request);
+            Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        }
+
+        [Fact]
         public async Task GetJobs_ReturnsSuccessAndListOfJobs()
         {
             // Act
@@ -330,8 +375,9 @@ namespace HotshotLogistics.IntegrationTests
         ///     picked by position.
         /// </summary>
         /// <param name="idPrefix">Short label put in the job id.</param>
+        /// <param name="customerId">Customer owning the job.</param>
         /// <returns>The created job.</returns>
-        private async Task<Job> CreateOwnJobAsync(string idPrefix)
+        private async Task<Job> CreateOwnJobAsync(string idPrefix, string customerId = "cust-001")
         {
             string id = $"test-{idPrefix}-{Guid.NewGuid():N}";
             Cleanup.TrackJob(id);
@@ -339,7 +385,7 @@ namespace HotshotLogistics.IntegrationTests
             Job job = new()
             {
                 Id = id,
-                CustomerId = "cust-001", // Seeded customer, only referenced
+                CustomerId = customerId,
                 Title = $"Own job {idPrefix}",
                 PickupLocation = new Location
                 {

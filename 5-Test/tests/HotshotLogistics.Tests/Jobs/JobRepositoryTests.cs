@@ -41,7 +41,7 @@ namespace HotshotLogistics.Tests.Jobs
                 });
 
             IConfiguration configuration = configBuilder.Build();
-            _jobRepository = new JobRepository(configuration);
+            _jobRepository = new JobRepository(configuration, Microsoft.Extensions.Logging.Abstractions.NullLogger<JobRepository>.Instance);
         }
 
         /// <inheritdoc />
@@ -334,6 +334,28 @@ namespace HotshotLogistics.Tests.Jobs
             result.TotalCount.Should().Be(3);
             result.Items.Should().OnlyContain(j =>
                 j.Pricing.TotalAmount >= 100m && j.Pricing.TotalAmount <= 500m);
+        }
+
+        [DatabaseFact]
+        public async Task GetJobStatusCountsAsync_WithCustomerFilter_ReturnsCountPerStatus()
+        {
+            await CreateTestJobsAsync();
+            await CreateOverdueTestJobAsync();
+            var result = await _jobRepository.GetJobStatusCountsAsync(new JobFilterDto { CustomerId = _customerId });
+            result.Pending.Should().Be(2);
+            result.Assigned.Should().Be(1);
+            result.EnRoute.Should().Be(1);
+            result.Received.Should().Be(0);
+        }
+
+        [DatabaseFact]
+        public async Task GetJobStatusCountsAsync_WithCustomerHavingNoJobs_ReturnsAllZero()
+        {
+            var result = await _jobRepository.GetJobStatusCountsAsync(new JobFilterDto { CustomerId = _customerId });
+            result.Pending.Should().Be(0);
+            result.Assigned.Should().Be(0);
+            result.EnRoute.Should().Be(0);
+            result.Received.Should().Be(0);
         }
 
         private string Title(int number)

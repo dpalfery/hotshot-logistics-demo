@@ -7,6 +7,7 @@ using FluentValidation.Results;
 using HotshotLogistics.Application.Authorization;
 using HotshotLogistics.Contracts.Repositories;
 using HotshotLogistics.Contracts.Services;
+using HotshotLogistics.Contracts.Models;
 using HotshotLogistics.Core.Enums;
 using HotshotLogistics.Domain.DTOs;
 using HotshotLogistics.Domain.Entities;
@@ -437,6 +438,19 @@ namespace HotshotLogistics.Api.Controllers
                 return StatusCode(StatusCodes.Status500InternalServerError,
                     "An error occurred while processing your request.");
             }
+        }
+
+        /// <summary>Gets job counts by status.</summary>
+        /// <param name="customerId">Optional customer identifier.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>Counts for each status.</returns>
+        [HttpGet("status-summary")]
+        [Authorize(Policy = AuthorizationPolicies.ManagerOrAdmin)]
+        [ProducesResponseType(typeof(JobStatusSummaryDto), StatusCodes.Status200OK)]
+        public async Task<ActionResult<JobStatusSummaryDto>> GetJobStatusSummary(
+            [FromQuery] string? customerId, CancellationToken cancellationToken = default)
+        {
+            return Ok(await _jobService.GetJobStatusSummaryAsync(customerId, cancellationToken));
         }
 
         /// <summary>
