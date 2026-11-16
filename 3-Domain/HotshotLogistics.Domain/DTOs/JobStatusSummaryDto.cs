@@ -1,5 +1,7 @@
 namespace HotshotLogistics.Domain.DTOs
 {
+    // Decision D5: keep this shared DTO here until the Contracts.Models target exists;
+    // migration is tracked by the contracts-model-placement todo.
     /// <summary>Counts of jobs by status.</summary>
     /// <param name="Pending">Number of pending jobs.</param>
     /// <param name="Assigned">Number of assigned jobs.</param>
