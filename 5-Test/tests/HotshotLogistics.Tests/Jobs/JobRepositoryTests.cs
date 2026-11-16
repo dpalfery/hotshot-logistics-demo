@@ -350,6 +350,56 @@ namespace HotshotLogistics.Tests.Jobs
         ///     Creates test jobs for testing purposes.
         /// </summary>
         /// <returns>A task representing the asynchronous operation.</returns>
+        [Fact]
+        public async Task GetJobStatusCountsAsync_WithCustomerFilter_ReturnsCountPerStatus()
+        {
+            await CreateStatusJobsAsync();
+            IReadOnlyDictionary<JobStatus, int> counts = await _jobRepository.GetJobStatusCountsAsync(
+                new JobFilterDto { CustomerId = _customerId });
+            counts.Should().BeEquivalentTo(new Dictionary<JobStatus, int>
+            {
+                [JobStatus.Pending] = 2, [JobStatus.Assigned] = 1, [JobStatus.EnRoute] = 3
+            });
+        }
+
+        [Fact]
+        public async Task GetJobStatusCountsAsync_WithCustomerFilterAndNoJobs_ReturnsEmpty()
+        {
+            IReadOnlyDictionary<JobStatus, int> counts = await _jobRepository.GetJobStatusCountsAsync(
+                new JobFilterDto { CustomerId = $"test-{Guid.NewGuid():N}" });
+            counts.Should().BeEmpty();
+        }
+
+        [Fact]
+        public async Task GetJobStatusCountsAsync_WithoutFilter_IncludesCreatedJobs()
+        {
+            await CreateStatusJobsAsync();
+            IReadOnlyDictionary<JobStatus, int> filtered = await _jobRepository.GetJobStatusCountsAsync(
+                new JobFilterDto { CustomerId = _customerId });
+            IReadOnlyDictionary<JobStatus, int> all = await _jobRepository.GetJobStatusCountsAsync();
+            foreach (KeyValuePair<JobStatus, int> count in filtered)
+            {
+                all[count.Key].Should().BeGreaterThanOrEqualTo(count.Value);
+            }
+        }
+
+        private async Task CreateStatusJobsAsync()
+        {
+            await CreateTestJobsAsync();
+            for (int i = 0; i < 3; i++)
+            {
+                Job job = new()
+                {
+                    Id = Guid.NewGuid().ToString(), CustomerId = _customerId, Title = Title(i + 10),
+                    PickupLocation = new Location { Address = "Pickup" },
+                    DeliveryLocation = new Location { Address = "Delivery" },
+                    Status = JobStatus.EnRoute, Pricing = new PricingDetails()
+                };
+                _cleanup.TrackJob(job.Id);
+                await _jobRepository.CreateJobAsync(job);
+            }
+        }
+
         private async Task CreateTestJobsAsync()
         {
             List<Job> jobs =

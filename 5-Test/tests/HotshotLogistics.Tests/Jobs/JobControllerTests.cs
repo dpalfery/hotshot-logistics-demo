@@ -531,6 +531,25 @@ namespace HotshotLogistics.Tests.Jobs
         /// <summary>
         ///     Creates a test job for testing purposes.
         /// </summary>
+        [Fact]
+        public async Task GetJobStatusSummary_ReturnsOkWithSummary()
+        {
+            HotshotLogistics.Contracts.Models.JobStatusSummaryDto summary = new(1, 2, 3, 4);
+            _mockJobService.Setup(s => s.GetJobStatusSummaryAsync(null, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(summary);
+            var result = await _controller.GetJobStatusSummary();
+            Assert.Equal(summary, Assert.IsType<OkObjectResult>(result.Result).Value);
+        }
+
+        [Fact]
+        public async Task GetJobStatusSummary_WithCustomerId_PassesItToService()
+        {
+            _mockJobService.Setup(s => s.GetJobStatusSummaryAsync("customer", It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new HotshotLogistics.Contracts.Models.JobStatusSummaryDto(1, 2, 3, 4));
+            await _controller.GetJobStatusSummary("customer");
+            _mockJobService.Verify(s => s.GetJobStatusSummaryAsync("customer", It.IsAny<CancellationToken>()), Times.Once);
+        }
+
         /// <param name="id">The job ID.</param>
         /// <param name="status">The job status.</param>
         /// <param name="driverId">The optional driver ID.</param>

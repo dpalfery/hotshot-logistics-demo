@@ -92,12 +92,6 @@ namespace HotshotLogistics.Data.Repositories
             (string whereClause, IReadOnlyList<SqlParameter> parameters) = BuildWhereClause(filter);
             string orderByClause = BuildOrderByClause(sort);
 
-            // Log the query details for debugging
-            Console.WriteLine(
-                $"[DEBUG] JobRepository.GetJobsAsync - Filter: {filter}, Pagination: {pagination}, Sort: {sort}");
-            Console.WriteLine($"[DEBUG] JobRepository.GetJobsAsync - WhereClause: {whereClause}");
-            Console.WriteLine($"[DEBUG] JobRepository.GetJobsAsync - OrderByClause: {orderByClause}");
-
             string countQuery = $"SELECT COUNT(*) FROM {GetTableName()}{whereClause}";
             string dataQuery = $@"
                 SELECT * FROM {GetTableName()}
@@ -140,12 +134,6 @@ namespace HotshotLogistics.Data.Repositories
                 PageNumber = pagination.PageNumber,
                 PageSize = pagination.PageSize
             };
-
-            // Log the results for debugging
-            Console.WriteLine(
-                $"[DEBUG] JobRepository.GetJobsAsync - TotalCount: {totalCount}, Items returned: {jobs.Count}");
-            Console.WriteLine(
-                $"[DEBUG] JobRepository.GetJobsAsync - PageNumber: {pagination.PageNumber}, PageSize: {pagination.PageSize}");
 
             return result;
         }
@@ -258,6 +246,30 @@ namespace HotshotLogistics.Data.Repositories
             AddParametersToCommand(command, parameters);
 
             return (int)await command.ExecuteScalarAsync(cancellationToken);
+        }
+
+        /// <inheritdoc />
+        public async Task<IReadOnlyDictionary<JobStatus, int>> GetJobStatusCountsAsync(
+            JobFilterDto? filter = null, CancellationToken cancellationToken = default)
+        {
+            (string whereClause, IReadOnlyList<SqlParameter> parameters) = BuildWhereClause(filter);
+            string query = $"SELECT Status, COUNT(*) AS JobCount FROM {GetTableName()}{whereClause} GROUP BY Status";
+            await using SqlConnection connection = new(ConnectionString);
+            await connection.OpenAsync(cancellationToken);
+            await using SqlCommand command = new(query, connection);
+            AddParametersToCommand(command, parameters);
+            await using SqlDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
+            Dictionary<JobStatus, int> counts = new();
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                int status = reader.GetInt32(0);
+                if (Enum.IsDefined(typeof(JobStatus), status))
+                {
+                    counts[(JobStatus)status] = reader.GetInt32(1);
+                }
+            }
+
+            return counts;
         }
 
         public async Task<IEnumerable<Job>> GetByDriverIdAsync(int driverId,

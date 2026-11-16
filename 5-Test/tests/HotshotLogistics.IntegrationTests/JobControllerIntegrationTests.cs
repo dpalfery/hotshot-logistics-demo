@@ -329,6 +329,68 @@ namespace HotshotLogistics.IntegrationTests
         ///     Creates a job owned by the calling test through the API, so tests never read or change seed jobs
         ///     picked by position.
         /// </summary>
+        [Fact]
+        public async Task GetJobStatusSummary_WithCustomerFilter_ReturnsCountsFromDatabase()
+        {
+            string customerId = $"test-{Guid.NewGuid():N}";
+            using var scope = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.CreateScope(Factory.Services);
+            var repository = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions
+                .GetRequiredService<HotshotLogistics.Contracts.Repositories.IJobRepository>(scope.ServiceProvider);
+            foreach (JobStatus status in new[] { JobStatus.Pending, JobStatus.Pending, JobStatus.Assigned, JobStatus.EnRoute })
+            {
+                Job job = new()
+                {
+                    Id = Guid.NewGuid().ToString(), CustomerId = customerId, Title = "Summary test",
+                    PickupLocation = new Location { Address = "Pickup" },
+                    DeliveryLocation = new Location { Address = "Delivery" }, Status = status
+                };
+                Cleanup.TrackJob(job.Id);
+                await repository.CreateJobAsync(job);
+            }
+            HttpResponseMessage response = await Client.GetAsync($"/api/Job/status-summary?customerId={customerId}");
+            response.EnsureSuccessStatusCode();
+            using var json = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            Assert.Equal(4, json.RootElement.EnumerateObject().Count());
+            Assert.Equal(2, json.RootElement.GetProperty("pending").GetInt32());
+            Assert.Equal(1, json.RootElement.GetProperty("assigned").GetInt32());
+            Assert.Equal(1, json.RootElement.GetProperty("enRoute").GetInt32());
+            Assert.Equal(0, json.RootElement.GetProperty("received").GetInt32());
+        }
+
+        [Fact]
+        public async Task GetJobStatusSummary_WithoutFilter_ReturnsAllFourCounts()
+        {
+            HttpResponseMessage response = await Client.GetAsync("/api/Job/status-summary");
+            response.EnsureSuccessStatusCode();
+            using var json = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            Assert.Equal(4, json.RootElement.EnumerateObject().Count());
+            foreach (string name in new[] { "pending", "assigned", "enRoute", "received" })
+            {
+                Assert.True(json.RootElement.GetProperty(name).GetInt32() >= 0);
+            }
+        }
+
+        [Fact]
+        public async Task GetJobStatusSummary_WithDriverRole_Returns403()
+        {
+            Client.DefaultRequestHeaders.Add("X-Test-Role", "Driver");
+            Assert.Equal(HttpStatusCode.Forbidden, (await Client.GetAsync("/api/Job/status-summary")).StatusCode);
+        }
+
+        [Fact]
+        public async Task GetJobStatusSummary_WithAdminRole_Returns200()
+        {
+            Client.DefaultRequestHeaders.Add("X-Test-Role", "Admin");
+            Assert.Equal(HttpStatusCode.OK, (await Client.GetAsync("/api/Job/status-summary")).StatusCode);
+        }
+
+        [Fact]
+        public async Task GetJobStatusSummary_WithoutAuthorizationHeader_Returns401()
+        {
+            using HttpClient client = Factory.CreateClient();
+            Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/Job/status-summary")).StatusCode);
+        }
+
         /// <param name="idPrefix">Short label put in the job id.</param>
         /// <returns>The created job.</returns>
         private async Task<Job> CreateOwnJobAsync(string idPrefix)

@@ -3,6 +3,7 @@
 // </copyright>
 
 using HotshotLogistics.Contracts.Repositories;
+using HotshotLogistics.Contracts.Models;
 using HotshotLogistics.Contracts.Services;
 using HotshotLogistics.Core.Enums;
 using HotshotLogistics.Core.Exceptions;
@@ -108,6 +109,20 @@ namespace HotshotLogistics.Application.Services
 
             _logger.LogInformation("Job created successfully with ID: {JobId}", createdJob.Id);
             return createdJob;
+        }
+
+        /// <inheritdoc />
+        public async Task<JobStatusSummaryDto> GetJobStatusSummaryAsync(
+            string? customerId = null, CancellationToken cancellationToken = default)
+        {
+            string? trimmed = customerId?.Trim();
+            JobFilterDto? filter = string.IsNullOrEmpty(trimmed) ? null : new JobFilterDto { CustomerId = trimmed };
+            IReadOnlyDictionary<JobStatus, int> counts = await _jobRepository.GetJobStatusCountsAsync(filter, cancellationToken);
+            return new JobStatusSummaryDto(
+                counts.GetValueOrDefault(JobStatus.Pending),
+                counts.GetValueOrDefault(JobStatus.Assigned),
+                counts.GetValueOrDefault(JobStatus.EnRoute),
+                counts.GetValueOrDefault(JobStatus.Received));
         }
 
         /// <inheritdoc />

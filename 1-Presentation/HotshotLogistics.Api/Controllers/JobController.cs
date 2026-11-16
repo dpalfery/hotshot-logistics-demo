@@ -5,6 +5,7 @@
 using FluentValidation;
 using FluentValidation.Results;
 using HotshotLogistics.Application.Authorization;
+using HotshotLogistics.Contracts.Models;
 using HotshotLogistics.Contracts.Repositories;
 using HotshotLogistics.Contracts.Services;
 using HotshotLogistics.Core.Enums;
@@ -47,6 +48,19 @@ namespace HotshotLogistics.Api.Controllers
             _jobRepository = jobRepository ?? throw new ArgumentNullException(nameof(jobRepository));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _jobValidator = jobValidator ?? throw new ArgumentNullException(nameof(jobValidator));
+        }
+
+        /// <summary>Gets job counts by status.</summary>
+        /// <param name="customerId">Optional customer identifier.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        /// <returns>Job status counts.</returns>
+        [HttpGet("status-summary")]
+        [Authorize(Policy = AuthorizationPolicies.ManagerOrAdmin)]
+        [ProducesResponseType(typeof(JobStatusSummaryDto), StatusCodes.Status200OK)]
+        public async Task<ActionResult<JobStatusSummaryDto>> GetJobStatusSummary(
+            [FromQuery] string? customerId = null, CancellationToken cancellationToken = default)
+        {
+            return Ok(await _jobService.GetJobStatusSummaryAsync(customerId, cancellationToken));
         }
 
         /// <summary>
