@@ -291,3 +291,59 @@ closeout:
 - reports the documentation-impact review.
 
 The plan is then archived with its index row moved to Archived.
+
+## Completion summary
+
+- T1 `d11572a`: the repository aggregate seeds defined statuses, ignores undefined
+  database values, and propagates cancellation. The T1 task gate reports tests passed;
+  its RED gate accepted the missing repository method.
+- T2 `3bafe30`: the service, DTO and authorized endpoint connect the aggregate to
+  HTTP. The T2 task gate reports tests passed; its RED gate accepted the missing
+  Contracts Models namespace. The named repository, service, controller and HTTP
+  integration test methods are present in the committed test files.
+- T3 `7a08d84`: the dashboard consumes the summary and renders the cards. Its task
+  gate reports lint, typecheck, build and dashboard e2e passed; the RED gate
+  recorded five failing new card tests. The red log also reported a pre-existing
+  billing fixture error and SignalR connection failure during navigation.
+- T4: the design harvest is recorded in the component architecture docs and
+  component catalog dates updated. The documentation-impact review covers the
+  accumulated T1–T3 changes and recommends updates to both architecture documents
+  and catalog; those updates are included here.
+- NOT VERIFIED: live database-to-dashboard behavior and manual browser appearance —
+  these require a running environment and browser; mocked browser tests and the
+  recorded database and HTTP gates cover the separate links.
+- NOT VERIFIED: pull request CI — no pull request CI evidence was supplied.
+- RESIDUAL: `GetJobStatusCountsAsync` opens a `SqlConnection` directly (D12), in
+  scope of [sql-connection-factory](../todo/sql-connection-factory.md). Existing
+  job controller actions return entities contrary to the C# standard, already
+  tracked in [api-platform-hardening](../todo/api-platform-hardening.md). Other
+  out-of-scope todos remain open.
+
+DOCS_REVIEW: update — T1–T3 introduce an API contract and dashboard behavior.
+
+RECOMMENDATIONS: `6-Docs/api/architecture.md`, `6-Docs/admin-dashboard/architecture.md`,
+`6-Docs/catalog.md` — updated in T4.
+
+## Closeout mapping
+
+All rows have `status: archived` for the closeout record; the live destination
+documents remain current. No ADR — ADR waiver: these decisions refine existing
+component architecture, apply established patterns, or are implementation details.
+
+| ID | Destination | documentation-impact | impact-components | last-reviewed | status |
+|---|---|---|---|---|---|
+| D1 | [API architecture: Job status summary](../../api/architecture.md#job-status-summary); [dashboard architecture: Components and interfaces](../../admin-dashboard/architecture.md#components-and-interfaces) | extends-component | Api, admin-dashboard | 2026-11-16 | archived |
+| D2, D4 | [API architecture: Job status summary](../../api/architecture.md#job-status-summary) | extends-component | Api | 2026-11-16 | archived |
+| D3 | [API architecture: Data models](../../api/architecture.md#data-models) | extends-component | Api | 2026-11-16 | archived |
+| D5 | [Dashboard architecture: Data models](../../admin-dashboard/architecture.md#data-models) | extends-component | admin-dashboard | 2026-11-16 | archived |
+| D6, D7, D8 | [Dashboard architecture: Components and interfaces](../../admin-dashboard/architecture.md#components-and-interfaces) | extends-component | admin-dashboard | 2026-11-16 | archived |
+| D9 | [Dashboard architecture: Error handling](../../admin-dashboard/architecture.md#error-handling) | extends-component | admin-dashboard | 2026-11-16 | archived |
+| D10 | [API architecture: Testing strategy](../../api/architecture.md#testing-strategy); [dashboard architecture: Testing strategy](../../admin-dashboard/architecture.md#testing-strategy) | extends-component | Api, admin-dashboard | 2026-11-16 | archived |
+| D11 | [Technology stack](../../technology-stack.md); [dashboard architecture](../../admin-dashboard/architecture.md#overview) | extends-component | admin-dashboard | 2026-11-16 | archived |
+| D12 | [API architecture: Job status summary](../../api/architecture.md#job-status-summary); [connection-factory todo](../../todo/sql-connection-factory.md) | extends-component | Api | 2026-11-16 | archived |
+| AP1 | Documentation waiver — execution approval is a historical process event with no surviving behavioral invariant. | none | admin-dashboard, Api | 2026-11-16 | archived |
+| H1, admin-dashboard | [Dashboard architecture: Components and interfaces](../../admin-dashboard/architecture.md#components-and-interfaces) | extends-component | admin-dashboard | 2026-11-16 | archived |
+| H2 | [Dashboard architecture: Data models](../../admin-dashboard/architecture.md#data-models) | extends-component | admin-dashboard | 2026-11-16 | archived |
+| H3 | [Dashboard architecture: Error handling](../../admin-dashboard/architecture.md#error-handling) | extends-component | admin-dashboard | 2026-11-16 | archived |
+| H4, Api | [API architecture: Job status summary](../../api/architecture.md#job-status-summary) | extends-component | Api | 2026-11-16 | archived |
+| H5 | [API architecture: Data models](../../api/architecture.md#data-models) | extends-component | Api | 2026-11-16 | archived |
