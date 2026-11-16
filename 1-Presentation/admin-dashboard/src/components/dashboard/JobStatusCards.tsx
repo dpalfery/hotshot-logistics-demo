@@ -4,10 +4,10 @@ import type { JobStatusSummary } from '@/types';
 import { JobStatusCard } from './JobStatusCard';
 
 const statuses = [
-  { label: 'Pending', field: 'pending', colorClass: 'bg-blue-500', icon: Hourglass },
-  { label: 'Assigned', field: 'assigned', colorClass: 'bg-sky-500', icon: ClipboardList },
-  { label: 'EnRoute', field: 'enRoute', colorClass: 'bg-sky-600', icon: Truck },
-  { label: 'Received', field: 'received', colorClass: 'bg-sky-700', icon: Inbox },
+  { label: 'Pending', field: 'pending', colorClass: 'bg-job-status-pending', icon: Hourglass },
+  { label: 'Assigned', field: 'assigned', colorClass: 'bg-job-status-assigned', icon: ClipboardList },
+  { label: 'EnRoute', field: 'enRoute', colorClass: 'bg-job-status-enroute', icon: Truck },
+  { label: 'Received', field: 'received', colorClass: 'bg-job-status-received', icon: Inbox },
 ] as const satisfies ReadonlyArray<{ label: string; field: keyof JobStatusSummary; colorClass: string; icon: typeof Hourglass }>;
 
 /** Loads and displays the dashboard's job counts by status. */

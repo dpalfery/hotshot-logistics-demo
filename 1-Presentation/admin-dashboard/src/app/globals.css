@@ -12,6 +12,13 @@
   --font-mono: var(--font-geist-mono);
 }
 
+@theme {
+  --color-job-status-pending: #3b82f6;
+  --color-job-status-assigned: #0ea5e9;
+  --color-job-status-enroute: #0284c7;
+  --color-job-status-received: #0369a1;
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;

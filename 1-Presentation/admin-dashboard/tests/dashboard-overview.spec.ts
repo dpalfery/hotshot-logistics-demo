@@ -175,12 +175,17 @@ test.describe('Dashboard Overview', () => {
     test('should style job status cards like the metric cards', async ({ page }) => {
       const cards = page.getByTestId('job-status-card');
       await expect(cards).toHaveCount(4);
-      for (const [index, color] of ['bg-blue-500', 'bg-sky-500', 'bg-sky-600', 'bg-sky-700'].entries()) {
+      const colors = ['bg-job-status-pending', 'bg-job-status-assigned', 'bg-job-status-enroute', 'bg-job-status-received'];
+      const backgrounds = ['rgb(59, 130, 246)', 'rgb(14, 165, 233)', 'rgb(2, 132, 199)', 'rgb(3, 105, 161)'];
+      for (const [index, color] of colors.entries()) {
         const card = cards.nth(index);
         for (const className of ['bg-white', 'rounded-lg', 'shadow', 'p-6']) {
           await expect(card).toHaveClass(new RegExp(`\\b${className}\\b`));
         }
-        await expect(card.locator(`.${color}`)).toHaveClass(/rounded-md/);
+        const badge = card.locator('[aria-hidden="true"]').first();
+        await expect(badge).toHaveCSS('background-color', backgrounds[index]);
+        await expect(badge).toHaveClass(new RegExp(`\\b${color}\\b`));
+        await expect(badge).toHaveClass(/rounded-md/);
       }
     });
 
