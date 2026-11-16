@@ -6,7 +6,7 @@ status: current
 component: Api
 source-root: 1-Presentation/HotshotLogistics.Api
 owner: unassigned
-last-reviewed: 2026-11-14
+last-reviewed: 2026-11-16
 code-refs:
   - JobController
   - TestAuthHandler
@@ -48,10 +48,24 @@ flowchart TD
 
 Authorization policies include `Admin`, `Manager`, `Driver`, `Customer`, and combined roles.
 
+### Job status summary
+
+`GET /api/job/status-summary` requires the `ManagerOrAdmin` policy. Its optional
+`customerId` query parameter restricts the count to that customer; whitespace is
+trimmed, and an absent or blank value counts all jobs. The dashboard requests the
+unfiltered summary. `JobController` calls `JobService.GetJobStatusSummaryAsync`,
+which passes the filter to `JobRepository.GetJobStatusSummaryAsync`. The repository
+uses a parameterized SQL `GROUP BY Status`, not a page of jobs.
+
 ## Data models
 
 Request and response DTOs live in Domain. Persistence uses native ADO.NET. See the
 [data access layer coding standard](../standards/data-access-layer/README.md).
+
+The Domain `JobStatusSummaryDto` serializes as
+`{"pending":0,"assigned":0,"enRoute":0,"received":0}`: all four fields are
+non-negative integer counts, with zero for a status without matches. Stored values
+outside the four `JobStatus` members are excluded from these counts.
 
 ## Error handling
 

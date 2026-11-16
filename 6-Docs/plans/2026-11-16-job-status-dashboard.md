@@ -193,3 +193,39 @@ End-of-run review by `code-reviewer` over the whole change, under the `code-revi
 
 `docs-dev` harvests the Design harvest rows into `6-Docs/api/architecture.md` and
 `6-Docs/admin-dashboard/architecture.md`, then the plan is archived through the closeout tool.
+
+## Completion summary
+
+Documentation-impact review covered the T1 backend and T2 dashboard implementation,
+their tests, and the two canonical architecture documents. The endpoint and client
+flow are reflected in those documents; no new governed document is needed.
+T1 task-gate evidence passes; its test log reports 13 integration and 34
+unit/repository tests passed, none skipped. T2 task-gate evidence reports lint,
+typecheck, build and E2E passed. The available T2 log separately records 25 passed,
+7 skipped and 2 failed on ambiguous alert locators; the committed tests narrow
+those locators. The log does not establish which run the passing gate report describes.
+
+NOT VERIFIED: VG4 live database-to-dashboard chain — a separate verifier is running
+live checks; no environment or browser was started during this closeout.
+
+## Closeout mapping
+
+All migrated decisions below: no ADR — ADR waiver: these extend existing component
+patterns or describe implementation details rather than a new architectural boundary.
+
+| ID | Destination | documentation-impact | impact-components | last-reviewed | status |
+|---|---|---|---|---|---|
+| D1 | [Dashboard architecture](../../admin-dashboard/architecture.md#overview) | extends-component | admin-dashboard | 2026-11-16 | archived |
+| D2, D9, D10, D11, D12 | [Job status cards](../../admin-dashboard/architecture.md#job-status-cards) | extends-component | admin-dashboard | 2026-11-16 | archived |
+| D3, D6, D7, D8 | [Job status summary](../../api/architecture.md#job-status-summary) | extends-component | Api | 2026-11-16 | archived |
+| D4, D5 | [API data models](../../api/architecture.md#data-models) | extends-component | Api | 2026-11-16 | archived |
+| D13 | [Dashboard error handling](../../admin-dashboard/architecture.md#error-handling) | extends-component | admin-dashboard | 2026-11-16 | archived |
+| D14 | [Dashboard testing strategy](../../admin-dashboard/architecture.md#testing-strategy) | extends-component | admin-dashboard | 2026-11-16 | archived |
+| D15, D16, AP1 | Documentation waiver — transient approval and execution process, no surviving behavioral invariant | none | admin-dashboard, Api | 2026-11-16 | archived |
+| Api | [API architecture](../../api/architecture.md#job-status-summary) | extends-component | Api | 2026-11-16 | archived |
+| admin-dashboard | [Dashboard architecture](../../admin-dashboard/architecture.md#job-status-cards) | extends-component | admin-dashboard | 2026-11-16 | archived |
+| Api components and interfaces | [Job status summary](../../api/architecture.md#job-status-summary) | extends-component | Api | 2026-11-16 | archived |
+| Api data models | [API data models](../../api/architecture.md#data-models) | extends-component | Api | 2026-11-16 | archived |
+| admin-dashboard components and interfaces | [Job status cards](../../admin-dashboard/architecture.md#job-status-cards) | extends-component | admin-dashboard | 2026-11-16 | archived |
+| admin-dashboard error handling | [Dashboard error handling](../../admin-dashboard/architecture.md#error-handling) | extends-component | admin-dashboard | 2026-11-16 | archived |
+| admin-dashboard testing strategy | [Dashboard testing strategy](../../admin-dashboard/architecture.md#testing-strategy) | extends-component | admin-dashboard | 2026-11-16 | archived |
