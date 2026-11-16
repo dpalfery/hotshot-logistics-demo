@@ -29,5 +29,6 @@ Add one document per todo and list it here, ordered by priority (`P1` high, `P2`
 | [Introduce a SQL connection factory](sql-connection-factory.md) | P2 | Open | Api | Plan a factory and migrate direct repository connection creation. |
 | [Migrate to the generic repository contract](generic-repository-migration.md) | P2 | Open | Api | Design and adopt `IRepository<T>` while preserving repository behavior. |
 | [Align C# contract model placement](contracts-model-placement.md) | P3 | Open | Api | Plan a migration of contract classes, project references, and shared DTOs to their prescribed locations. |
-| [Adopt sealed record HTTP DTOs](api-platform-hardening.md) | P3 | Open | Api | Migrate controller request/response DTOs to `sealed record` types. |
+| [Adopt sealed record HTTP DTOs](api-platform-hardening.md) | P3 | Open | Api | Migrate controller request/response DTOs to `sealed record` types and stop actions binding or returning domain entities (`Job`, `Customer`, `Invoice`, `UserProfile`). |
 | [Add frontend unit-test tooling](frontend-unit-test-tooling.md) | P3 | Open | admin-dashboard | Add Vitest and React Testing Library for frontend unit and component tests. |
+| [Stop unmocked billing and SignalR calls in the dashboard navigation test](admin-dashboard-playwright-navigation-noise.md) | P3 | Open | admin-dashboard | The sidebar navigation e2e test opens Billing and Tracking without fixtures, logging a billing request error and a SignalR connection failure. |

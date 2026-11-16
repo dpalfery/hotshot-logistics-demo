@@ -2,7 +2,7 @@
 id: plans/2026-11-16-admin-dashboard-job-status-cards
 title: Admin dashboard job status cards
 doc-type: plan
-status: current
+status: archived
 component: admin-dashboard
 owner: unassigned
 last-reviewed: 2026-11-16
@@ -16,7 +16,7 @@ impact-components:
 
 # Admin dashboard job status cards
 
-**Status: Ready, 2026-11-16.**
+**Status: Archived, 2026-11-16.**
 
 Date: 2026-11-16 · Branch: `copilot/feat/job-status-cards` · Base: `main` @ `ff86948`
 
