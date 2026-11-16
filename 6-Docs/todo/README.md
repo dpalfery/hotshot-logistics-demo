@@ -31,3 +31,5 @@ Add one document per todo and list it here, ordered by priority (`P1` high, `P2`
 | [Align C# contract model placement](contracts-model-placement.md) | P3 | Open | Api | Plan a migration of contract classes, project references, and shared DTOs to their prescribed locations. |
 | [Adopt sealed record HTTP DTOs](api-platform-hardening.md) | P3 | Open | Api | Migrate controller request/response DTOs to `sealed record` types. |
 | [Add frontend unit-test tooling](frontend-unit-test-tooling.md) | P3 | Open | admin-dashboard | Add Vitest and React Testing Library for frontend unit and component tests. |
+| [Replace inline job status badge colours with theme tokens](admin-dashboard-status-color-tokens.md) | P3 | Open | admin-dashboard | Move the D10 inline hex badge colours in `JobStatusCard` to Tailwind 4 `@theme` tokens and static classes. |
+| [Fix the MigrationRunner MSB3539 build warning](migration-runner-msb3539.md) | P3 | Open | Api | Remove the late `BaseIntermediateOutputPath` and output-path overrides from `MigrationRunner.csproj`. |

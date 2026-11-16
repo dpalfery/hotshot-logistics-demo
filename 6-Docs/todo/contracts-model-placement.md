@@ -25,6 +25,14 @@ There is no tracked `Contracts.Models` project, `HotshotLogistics.Contracts.cspr
 currently references `HotshotLogistics.Domain.csproj`, and Domain also contains
 DTOs whose intended sharing and placement need review.
 
+The job status dashboard plan (`2026-11-16-job-status-dashboard.md`)
+(decision D4) added the first type in the `HotshotLogistics.Contracts.Models`
+namespace: `JobStatusCountsDto`, in a `Models/` folder inside the existing Contracts
+project rather than a separate project. DTO placement is now mixed across that
+folder, the Contracts interface files, and Domain. The migration should decide
+whether `Contracts.Models` stays a folder or becomes its own project, and move
+`JobStatusCountsDto` with the rest.
+
 ## Next action
 
 Plan a separate migration to align contract and shared DTO placement with the
