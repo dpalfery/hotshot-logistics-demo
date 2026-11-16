@@ -87,6 +87,19 @@ test.describe('Dashboard Overview', () => {
       });
     });
 
+    await page.route('https://localhost:5001/api/job/status-summary', async route => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([
+          { status: 'Pending', count: 7 },
+          { status: 'Assigned', count: 5 },
+          { status: 'EnRoute', count: 3 },
+          { status: 'Received', count: 2 },
+        ]),
+      });
+    });
+
     // Mock drivers API with active drivers - matches apiService.getDrivers() endpoint
     await page.route('https://localhost:5001/api/drivers', async route => {
       await route.fulfill({
@@ -115,25 +128,15 @@ test.describe('Dashboard Overview', () => {
       });
     });
 
-    // Mock invoices API with overdue invoices - matches apiService.getInvoices() endpoint (/billing/invoices/overdue returns only overdue invoices)
+    // Mock the overdue invoices needed by the dashboard.
     await page.route('https://localhost:5001/api/billing/invoices/overdue', async route => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
           items: [
-            {
-              id: 'inv-1',
-              dueDate: '2024-11-15T00:00:00Z', // Past date
-              balanceDue: 1500.00,
-              status: 'Overdue'
-            },
-            {
-              id: 'inv-3',
-              dueDate: '2024-11-01T00:00:00Z', // Past date
-              balanceDue: 800.00,
-              status: 'Overdue'
-            }
+            { id: 'inv-1', dueDate: '2024-11-15T00:00:00Z', balanceDue: 1500.00, status: 'Overdue' },
+            { id: 'inv-3', dueDate: '2024-11-01T00:00:00Z', balanceDue: 800.00, status: 'Overdue' }
           ],
           totalCount: 2
         })
@@ -142,6 +145,78 @@ test.describe('Dashboard Overview', () => {
 
     await page.goto('/');
   });
+
+  test.describe('Job Status Cards', () => {
+      const cards = [
+        { key: 'pending', label: 'Pending', count: '7', color: 'rgb(59, 130, 246)' },
+        { key: 'assigned', label: 'Assigned', count: '5', color: 'rgb(14, 165, 233)' },
+        { key: 'enroute', label: 'En Route', count: '3', color: 'rgb(2, 132, 199)' },
+        { key: 'received', label: 'Received', count: '2', color: 'rgb(3, 105, 161)' },
+      ];
+
+      test('should render four status cards with API counts in order', async ({ page }) => {
+        const container = page.getByTestId('job-status-cards');
+        const rendered = container.locator('[data-testid^="job-status-card-"]');
+        await expect(rendered).toHaveCount(4);
+        for (const [index, card] of cards.entries()) {
+          await expect(rendered.nth(index)).toHaveAttribute('data-testid', `job-status-card-${card.key}`);
+          await expect(rendered.nth(index).getByText(card.label, { exact: true })).toBeVisible();
+          await expect(page.getByTestId(`job-status-count-${card.key}`)).toHaveText(card.count);
+        }
+      });
+
+      test('should place status cards between metrics and recent activity', async ({ page }) => {
+        const container = page.getByTestId('job-status-cards');
+        await expect(container).toBeVisible();
+        const metrics = await page.getByTestId('stats-container').boundingBox();
+        const status = await container.boundingBox();
+        const recent = await page.getByRole('heading', { name: 'Recent Jobs' }).boundingBox();
+        expect(metrics).not.toBeNull();
+        expect(status).not.toBeNull();
+        expect(recent).not.toBeNull();
+        expect(status!.y).toBeGreaterThanOrEqual(metrics!.y + metrics!.height);
+        expect(status!.y + status!.height).toBeLessThanOrEqual(recent!.y);
+      });
+
+      test('should match metric card styling and colours', async ({ page }) => {
+        const metric = page.getByTestId('stats-card').first();
+        await expect(metric).toBeVisible();
+        const metricStyle = await metric.evaluate(element => {
+          const style = getComputedStyle(element);
+          return { borderRadius: style.borderRadius, boxShadow: style.boxShadow, padding: style.padding };
+        });
+        for (const card of cards) {
+          const rendered = page.getByTestId(`job-status-card-${card.key}`);
+          await expect(rendered).toBeVisible();
+          expect(await rendered.evaluate(element => {
+            const style = getComputedStyle(element);
+            return { borderRadius: style.borderRadius, boxShadow: style.boxShadow, padding: style.padding };
+          })).toEqual(metricStyle);
+          await expect(page.getByTestId(`job-status-badge-${card.key}`)).toHaveCSS('background-color', card.color);
+          await expect(rendered.getByText(card.label, { exact: true })).toHaveCSS('font-family', /Inter/i);
+        }
+      });
+
+      test('should lay out responsively', async ({ page }) => {
+        await page.setViewportSize({ width: 375, height: 800 });
+        const rendered = page.locator('[data-testid^="job-status-card-"]');
+        await expect(rendered).toHaveCount(4);
+        const mobile = await Promise.all(cards.map((_, index) => rendered.nth(index).boundingBox()));
+        expect(mobile.every(box => box !== null && box.x === mobile[0]!.x)).toBe(true);
+
+        await page.setViewportSize({ width: 1280, height: 800 });
+        const desktop = await Promise.all(cards.map((_, index) => rendered.nth(index).boundingBox()));
+        expect(desktop.every(box => box !== null && box.y === desktop[0]!.y)).toBe(true);
+      });
+
+      test('should show an error state without counts when the API fails', async ({ page }) => {
+        await page.route('https://localhost:5001/api/job/status-summary', route =>
+          route.fulfill({ status: 500, body: 'Internal server error' }));
+        await page.reload();
+        await expect(page.getByTestId('job-status-cards-error')).toHaveText('Unable to load job status counts', { timeout: 15000 });
+        await expect(page.locator('[data-testid^="job-status-count-"]')).toHaveCount(0);
+      });
+    });
 
   test.describe('Dashboard Statistics Cards', () => {
     test('should display dashboard stats cards with correct values', async ({ page }) => {
@@ -286,7 +361,7 @@ test.describe('Dashboard Overview', () => {
       await expect(inProgressBadge).toBeVisible();
       await expect(inProgressBadge).toHaveClass(/bg-green-100.*text-green-800/);
 
-      const pendingBadge = page.locator('text=Pending').first();
+      const pendingBadge = page.getByText('Standard Delivery').locator('..').locator('..').getByText('Pending', { exact: true });
       await expect(pendingBadge).toBeVisible();
       await expect(pendingBadge).toHaveClass(/bg-yellow-100.*text-yellow-800/);
     });
@@ -444,7 +519,7 @@ test.describe('Dashboard Overview', () => {
       });
       
       // Mock jobs API with realistic data - matches apiService.getJobs() endpoint
-      await page.route('**/api/job**', async route => {
+      await page.route('**/api/job', async route => {
         console.log('Intercepted jobs API call:', route.request().url());
         await route.fulfill({
           status: 200,

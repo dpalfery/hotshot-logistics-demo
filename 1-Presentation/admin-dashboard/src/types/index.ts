@@ -1,4 +1,9 @@
 // Job types
+export interface JobStatusCount {
+  status: string;
+  count: number;
+}
+
 export interface Job {
   id: string;
   title: string;

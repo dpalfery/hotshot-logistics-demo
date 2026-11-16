@@ -4,8 +4,11 @@ import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { apiService } from '@/services/api';
 import { JobStatus } from '@/types';
+import JobStatusCards from './JobStatusCards';
+import { useJobStatusSummary } from './useJobStatusSummary';
 
 export function DashboardOverview() {
+  const { statuses, isLoading: statusesLoading, isError: statusesError } = useJobStatusSummary();
   const { data: jobs, isLoading: jobsLoading, error: jobsError } = useQuery({
     queryKey: ['jobs'],
     queryFn: () => apiService.getJobs(),
@@ -203,6 +206,14 @@ export function DashboardOverview() {
           </div>
         </div>
       </div>
+
+            {statusesLoading ? (
+              <div data-testid="job-status-cards" aria-busy="true" />
+            ) : statusesError ? (
+              <div data-testid="job-status-cards-error">Unable to load job status counts</div>
+            ) : (
+              <JobStatusCards statuses={statuses} />
+            )}
 
             {/* Recent Activity */}
             <div className="bg-white shadow rounded-lg">
