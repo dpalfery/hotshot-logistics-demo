@@ -5,7 +5,7 @@ doc-type: todo
 status: current
 component: admin-dashboard
 owner: unassigned
-last-reviewed: 2026-11-12
+last-reviewed: 2026-11-16
 ---
 
 # Admin dashboard Playwright tests marked fixme
@@ -15,7 +15,7 @@ The dashboard Playwright suite (`1-Presentation/admin-dashboard/tests/`) now pas
 ## Dashboard overview (`tests/dashboard-overview.spec.ts`)
 
 - `should handle error state for statistics`: `DashboardOverview` has no statistics error state; query errors are logged and the cards show 0.
-- `should handle empty recent jobs list`: the Recent Jobs list is hardcoded markup, not driven by the jobs API, so it has no empty state.
+- `should handle empty recent jobs list`: the Recent Jobs list is hardcoded markup, not driven by the jobs API, so it has no empty state. The markup is still in `src/components/dashboard/DashboardOverview.tsx` (from about line 172) after the job status cards change, and passing assertions depend on it: `dashboard-overview.spec.ts` (the Recent Jobs heading and the `Pending` badge, about lines 275 and 292) and `job-status-cards.spec.ts` (the cards sit above `Recent Jobs`, about line 34). Driving the list from the jobs API must update those assertions in the same change.
 - `should navigate to create job form`, `should navigate to add driver form`, `should navigate to invoice generation`: the Quick Actions buttons have no click handler, and the Jobs, Drivers and Billing pages do not read `?action=`.
 - `should handle real-time statistics updates`: the overview does not react to a `dashboard-update` event or show revenue. Related to the SignalR event-name mismatch in [Resolve unresolved DashboardOverview issues](admin-dashboard-job-status-unresolved.md).
 

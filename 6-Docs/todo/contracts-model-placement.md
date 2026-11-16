@@ -5,7 +5,7 @@ doc-type: todo
 status: current
 component: Api
 owner: unassigned
-last-reviewed: 2026-11-14
+last-reviewed: 2026-11-16
 ---
 
 # Align C# contract model placement
@@ -24,6 +24,14 @@ contains nine classes alongside interfaces:
 There is no tracked `Contracts.Models` project, `HotshotLogistics.Contracts.csproj`
 currently references `HotshotLogistics.Domain.csproj`, and Domain also contains
 DTOs whose intended sharing and placement need review.
+
+The `Admin dashboard job status cards` plan (decision D5) added
+`3-Domain/HotshotLogistics.Contracts/Models/JobStatusSummaryDto.cs` in the
+`HotshotLogistics.Contracts.Models` namespace but inside the existing
+`HotshotLogistics.Contracts` project, not a separate `Contracts.Models` project.
+That was an approved departure from the C# standard's model classification
+(`6-Docs/standards/csharp/README.md`); the migration should move it with the
+others.
 
 ## Next action
 

@@ -5,7 +5,7 @@ doc-type: todo
 status: current
 component: Api
 owner: unassigned
-last-reviewed: 2026-11-14
+last-reviewed: 2026-11-16
 ---
 
 # Introduce a SQL connection factory
@@ -13,6 +13,14 @@ last-reviewed: 2026-11-14
 The data-access standard calls for an `ISqlConnectionFactory`, but the
 repository does not currently define one. Several ADO.NET repositories create
 `SqlConnection` instances directly.
+
+This breaks the data-access standard (`6-Docs/standards/data-access-layer/README.md`):
+call sites cannot be tested without a real connection and connection policy is
+repeated per method. The `Admin dashboard job status cards` plan (decision D7)
+added one more call site under an approved departure:
+`JobRepository.GetJobStatusCountsAsync` in
+`4-Persistence/HotshotLogistics.Data/Repositories/JobRepository.cs` opens
+`new SqlConnection(ConnectionString)` like its sibling `GetJobCountAsync`.
 
 ## Next action
 

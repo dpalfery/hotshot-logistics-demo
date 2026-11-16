@@ -4,7 +4,7 @@ title: Todos
 doc-type: index
 status: current
 owner: 'unassigned'
-last-reviewed: 2026-11-14
+last-reviewed: 2026-11-16
 ---
 
 # Todos
@@ -28,6 +28,10 @@ Add one document per todo and list it here, ordered by priority (`P1` high, `P2`
 | [Remove Data dependency on Application](persistence-application-dependency.md) | P2 | Open | Api | Remove `HotshotLogistics.Data` project reference to `HotshotLogistics.Application`. |
 | [Introduce a SQL connection factory](sql-connection-factory.md) | P2 | Open | Api | Plan a factory and migrate direct repository connection creation. |
 | [Migrate to the generic repository contract](generic-repository-migration.md) | P2 | Open | Api | Design and adopt `IRepository<T>` while preserving repository behavior. |
+| [Name columns in JobRepository read queries](job-repository-explicit-columns.md) | P2 | Open | Api | Replace pre-existing `SELECT *` in `JobRepository` read methods with explicit columns (DAL and SQL standards). |
 | [Align C# contract model placement](contracts-model-placement.md) | P3 | Open | Api | Plan a migration of contract classes, project references, and shared DTOs to their prescribed locations. |
 | [Adopt sealed record HTTP DTOs](api-platform-hardening.md) | P3 | Open | Api | Migrate controller request/response DTOs to `sealed record` types. |
 | [Add frontend unit-test tooling](frontend-unit-test-tooling.md) | P3 | Open | admin-dashboard | Add Vitest and React Testing Library for frontend unit and component tests. |
+| [Remove console logging from admin dashboard services](admin-dashboard-console-logging.md) | P3 | Open | admin-dashboard | Replace pre-existing `console` calls in `signalr.ts` and `config/auth.ts` (React standard). |
+| [Stop linting CSS files with ESLint](admin-dashboard-lint-css-warning.md) | P3 | Open | admin-dashboard | ESLint reports an ignored-file warning for `globals.css`; limit lint inputs to script files. |
+| [Fix MigrationRunner MSB3539 build warning](migrationrunner-msb3539.md) | P3 | Open | Api | Move or remove `BaseIntermediateOutputPath` set in the `MigrationRunner.csproj` body. |
