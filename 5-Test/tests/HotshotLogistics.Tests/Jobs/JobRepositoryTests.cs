@@ -284,6 +284,64 @@ namespace HotshotLogistics.Tests.Jobs
         }
 
         /// <summary>
+        ///     Tests the aggregate count changes for each inserted status.
+        /// </summary>
+        /// <returns>A task representing the asynchronous operation.</returns>
+        [DatabaseFact]
+        public async Task GetJobStatusCountsAsync_ReturnsCountPerStatusFromDatabase()
+        {
+            IReadOnlyDictionary<JobStatus, int> before = await _jobRepository.GetJobStatusCountsAsync();
+            JobStatus[] statuses =
+            [
+                JobStatus.Pending, JobStatus.Pending, JobStatus.Assigned,
+                JobStatus.EnRoute, JobStatus.EnRoute, JobStatus.EnRoute, JobStatus.Received
+            ];
+
+            foreach (JobStatus status in statuses)
+            {
+                Job job = new()
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    CustomerId = _customerId,
+                    Title = $"Status count {_customerId}",
+                    PickupLocation = new Location { Address = "123 Test St" },
+                    DeliveryLocation = new Location { Address = "456 Test Ave" },
+                    Status = status,
+                    Priority = JobPriority.High,
+                    Amount = 250.00m,
+                    EstimatedDeliveryTime = DateTime.UtcNow.AddHours(4),
+                    ScheduledPickupTime = DateTime.UtcNow.AddHours(1),
+                    Pricing = new PricingDetails { TotalAmount = 250.00m }
+                };
+                _cleanup.TrackJob(job.Id);
+                await _jobRepository.CreateJobAsync(job);
+            }
+
+            IReadOnlyDictionary<JobStatus, int> after = await _jobRepository.GetJobStatusCountsAsync();
+
+            (after[JobStatus.Pending] - before[JobStatus.Pending]).Should().Be(2);
+            (after[JobStatus.Assigned] - before[JobStatus.Assigned]).Should().Be(1);
+            (after[JobStatus.EnRoute] - before[JobStatus.EnRoute]).Should().Be(3);
+            (after[JobStatus.Received] - before[JobStatus.Received]).Should().Be(1);
+        }
+
+        /// <summary>
+        ///     Tests that the aggregate includes every status with a nonnegative count.
+        /// </summary>
+        /// <returns>A task representing the asynchronous operation.</returns>
+        [DatabaseFact]
+        public async Task GetJobStatusCountsAsync_ReturnsAllFourStatuses()
+        {
+            IReadOnlyDictionary<JobStatus, int> counts = await _jobRepository.GetJobStatusCountsAsync();
+
+            counts.Keys.Should().BeEquivalentTo(new[]
+            {
+                JobStatus.Pending, JobStatus.Assigned, JobStatus.EnRoute, JobStatus.Received
+            });
+            counts.Values.Should().OnlyContain(count => count >= 0);
+        }
+
+        /// <summary>
         ///     Tests that filtering by multiple statuses works correctly.
         /// </summary>
         /// <returns>A task representing the asynchronous operation.</returns>

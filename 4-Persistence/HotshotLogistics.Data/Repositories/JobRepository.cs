@@ -260,6 +260,30 @@ namespace HotshotLogistics.Data.Repositories
             return (int)await command.ExecuteScalarAsync(cancellationToken);
         }
 
+        /// <inheritdoc />
+        public async Task<IReadOnlyDictionary<JobStatus, int>> GetJobStatusCountsAsync(
+            CancellationToken cancellationToken = default)
+        {
+            string query = $"SELECT Status, COUNT(*) FROM {GetTableName()} GROUP BY Status";
+            Dictionary<JobStatus, int> counts = Enum.GetValues<JobStatus>().ToDictionary(status => status, _ => 0);
+
+            await using SqlConnection connection = new(ConnectionString);
+            await connection.OpenAsync(cancellationToken);
+
+            await using SqlCommand command = new(query, connection);
+            await using SqlDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                int status = reader.GetInt32(0);
+                if (Enum.IsDefined((JobStatus)status))
+                {
+                    counts[(JobStatus)status] = reader.GetInt32(1);
+                }
+            }
+
+            return counts;
+        }
+
         public async Task<IEnumerable<Job>> GetByDriverIdAsync(int driverId,
             CancellationToken cancellationToken = default)
         {
