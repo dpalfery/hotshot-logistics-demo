@@ -4,8 +4,12 @@ import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { apiService } from '@/services/api';
 import { JobStatus } from '@/types';
+import { JobStatusCards } from './JobStatusCards';
+import { toJobStatusCardItems } from './jobStatusCardDefinitions';
+import { useJobStatusSummary } from './useJobStatusSummary';
 
 export function DashboardOverview() {
+  const { data: statusSummary, isLoading: statusLoading, isError: statusError } = useJobStatusSummary();
   const { data: jobs, isLoading: jobsLoading, error: jobsError } = useQuery({
     queryKey: ['jobs'],
     queryFn: () => apiService.getJobs(),
@@ -81,7 +85,7 @@ export function DashboardOverview() {
     overdueInvoices: finalInvoices?.items?.length || 0,
   };
 
-  if (jobsLoading || driversLoading || invoicesLoading) {
+  if (jobsLoading || driversLoading || invoicesLoading || statusLoading) {
     return (
       <div className="space-y-6">
         <div className="animate-pulse">
@@ -203,6 +207,12 @@ export function DashboardOverview() {
           </div>
         </div>
       </div>
+
+            {statusError ? (
+              <p role="alert">Job status counts are unavailable.</p>
+            ) : statusSummary ? (
+              <JobStatusCards items={toJobStatusCardItems(statusSummary)} />
+            ) : null}
 
             {/* Recent Activity */}
             <div className="bg-white shadow rounded-lg">

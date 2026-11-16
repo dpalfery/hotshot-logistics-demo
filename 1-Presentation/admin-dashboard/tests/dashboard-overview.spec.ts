@@ -140,6 +140,7 @@ test.describe('Dashboard Overview', () => {
       });
     });
 
+    await page.route('**/api/job/status-summary', route => route.fulfill({ json: { pending: 7, assigned: 3, enRoute: 5, received: 12 } }));
     await page.goto('/');
   });
 
@@ -282,11 +283,12 @@ test.describe('Dashboard Overview', () => {
 
     test('should display job status badges with correct styling', async ({ page }) => {
       // Check status badges
-      const inProgressBadge = page.locator('text=InProgress').first();
+      const recentJobs = page.locator('div.bg-white.shadow.rounded-lg').filter({ has: page.getByRole('heading', { name: 'Recent Jobs' }) });
+      const inProgressBadge = recentJobs.locator('text=InProgress').first();
       await expect(inProgressBadge).toBeVisible();
       await expect(inProgressBadge).toHaveClass(/bg-green-100.*text-green-800/);
 
-      const pendingBadge = page.locator('text=Pending').first();
+      const pendingBadge = recentJobs.locator('text=Pending').first();
       await expect(pendingBadge).toBeVisible();
       await expect(pendingBadge).toHaveClass(/bg-yellow-100.*text-yellow-800/);
     });

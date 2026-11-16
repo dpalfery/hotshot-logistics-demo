@@ -1,6 +1,14 @@
 import { msalInstance } from '@/lib/providers';
 import { loginRequest } from '@/config/auth';
-import { Job, Driver, Invoice, Customer, PagedResult, JobFilter, InvoiceFilter, PaginationParameters, InvoiceSummaryMetrics, InvoiceAgingBuckets } from '@/types';
+import { z } from 'zod';
+import { Job, Driver, Invoice, Customer, PagedResult, JobFilter, InvoiceFilter, PaginationParameters, InvoiceSummaryMetrics, InvoiceAgingBuckets, JobStatusSummary } from '@/types';
+
+const jobStatusSummarySchema = z.object({
+  pending: z.number().int().nonnegative(),
+  assigned: z.number().int().nonnegative(),
+  enRoute: z.number().int().nonnegative(),
+  received: z.number().int().nonnegative(),
+});
 
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL || '/api').trim();
 
@@ -106,6 +114,11 @@ class ApiService {
   }
 
   // Job API methods
+  async getJobStatusSummary(): Promise<JobStatusSummary> {
+    const response = await this.request<unknown>('/job/status-summary');
+    return jobStatusSummarySchema.parse(response);
+  }
+
   async getJobs(
     filter?: JobFilter,
     pagination?: PaginationParameters

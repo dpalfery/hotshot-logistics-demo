@@ -1,5 +1,12 @@
 @import "tailwindcss";
 
+@theme {
+  --color-job-pending: #3B82F6;
+  --color-job-assigned: #0EA5E9;
+  --color-job-enroute: #0284C7;
+  --color-job-received: #0369A1;
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
