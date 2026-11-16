@@ -1,10 +1,13 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using HotshotLogistics.Contracts.Models;
+using HotshotLogistics.Contracts.Repositories;
 using HotshotLogistics.Core.Enums;
 using HotshotLogistics.Domain.DTOs;
 using HotshotLogistics.Domain.Entities;
 using HotshotLogistics.Domain.ValueObjects;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace HotshotLogistics.IntegrationTests
 {
@@ -79,6 +82,44 @@ namespace HotshotLogistics.IntegrationTests
             {
                 Assert.True(json.RootElement.GetProperty(key).GetInt32() >= 0);
             }
+        }
+
+        [Fact]
+        public async Task GetJobStatusSummary_WithoutCustomerId_IncludesJobsFromBothCustomers()
+        {
+            string firstCustomer = $"test-{Guid.NewGuid():N}";
+            string secondCustomer = $"test-{Guid.NewGuid():N}";
+            foreach (string customerId in new[] { firstCustomer, secondCustomer })
+            {
+                Cleanup.TrackCustomer(customerId);
+                Customer customer = new() { Id = customerId, CompanyName = "Summary test", Email = $"{customerId}@example.com" };
+                (await Client.PostAsJsonAsync("/api/customer", customer)).EnsureSuccessStatusCode();
+            }
+
+            JobStatusSummaryDto? before = await Client.GetFromJsonAsync<JobStatusSummaryDto>("/api/job/status-summary");
+            Assert.NotNull(before);
+            using IServiceScope scope = Factory.Services.CreateScope();
+            IJobRepository repository = scope.ServiceProvider.GetRequiredService<IJobRepository>();
+            foreach ((string customerId, JobStatus status) in new[]
+            {
+                (firstCustomer, JobStatus.Pending),
+                (firstCustomer, JobStatus.Assigned),
+                (firstCustomer, JobStatus.Received),
+                (secondCustomer, JobStatus.EnRoute),
+                (secondCustomer, JobStatus.Received)
+            })
+            {
+                Job job = new() { Id = $"test-{Guid.NewGuid():N}", CustomerId = customerId, Title = "Summary test", Status = status };
+                Cleanup.TrackJob(job.Id);
+                await repository.CreateJobAsync(job);
+            }
+
+            JobStatusSummaryDto? after = await Client.GetFromJsonAsync<JobStatusSummaryDto>("/api/job/status-summary");
+            Assert.NotNull(after);
+            Assert.Equal(1, after.Pending - before.Pending);
+            Assert.Equal(1, after.Assigned - before.Assigned);
+            Assert.Equal(1, after.EnRoute - before.EnRoute);
+            Assert.Equal(2, after.Received - before.Received);
         }
 
         [Fact]

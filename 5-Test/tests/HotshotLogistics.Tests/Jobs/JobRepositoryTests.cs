@@ -341,11 +341,20 @@ namespace HotshotLogistics.Tests.Jobs
         {
             await CreateTestJobsAsync();
             await CreateOverdueTestJobAsync();
+            Job received = new()
+            {
+                Id = Guid.NewGuid().ToString(),
+                CustomerId = _customerId,
+                Title = "Received job",
+                Status = JobStatus.Received
+            };
+            _cleanup.TrackJob(received.Id);
+            await _jobRepository.CreateJobAsync(received);
             var result = await _jobRepository.GetJobStatusCountsAsync(new JobFilterDto { CustomerId = _customerId });
             result.Pending.Should().Be(2);
             result.Assigned.Should().Be(1);
             result.EnRoute.Should().Be(1);
-            result.Received.Should().Be(0);
+            result.Received.Should().Be(1);
         }
 
         [DatabaseFact]
