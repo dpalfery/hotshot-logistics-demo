@@ -7,6 +7,7 @@ using FluentAssertions;
 using FluentValidation;
 using FluentValidation.Results;
 using HotshotLogistics.Api.Controllers;
+using HotshotLogistics.Contracts.Models;
 using HotshotLogistics.Domain.Entities;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -35,6 +36,23 @@ namespace HotshotLogistics.Tests.Jobs
             Mock<ILogger<JobController>> mockLogger = new();
             _controller = new JobController(_mockJobService.Object, _mockJobRepository.Object, mockLogger.Object,
                 _mockJobValidator.Object);
+        }
+
+        [Fact]
+        public async Task GetJobStatusSummary_ReturnsOkWithServiceSummary()
+        {
+            using CancellationTokenSource cancellation = new();
+            IReadOnlyList<JobStatusCountDto> summary = [new("Pending", 4), new("Assigned", 0),
+                new("EnRoute", 2), new("Received", 1)];
+            _mockJobService.Setup(s => s.GetJobStatusSummaryAsync(cancellation.Token)).ReturnsAsync(summary);
+
+            ActionResult<IReadOnlyList<JobStatusCountDto>> result =
+                await _controller.GetJobStatusSummary(cancellation.Token);
+
+            OkObjectResult ok = Assert.IsType<OkObjectResult>(result.Result);
+            Assert.Same(summary, ok.Value);
+            _mockJobService.Verify(s => s.GetJobStatusSummaryAsync(cancellation.Token), Times.Once);
+            _mockJobRepository.VerifyNoOtherCalls();
         }
 
         /// <summary>

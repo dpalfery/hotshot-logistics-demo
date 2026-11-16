@@ -1,4 +1,5 @@
 using HotshotLogistics.Application.Services;
+using HotshotLogistics.Contracts.Models;
 using HotshotLogistics.Domain.Entities;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
@@ -154,6 +155,46 @@ namespace HotshotLogistics.Tests.Utils.Infrastructure
 
     public class JobServiceTests
     {
+        [Fact]
+        public async Task GetJobStatusSummaryAsync_MapsRepositoryCountsToDtosInEnumOrder()
+        {
+            using CancellationTokenSource cancellation = new();
+            Mock<IJobRepository> repository = new();
+            IReadOnlyDictionary<JobStatus, int> counts = new Dictionary<JobStatus, int>
+            {
+                [JobStatus.Pending] = 4,
+                [JobStatus.Assigned] = 0,
+                [JobStatus.EnRoute] = 2,
+                [JobStatus.Received] = 1
+            };
+            repository.Setup(r => r.GetJobStatusCountsAsync(cancellation.Token)).ReturnsAsync(counts);
+            JobService service = new(repository.Object, Mock.Of<ICustomerRepository>(), Mock.Of<IDriverRepository>(),
+                Mock.Of<INotificationService>(), Mock.Of<IMappingService>(), Mock.Of<ILogger<JobService>>());
+
+            IReadOnlyList<JobStatusCountDto> result = await service.GetJobStatusSummaryAsync(cancellation.Token);
+
+            Assert.Equal(
+                [new JobStatusCountDto("Pending", 4), new JobStatusCountDto("Assigned", 0),
+                    new JobStatusCountDto("EnRoute", 2), new JobStatusCountDto("Received", 1)], result);
+            repository.Verify(r => r.GetJobStatusCountsAsync(cancellation.Token), Times.Once);
+        }
+
+        [Fact]
+        public async Task GetJobStatusSummaryAsync_MissingStatusDefaultsToZero()
+        {
+            Mock<IJobRepository> repository = new();
+            repository.Setup(r => r.GetJobStatusCountsAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new Dictionary<JobStatus, int> { [JobStatus.Pending] = 4 });
+            JobService service = new(repository.Object, Mock.Of<ICustomerRepository>(), Mock.Of<IDriverRepository>(),
+                Mock.Of<INotificationService>(), Mock.Of<IMappingService>(), Mock.Of<ILogger<JobService>>());
+
+            IReadOnlyList<JobStatusCountDto> result = await service.GetJobStatusSummaryAsync();
+
+            Assert.Equal(
+                [new JobStatusCountDto("Pending", 4), new JobStatusCountDto("Assigned", 0),
+                    new JobStatusCountDto("EnRoute", 0), new JobStatusCountDto("Received", 0)], result);
+        }
+
         [Fact]
         public async Task GetJobsAsync_ReturnsJobsFromRepository()
         {

@@ -5,6 +5,7 @@
 using FluentValidation;
 using FluentValidation.Results;
 using HotshotLogistics.Application.Authorization;
+using HotshotLogistics.Contracts.Models;
 using HotshotLogistics.Contracts.Repositories;
 using HotshotLogistics.Contracts.Services;
 using HotshotLogistics.Core.Enums;
@@ -47,6 +48,20 @@ namespace HotshotLogistics.Api.Controllers
             _jobRepository = jobRepository ?? throw new ArgumentNullException(nameof(jobRepository));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _jobValidator = jobValidator ?? throw new ArgumentNullException(nameof(jobValidator));
+        }
+
+        /// <summary>
+        ///     Gets the number of jobs in each status.
+        /// </summary>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>Status counts in enum order.</returns>
+        [HttpGet("status-summary")]
+        [Authorize(Policy = AuthorizationPolicies.ManagerOrAdmin)]
+        [ProducesResponseType(typeof(IReadOnlyList<JobStatusCountDto>), StatusCodes.Status200OK)]
+        public async Task<ActionResult<IReadOnlyList<JobStatusCountDto>>> GetJobStatusSummary(
+            CancellationToken cancellationToken = default)
+        {
+            return Ok(await _jobService.GetJobStatusSummaryAsync(cancellationToken));
         }
 
         /// <summary>

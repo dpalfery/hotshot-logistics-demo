@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.Json;
 using HotshotLogistics.Core.Enums;
 using HotshotLogistics.Domain.DTOs;
 using HotshotLogistics.Domain.Entities;
@@ -18,6 +19,36 @@ namespace HotshotLogistics.IntegrationTests
         {
             // Set the test authentication header
             Client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Test");
+        }
+
+        [Fact]
+        public async Task GetJobStatusSummary_ReflectsDatabaseCounts()
+        {
+            using HttpResponseMessage beforeResponse = await Client.GetAsync("/api/job/status-summary");
+            Assert.Equal(HttpStatusCode.OK, beforeResponse.StatusCode);
+            using JsonDocument before = JsonDocument.Parse(await beforeResponse.Content.ReadAsStringAsync());
+            Assert.Equal(JsonValueKind.Array, before.RootElement.ValueKind);
+            Assert.Equal(4, before.RootElement.GetArrayLength());
+            int pendingBefore = before.RootElement[0].GetProperty("count").GetInt32();
+
+            await CreateOwnJobAsync("summary");
+
+            using HttpResponseMessage afterResponse = await Client.GetAsync("/api/job/status-summary");
+            Assert.Equal(HttpStatusCode.OK, afterResponse.StatusCode);
+            using JsonDocument after = JsonDocument.Parse(await afterResponse.Content.ReadAsStringAsync());
+            Assert.Equal(JsonValueKind.Array, after.RootElement.ValueKind);
+            Assert.Equal(4, after.RootElement.GetArrayLength());
+            string[] statuses = ["Pending", "Assigned", "EnRoute", "Received"];
+            for (int i = 0; i < statuses.Length; i++)
+            {
+                JsonElement item = after.RootElement[i];
+                Assert.Equal(2, item.EnumerateObject().Count());
+                Assert.Equal(JsonValueKind.String, item.GetProperty("status").ValueKind);
+                Assert.Equal(statuses[i], item.GetProperty("status").GetString());
+                Assert.Equal(JsonValueKind.Number, item.GetProperty("count").ValueKind);
+            }
+
+            Assert.Equal(pendingBefore + 1, after.RootElement[0].GetProperty("count").GetInt32());
         }
 
         [Fact]
