@@ -49,6 +49,20 @@ namespace HotshotLogistics.Api.Controllers
             _jobValidator = jobValidator ?? throw new ArgumentNullException(nameof(jobValidator));
         }
 
+        /// <summary>Gets job counts grouped by status.</summary>
+        /// <param name="customerId">Optional customer identifier.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>Job counts by status.</returns>
+        [HttpGet("status-summary")]
+        [Authorize(Policy = AuthorizationPolicies.ManagerOrAdmin)]
+        [ProducesResponseType(typeof(JobStatusSummaryDto), StatusCodes.Status200OK)]
+        public async Task<ActionResult<JobStatusSummaryDto>> GetJobStatusSummary(
+            [FromQuery] string? customerId, CancellationToken cancellationToken)
+        {
+            JobStatusSummaryDto summary = await _jobService.GetJobStatusSummaryAsync(customerId, cancellationToken);
+            return Ok(summary);
+        }
+
         /// <summary>
         ///     Gets all jobs with optional filtering and pagination.
         /// </summary>

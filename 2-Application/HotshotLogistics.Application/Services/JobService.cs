@@ -123,6 +123,15 @@ namespace HotshotLogistics.Application.Services
         }
 
         /// <inheritdoc />
+        public Task<JobStatusSummaryDto> GetJobStatusSummaryAsync(string? customerId = null, CancellationToken cancellationToken = default)
+        {
+            JobFilterDto? filter = string.IsNullOrWhiteSpace(customerId)
+                ? null
+                : new JobFilterDto { CustomerId = customerId.Trim() };
+            return _jobRepository.GetJobStatusSummaryAsync(filter, cancellationToken);
+        }
+
+        /// <inheritdoc />
         public Task<PagedResult<Job>> GetJobsAsync(
             JobFilterDto? filter = null,
             PaginationParameters? pagination = null,

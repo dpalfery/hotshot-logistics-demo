@@ -260,6 +260,37 @@ namespace HotshotLogistics.Data.Repositories
             return (int)await command.ExecuteScalarAsync(cancellationToken);
         }
 
+        /// <inheritdoc />
+        public async Task<JobStatusSummaryDto> GetJobStatusSummaryAsync(JobFilterDto? filter = null,
+            CancellationToken cancellationToken = default)
+        {
+            (string whereClause, IReadOnlyList<SqlParameter> parameters) = BuildWhereClause(filter);
+            string query = $"SELECT Status, COUNT(*) AS JobCount FROM {GetTableName()}{whereClause} GROUP BY Status";
+            int pending = 0;
+            int assigned = 0;
+            int enRoute = 0;
+            int received = 0;
+
+            await using SqlConnection connection = new(ConnectionString);
+            await connection.OpenAsync(cancellationToken);
+            await using SqlCommand command = new(query, connection);
+            AddParametersToCommand(command, parameters);
+            await using SqlDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                int count = reader.GetInt32(1);
+                switch ((JobStatus)reader.GetInt32(0))
+                {
+                    case JobStatus.Pending: pending = count; break;
+                    case JobStatus.Assigned: assigned = count; break;
+                    case JobStatus.EnRoute: enRoute = count; break;
+                    case JobStatus.Received: received = count; break;
+                }
+            }
+
+            return new JobStatusSummaryDto(pending, assigned, enRoute, received);
+        }
+
         public async Task<IEnumerable<Job>> GetByDriverIdAsync(int driverId,
             CancellationToken cancellationToken = default)
         {

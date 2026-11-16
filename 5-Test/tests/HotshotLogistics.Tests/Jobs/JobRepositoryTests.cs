@@ -58,6 +58,71 @@ namespace HotshotLogistics.Tests.Jobs
             await _cleanup.CleanUpAsync();
         }
 
+        [DatabaseFact]
+        public async Task GetJobStatusSummaryAsync_WithCustomerFilter_ReturnsCountPerStatus()
+        {
+            await CreateSummaryJobsAsync();
+            var result = await _jobRepository.GetJobStatusSummaryAsync(new JobFilterDto { CustomerId = _customerId });
+            result.Pending.Should().Be(2);
+            result.Assigned.Should().Be(1);
+            result.EnRoute.Should().Be(3);
+            result.Received.Should().Be(1);
+        }
+
+        [DatabaseFact]
+        public async Task GetJobStatusSummaryAsync_WithNoMatchingJobs_ReturnsZeroForEveryStatus()
+        {
+            var result = await _jobRepository.GetJobStatusSummaryAsync(new JobFilterDto { CustomerId = _customerId });
+            result.Pending.Should().Be(0);
+            result.Assigned.Should().Be(0);
+            result.EnRoute.Should().Be(0);
+            result.Received.Should().Be(0);
+        }
+
+        [DatabaseFact]
+        public async Task GetJobStatusSummaryAsync_WithStatusFilter_CountsOnlyThatStatus()
+        {
+            await CreateSummaryJobsAsync();
+            var result = await _jobRepository.GetJobStatusSummaryAsync(
+                new JobFilterDto { CustomerId = _customerId, Status = JobStatus.EnRoute });
+            result.Pending.Should().Be(0);
+            result.Assigned.Should().Be(0);
+            result.EnRoute.Should().Be(3);
+            result.Received.Should().Be(0);
+        }
+
+        [DatabaseFact]
+        public async Task GetJobStatusSummaryAsync_WithoutFilter_IncludesCreatedJobs()
+        {
+            await CreateSummaryJobsAsync();
+            var result = await _jobRepository.GetJobStatusSummaryAsync();
+            result.Pending.Should().BeGreaterThanOrEqualTo(2);
+            result.Assigned.Should().BeGreaterThanOrEqualTo(1);
+            result.EnRoute.Should().BeGreaterThanOrEqualTo(3);
+            result.Received.Should().BeGreaterThanOrEqualTo(1);
+        }
+
+        private async Task CreateSummaryJobsAsync()
+        {
+            JobStatus[] statuses = [JobStatus.Pending, JobStatus.Pending, JobStatus.Assigned,
+                JobStatus.EnRoute, JobStatus.EnRoute, JobStatus.EnRoute, JobStatus.Received];
+            foreach (JobStatus status in statuses)
+            {
+                Job job = new()
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    CustomerId = _customerId,
+                    Title = "Summary test",
+                    PickupLocation = new Location { Address = "Pickup" },
+                    DeliveryLocation = new Location { Address = "Delivery" },
+                    Status = status,
+                    Pricing = new PricingDetails { TotalAmount = 100m }
+                };
+                _cleanup.TrackJob(job.Id);
+                await _jobRepository.CreateJobAsync(job);
+            }
+        }
+
         /// <summary>
         ///     Tests that GetJobsAsync with filtering returns correct results.
         /// </summary>

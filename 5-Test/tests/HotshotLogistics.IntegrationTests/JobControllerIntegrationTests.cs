@@ -1,10 +1,13 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.Json;
+using HotshotLogistics.Contracts.Repositories;
 using HotshotLogistics.Core.Enums;
 using HotshotLogistics.Domain.DTOs;
 using HotshotLogistics.Domain.Entities;
 using HotshotLogistics.Domain.ValueObjects;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace HotshotLogistics.IntegrationTests
 {
@@ -18,6 +21,99 @@ namespace HotshotLogistics.IntegrationTests
         {
             // Set the test authentication header
             Client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Test");
+        }
+
+        [Fact]
+        public async Task GetJobStatusSummary_WithCustomerId_ReturnsCountsOfCreatedJobs()
+        {
+            string customerId = await CreateSummaryJobsAsync();
+            HttpResponseMessage response = await Client.GetAsync($"/api/Job/status-summary?customerId={customerId}");
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            using JsonDocument body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            Assert.Equal(2, body.RootElement.GetProperty("pending").GetInt32());
+            Assert.Equal(1, body.RootElement.GetProperty("assigned").GetInt32());
+            Assert.Equal(3, body.RootElement.GetProperty("enRoute").GetInt32());
+            Assert.Equal(1, body.RootElement.GetProperty("received").GetInt32());
+        }
+
+        [Fact]
+        public async Task GetJobStatusSummary_WithUnknownCustomerId_ReturnsZeros()
+        {
+            HttpResponseMessage response = await Client.GetAsync($"/api/Job/status-summary?customerId=test-{Guid.NewGuid():N}");
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            using JsonDocument body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            foreach (string field in new[] { "pending", "assigned", "enRoute", "received" })
+            {
+                Assert.Equal(0, body.RootElement.GetProperty(field).GetInt32());
+            }
+        }
+
+        [Fact]
+        public async Task GetJobStatusSummary_WithBlankCustomerId_ReturnsUnfilteredCounts()
+        {
+            await CreateSummaryJobsAsync();
+            HttpResponseMessage response = await Client.GetAsync("/api/Job/status-summary?customerId=%20%20");
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            using JsonDocument body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            Assert.True(body.RootElement.GetProperty("pending").GetInt32() >= 2);
+            Assert.True(body.RootElement.GetProperty("assigned").GetInt32() >= 1);
+            Assert.True(body.RootElement.GetProperty("enRoute").GetInt32() >= 3);
+            Assert.True(body.RootElement.GetProperty("received").GetInt32() >= 1);
+        }
+
+        [Fact]
+        public async Task GetJobStatusSummary_WithoutCustomerId_Returns200WithAllFourFields()
+        {
+            HttpResponseMessage response = await Client.GetAsync("/api/Job/status-summary");
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            using JsonDocument body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            Assert.Equal(4, body.RootElement.EnumerateObject().Count());
+            foreach (string field in new[] { "pending", "assigned", "enRoute", "received" })
+            {
+                Assert.True(body.RootElement.GetProperty(field).GetInt32() >= 0);
+            }
+        }
+
+        [Fact]
+        public async Task GetJobStatusSummary_AsDriver_ReturnsForbidden()
+        {
+            Client.DefaultRequestHeaders.Add("X-Test-Role", "Driver");
+            HttpResponseMessage response = await Client.GetAsync("/api/Job/status-summary");
+            Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        }
+
+        [Fact]
+        public async Task GetJobStatusSummary_AsManager_ReturnsOk()
+        {
+            Client.DefaultRequestHeaders.Add("X-Test-Role", "Manager");
+            HttpResponseMessage response = await Client.GetAsync("/api/Job/status-summary");
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        }
+
+        private async Task<string> CreateSummaryJobsAsync()
+        {
+            string customerId = $"test-{Guid.NewGuid():N}";
+            using IServiceScope scope = Factory.Services.CreateScope();
+            IJobRepository repository = scope.ServiceProvider.GetRequiredService<IJobRepository>();
+            JobStatus[] statuses = [JobStatus.Pending, JobStatus.Pending, JobStatus.Assigned,
+                JobStatus.EnRoute, JobStatus.EnRoute, JobStatus.EnRoute, JobStatus.Received];
+            foreach (JobStatus status in statuses)
+            {
+                Job job = new()
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    CustomerId = customerId,
+                    Title = "Summary test",
+                    PickupLocation = new Location { Address = "Pickup" },
+                    DeliveryLocation = new Location { Address = "Delivery" },
+                    Status = status,
+                    Pricing = new PricingDetails { TotalAmount = 100m }
+                };
+                Cleanup.TrackJob(job.Id);
+                await repository.CreateJobAsync(job);
+            }
+
+            return customerId;
         }
 
         [Fact]

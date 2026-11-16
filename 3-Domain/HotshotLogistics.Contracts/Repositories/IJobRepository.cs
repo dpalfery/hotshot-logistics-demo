@@ -100,6 +100,12 @@ namespace HotshotLogistics.Contracts.Repositories
         /// <returns>The total count of matching jobs.</returns>
         Task<int> GetJobCountAsync(JobFilterDto? filter = null, CancellationToken cancellationToken = default);
 
+        /// <summary>Gets counts grouped by job status.</summary>
+        /// <param name="filter">Optional job filters.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>Counts for each recognized status.</returns>
+        Task<JobStatusSummaryDto> GetJobStatusSummaryAsync(JobFilterDto? filter = null, CancellationToken cancellationToken = default);
+
         /// <summary>
         ///     Gets jobs assigned to a specific driver by driver ID.
         /// </summary>

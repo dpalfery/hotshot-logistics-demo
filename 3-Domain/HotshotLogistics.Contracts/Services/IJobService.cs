@@ -9,6 +9,12 @@ namespace HotshotLogistics.Contracts.Services
     {
         Task<IEnumerable<Job>> GetJobsAsync(CancellationToken cancellationToken = default);
 
+        /// <summary>Gets job counts by status.</summary>
+        /// <param name="customerId">Optional customer identifier.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>Counts for each status.</returns>
+        Task<JobStatusSummaryDto> GetJobStatusSummaryAsync(string? customerId = null, CancellationToken cancellationToken = default);
+
         /// <summary>
         ///     Gets jobs with filtering, pagination, and sorting support.
         /// </summary>
