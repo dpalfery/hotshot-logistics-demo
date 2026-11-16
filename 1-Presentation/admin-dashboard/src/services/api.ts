@@ -1,6 +1,6 @@
 import { msalInstance } from '@/lib/providers';
 import { loginRequest } from '@/config/auth';
-import { Job, Driver, Invoice, Customer, PagedResult, JobFilter, InvoiceFilter, PaginationParameters, InvoiceSummaryMetrics, InvoiceAgingBuckets } from '@/types';
+import { Job, Driver, Invoice, Customer, PagedResult, JobFilter, InvoiceFilter, PaginationParameters, InvoiceSummaryMetrics, InvoiceAgingBuckets, JobStatusSummary } from '@/types';
 
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL || '/api').trim();
 
@@ -14,15 +14,6 @@ class ApiService {
     const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
     const url = `${baseUrl}${normalizedEndpoint}${query ? `?${query}` : ''}`;
 
-    const isTestMode = typeof window !== 'undefined' && (window as typeof window & { __BYPASS_AUTH__?: boolean }).__BYPASS_AUTH__ === true;
-    // Test mode uses the configured base URL like every other mode, so Playwright mocks match /api/...
-    const finalUrl = url;
-
-    console.log('=== API REQUEST DEBUG ===');
-    console.log('Making request to:', finalUrl);
-    console.log('Base URL from env:', API_BASE_URL);
-    console.log('Is test mode:', isTestMode);
-
     const config: RequestInit = {
       headers: {
         'Content-Type': 'application/json',
@@ -33,11 +24,9 @@ class ApiService {
 
     // Add authentication token if available
     const token = await this.getAuthToken();
-    console.log('Auth token obtained:', token ? 'Yes' : 'No');
     if (token) {
       // Use Test scheme for test token, Bearer for real tokens
       const scheme = token === 'test-token' ? 'Test' : 'Bearer';
-      console.log('Using auth scheme:', scheme);
       config.headers = {
         ...config.headers,
         Authorization: `${scheme} ${token}`,
@@ -45,9 +34,7 @@ class ApiService {
     }
 
     try {
-      const response = await fetch(finalUrl, config);
-      console.log('Response status:', response.status);
-      console.log('Response ok:', response.ok);
+      const response = await fetch(url, config);
 
       if (!response.ok) {
         const error = await response.text();
@@ -56,12 +43,9 @@ class ApiService {
       }
 
       const data = await response.json();
-      console.log('Response data length/type:', Array.isArray(data) ? data.length : typeof data);
-      console.log('=== END API REQUEST DEBUG ===');
       return data;
     } catch (error) {
       console.error('Fetch error:', error);
-      console.log('=== END API REQUEST DEBUG (ERROR) ===');
       throw error;
     }
   }
@@ -69,7 +53,6 @@ class ApiService {
   private async getAuthToken(): Promise<string | null> {
     // Always use test authentication in development
     if (process.env.NODE_ENV === 'development') {
-      console.log('Development mode: using test authentication');
       return 'test-token';
     }
 
@@ -106,6 +89,20 @@ class ApiService {
   }
 
   // Job API methods
+  async getJobStatusSummary(): Promise<JobStatusSummary> {
+    const response = await this.request<unknown>('/job/status-summary');
+    if (typeof response !== 'object' || response === null) {
+      throw new Error('Invalid job status summary response');
+    }
+    const record = response as Record<string, unknown>;
+    if (!['pending', 'assigned', 'enRoute', 'received'].every(
+      key => typeof record[key] === 'number' && Number.isInteger(record[key]) && (record[key] as number) >= 0
+    )) {
+      throw new Error('Invalid job status summary response');
+    }
+    return response as JobStatusSummary;
+  }
+
   async getJobs(
     filter?: JobFilter,
     pagination?: PaginationParameters

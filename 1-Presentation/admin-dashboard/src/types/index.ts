@@ -1,4 +1,11 @@
 // Job types
+export interface JobStatusSummary {
+  pending: number;
+  assigned: number;
+  enRoute: number;
+  received: number;
+}
+
 export interface Job {
   id: string;
   title: string;

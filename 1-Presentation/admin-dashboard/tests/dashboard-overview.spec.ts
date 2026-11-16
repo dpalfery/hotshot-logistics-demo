@@ -45,7 +45,7 @@ test.describe('Dashboard Overview', () => {
     });
 
     // Mock jobs API with realistic data - matches apiService.getJobs() endpoint; the fields the Jobs page renders are included because the nav test visits it
-    await page.route('https://localhost:5001/api/job', async route => {
+    await page.route('**/api/job', async route => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -88,7 +88,7 @@ test.describe('Dashboard Overview', () => {
     });
 
     // Mock drivers API with active drivers - matches apiService.getDrivers() endpoint
-    await page.route('https://localhost:5001/api/drivers', async route => {
+    await page.route('**/api/drivers', async route => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -116,7 +116,7 @@ test.describe('Dashboard Overview', () => {
     });
 
     // Mock invoices API with overdue invoices - matches apiService.getInvoices() endpoint (/billing/invoices/overdue returns only overdue invoices)
-    await page.route('https://localhost:5001/api/billing/invoices/overdue', async route => {
+    await page.route('**/api/billing/invoices/overdue', async route => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -140,6 +140,9 @@ test.describe('Dashboard Overview', () => {
       });
     });
 
+    await page.route('**/api/job/status-summary', route => route.fulfill({
+      json: { pending: 1, assigned: 0, enRoute: 2, received: 0 },
+    }));
     await page.goto('/');
   });
 
@@ -286,7 +289,7 @@ test.describe('Dashboard Overview', () => {
       await expect(inProgressBadge).toBeVisible();
       await expect(inProgressBadge).toHaveClass(/bg-green-100.*text-green-800/);
 
-      const pendingBadge = page.locator('text=Pending').first();
+      const pendingBadge = page.locator('div.bg-white.shadow.rounded-lg').filter({ hasText: 'Recent Jobs' }).locator('text=Pending').first();
       await expect(pendingBadge).toBeVisible();
       await expect(pendingBadge).toHaveClass(/bg-yellow-100.*text-yellow-800/);
     });
@@ -474,6 +477,10 @@ test.describe('Dashboard Overview', () => {
           })
         });
       });
+
+      await page.route('**/api/job/status-summary', route => route.fulfill({
+        json: { pending: 1, assigned: 0, enRoute: 2, received: 0 },
+      }));
 
       // Mock drivers API with active drivers - matches apiService.getDrivers() endpoint
       await page.route('**/api/driver**', async route => {
