@@ -2,7 +2,7 @@
 id: plans/2026-11-16-job-status-dashboard
 title: Admin dashboard job status cards
 doc-type: plan
-status: current
+status: archived
 component: admin-dashboard
 owner: unassigned
 last-reviewed: 2026-11-16
@@ -16,7 +16,7 @@ impact-components:
 
 # Admin dashboard job status cards
 
-**Status: Ready, 2026-11-16.** (returned from Ready for reapproval: T3 API-origin revision, D17 then D18; T1 and T2 are complete in commits `57d64c8` and `6933160` and unchanged).
+**Status: Archived, 2026-11-16.** (returned from Ready for reapproval: T3 API-origin revision, D17 then D18; T1 and T2 are complete in commits `57d64c8` and `6933160` and unchanged).
 
 ## Problem and goal
 
