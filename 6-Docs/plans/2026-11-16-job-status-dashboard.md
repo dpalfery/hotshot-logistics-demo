@@ -200,13 +200,16 @@ Documentation-impact review covered the T1 backend and T2 dashboard implementati
 their tests, and the two canonical architecture documents. The endpoint and client
 flow are reflected in those documents; no new governed document is needed.
 T1 task-gate evidence passes; its test log reports 13 integration and 34
-unit/repository tests passed, none skipped. T2 task-gate evidence reports lint,
-typecheck, build and E2E passed. The available T2 log separately records 25 passed,
-7 skipped and 2 failed on ambiguous alert locators; the committed tests narrow
-those locators. The log does not establish which run the passing gate report describes.
+unit/repository tests passed, none skipped. On clean revision `b8678f6`, the T2
+focused rerun (`.agent_scratchpad/t2/closeout-focused.txt`) passed 27, skipped 7,
+and failed 0; `@live` was skipped in that mocked run. The T2 gate rerun
+(`.agent_scratchpad/t2/closeout-gate.txt`) passed lint, typecheck, build and E2E.
+The earlier two alert-locator failures were from the pre-fix run.
 
-NOT VERIFIED: VG4 live database-to-dashboard chain — a separate verifier is running
-live checks; no environment or browser was started during this closeout.
+VG4 was independently verified: 6 API integration, 4 repository, 11 mocked
+browser and 1 live browser tests passed. Isolated test SQL counts and filtered API
+counts matched at 1/2/3/4; global SQL and API counts agreed, and live cards matched
+the API. No live environment was started by docs-dev.
 
 ## Closeout mapping
 
