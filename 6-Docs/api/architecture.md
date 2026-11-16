@@ -6,9 +6,10 @@ status: current
 component: Api
 source-root: 1-Presentation/HotshotLogistics.Api
 owner: unassigned
-last-reviewed: 2026-11-14
+last-reviewed: 2026-11-16
 code-refs:
   - JobController
+  - JobStatusSummaryDto
   - TestAuthHandler
   - ExceptionHandlingMiddleware
 ---
@@ -48,9 +49,24 @@ flowchart TD
 
 Authorization policies include `Admin`, `Manager`, `Driver`, `Customer`, and combined roles.
 
+`GET /api/job/status-summary` requires the `ManagerOrAdmin` policy. An optional
+`customerId` restricts the counts; when supplied it must be a single non-blank
+value of at most 50 characters without control characters, otherwise the API
+returns a validation error. A successful response is
+`{"pending":0,"assigned":0,"enRoute":0,"received":0}` with integer counts.
+Each count covers all matching jobs in that status, without a date window; absent
+statuses are zero and unrecognized stored status values are ignored.
+
+`JobController.GetJobStatusSummary` delegates to `IJobService`, then
+`IJobRepository`, which groups `Jobs` by status in SQL using the parameterized
+customer filter. The query follows the existing repository's `SqlConnection`
+pattern and propagates cancellation. Unexpected failures propagate to host error handling.
+
 ## Data models
 
-Request and response DTOs live in Domain. Persistence uses native ADO.NET. See the
+Existing request and response DTOs live in Domain. The shared sealed response
+record `HotshotLogistics.Contracts.Models.JobStatusSummaryDto` lives in Contracts
+and carries `Pending`, `Assigned`, `EnRoute`, and `Received`. Persistence uses native ADO.NET. See the
 [data access layer coding standard](../standards/data-access-layer/README.md).
 
 ## Error handling

@@ -226,3 +226,27 @@ After docs-dev closeout, `code-reviewer` reviews the accumulated branch diff, co
 ## docs-dev closeout
 
 Runs after T3 and before review. As approved by the owner in D15, `docs-dev` harvests the Design harvest rows into `6-Docs/admin-dashboard/architecture.md` and `6-Docs/api/architecture.md`, adds `JobStatusCards` / `JobStatusSummaryDto` to their `code-refs` where cited, and maps D3–D15 to their canonical destinations before archive. It edits no other governed document; any further governed-doc edit would need new owner approval.
+
+## Completion summary
+
+- T1 task gate passed 51 tests; T2 gate passed after the exact-colour repair. T1 commits `5c925ad`, `bbd5196`; subsequent implementation and repair are present in the run branch. The frontend test uses mocked responses and is not the live-path evidence.
+- Independent T3 evidence in `.agent_scratchpad/t3/artifacts/`: local SQL, real API 200 and rendered counts matched at baseline (77,83,83,3260), seed (82,83,83,3260), status change (78,84,85,3261), and cleanup (77,83,83,3260). Scoped results were (5,0,0,0), then (1,1,2,1), then zero. Exact badge colours, Inter weights and 1/2/4 columns at 375/768/1200 passed. Five owned rows were deleted and zero remained; no API writes or Azure operations were used.
+- NOT VERIFIED: the cause of the Next.js '2 Issues' development overlay partially obscuring the 375px screenshot — investigating the development environment is outside this closeout.
+- Documentation-impact review: update; the change adds a dashboard component and API contract. The two approved architecture documents now carry the durable design. No ADR — ADR waiver: the decisions extend existing component architecture, apply established patterns, or are implementation details.
+
+## Closeout mapping
+
+| ID | Destination | documentation-impact | impact-components | last-reviewed | status |
+|---|---|---|---|---|---|
+| D2, D4, D9, Api | [API architecture: Components and interfaces](../../api/architecture.md#components-and-interfaces) | extends-component | Api | 2026-11-16 | archived |
+| D3 | [API architecture: Data models](../../api/architecture.md#data-models) | extends-component | Api | 2026-11-16 | archived |
+| D5, D7, D17, admin-dashboard | [Dashboard architecture: Components and interfaces](../../admin-dashboard/architecture.md#components-and-interfaces) | extends-component | admin-dashboard | 2026-11-16 | archived |
+| D10 | [Dashboard architecture: Error handling](../../admin-dashboard/architecture.md#error-handling) | extends-component | admin-dashboard | 2026-11-16 | archived |
+| D13 | [Dashboard architecture: Data models](../../admin-dashboard/architecture.md#data-models) | extends-component | admin-dashboard | 2026-11-16 | archived |
+| D8 | [API architecture: Components and interfaces](../../api/architecture.md#components-and-interfaces) | extends-component | Api | 2026-11-16 | archived |
+| D1, D6, D11, D12, D14, D15, D16, D18, AP1, AP2, AP3, AP4 | Documentation waiver — transient run approvals, superseded choice, test procedure or fixture-specific decisions; no surviving behavioral invariant beyond the mapped component design. | none | admin-dashboard, Api | 2026-11-16 | archived |
+| Dashboard components and interfaces harvest | [Dashboard architecture: Components and interfaces](../../admin-dashboard/architecture.md#components-and-interfaces) | extends-component | admin-dashboard | 2026-11-16 | archived |
+| Dashboard data models harvest | [Dashboard architecture: Data models](../../admin-dashboard/architecture.md#data-models) | extends-component | admin-dashboard | 2026-11-16 | archived |
+| Dashboard error handling harvest | [Dashboard architecture: Error handling](../../admin-dashboard/architecture.md#error-handling) | extends-component | admin-dashboard | 2026-11-16 | archived |
+| API components and interfaces harvest | [API architecture: Components and interfaces](../../api/architecture.md#components-and-interfaces) | extends-component | Api | 2026-11-16 | archived |
+| API data models harvest | [API architecture: Data models](../../api/architecture.md#data-models) | extends-component | Api | 2026-11-16 | archived |
