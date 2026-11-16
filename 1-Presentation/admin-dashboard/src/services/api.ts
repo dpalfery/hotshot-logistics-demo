@@ -106,6 +106,11 @@ class ApiService {
   }
 
   // Job API methods
+  async getJobStatusCounts(customerId?: string): Promise<unknown> {
+    const query = customerId === undefined ? undefined : new URLSearchParams({ customerId }).toString();
+    return this.request<unknown>('/job/status-counts', {}, query);
+  }
+
   async getJobs(
     filter?: JobFilter,
     pagination?: PaginationParameters

@@ -286,7 +286,7 @@ test.describe('Dashboard Overview', () => {
       await expect(inProgressBadge).toBeVisible();
       await expect(inProgressBadge).toHaveClass(/bg-green-100.*text-green-800/);
 
-      const pendingBadge = page.locator('text=Pending').first();
+      const pendingBadge = page.locator('.bg-yellow-100').filter({ hasText: 'Pending' });
       await expect(pendingBadge).toBeVisible();
       await expect(pendingBadge).toHaveClass(/bg-yellow-100.*text-yellow-800/);
     });

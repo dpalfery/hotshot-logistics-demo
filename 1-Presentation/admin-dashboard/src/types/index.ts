@@ -24,6 +24,13 @@ export interface Job {
   tracking: TrackingInfo;
 }
 
+export interface JobStatusCounts {
+  pending: number;
+  assigned: number;
+  enRoute: number;
+  received: number;
+}
+
 export enum JobStatus {
   Pending = 'Pending',
   Assigned = 'Assigned',
