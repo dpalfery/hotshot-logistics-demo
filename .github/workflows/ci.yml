@@ -377,7 +377,9 @@ jobs:
               continue
             fi
             scanned_count=$((scanned_count + 1))
-            safe_name="$(printf '%s' "${skills_dir}" | tr '/.' '__')"
+            slug="$(printf '%s' "${skills_dir}" | tr -c 'A-Za-z0-9' '_')"
+            digest="$(printf '%s' "${skills_dir}" | sha256sum | awk '{print substr($1,1,12)}')"
+            safe_name="${slug}-${digest}"
             echo "::group::${skills_dir}"
             kyber-weave skill validate "${skills_dir}" --format table || EXIT_CODE=1
             kyber-weave skill lint "${skills_dir}" --min-desc-score "${MIN_DESC_SCORE}" --format table || EXIT_CODE=1
