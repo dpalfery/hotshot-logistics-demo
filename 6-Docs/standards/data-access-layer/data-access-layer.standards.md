@@ -44,10 +44,15 @@ write SQL.
   provisioning code (`MigrationRunner`, DbSetup) sits outside the factory.
 - **Migrations:** FluentMigrator, versioned `[Migration(yyyyMMddHHmmss)]`. Schema design
   is not authored here — it arrives as an approved table-definition contract.
-- **Abstraction:** The target is `IRepository<T>` in `HotshotLogistics.Contracts`; its adoption
-  is tracked in the [generic-repository todo](../../todo/generic-repository-migration.md).
-  Implementations are internal to `HotshotLogistics.Data`. Persistence rows stay in
-  `HotshotLogistics.Data` and are mapped at the adapter boundary.
+- **Abstraction:** `IRepository<T>` in `HotshotLogistics.Contracts` is the generic contract
+  (get by id, get all, add, update, delete, exists). `ICustomerRepository` and
+  `IPaymentRepository` extend it. The Job, Driver, JobAssignment, Invoice and
+  LocationTracking contracts stay domain-specific because their signatures differ from it
+  (for example Invoice `GetByIdAsync(string)` also loads line items); converging them is
+  tracked in the [repository-contract todo](../../todo/repository-contract-convergence.md).
+  Every implementation derives from the internal `BaseRepository<T>`, which implements
+  `IRepository<T>`. Implementations are internal to `HotshotLogistics.Data`. Persistence rows
+  stay in `HotshotLogistics.Data` and are mapped at the adapter boundary.
 
 ### Hard rules
 

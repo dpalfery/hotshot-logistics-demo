@@ -162,35 +162,35 @@ namespace HotshotLogistics.Data.Repositories
             return rowsAffected > 0;
         }
 
-        // Explicit interface implementations to bridge concrete/interface types
-        async Task<Customer?> ICustomerRepository.GetByIdAsync(object id, CancellationToken cancellationToken)
+        // Explicit generic-contract implementations; AddAsync and UpdateAsync refuse a null customer with ArgumentException.
+        async Task<Customer?> IRepository<Customer>.GetByIdAsync(object id, CancellationToken cancellationToken)
         {
             return await GetByIdAsync(id, cancellationToken);
         }
 
-        async Task<IEnumerable<Customer>> ICustomerRepository.GetAllAsync()
+        async Task<IEnumerable<Customer>> IRepository<Customer>.GetAllAsync()
         {
             return await GetAllAsync();
         }
 
-        async Task<Customer> ICustomerRepository.AddAsync(Customer entity)
+        async Task<Customer> IRepository<Customer>.AddAsync(Customer entity)
         {
             Customer customer = entity ?? throw new ArgumentException("Entity must be Customer", nameof(entity));
             return await AddAsync(customer);
         }
 
-        async Task<Customer> ICustomerRepository.UpdateAsync(Customer entity)
+        async Task<Customer> IRepository<Customer>.UpdateAsync(Customer entity)
         {
             Customer customer = entity ?? throw new ArgumentException("Entity must be Customer", nameof(entity));
             return await UpdateAsync(customer);
         }
 
-        async Task<bool> ICustomerRepository.DeleteAsync(object id)
+        async Task<bool> IRepository<Customer>.DeleteAsync(object id)
         {
             return await DeleteAsync(id);
         }
 
-        async Task<bool> ICustomerRepository.ExistsAsync(object id)
+        async Task<bool> IRepository<Customer>.ExistsAsync(object id)
         {
             return await ExistsAsync(id);
         }

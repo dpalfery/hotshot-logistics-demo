@@ -9,7 +9,7 @@ namespace HotshotLogistics.Data.Repositories
     ///     Base repository implementation using native ADO.NET.
     /// </summary>
     /// <typeparam name="T">The entity type.</typeparam>
-    internal abstract partial class BaseRepository<T> : Core.Repositories.IBaseRepository<T>
+    internal abstract partial class BaseRepository<T> : IRepository<T>
         where T : class
     {
         /// <summary>

@@ -1,17 +1,20 @@
 namespace HotshotLogistics.Contracts.Repositories
 {
     /// <summary>
-    ///     Base interface for all repositories.
+    ///     Generic repository contract: the identity-based operations every repository offers for entity
+    ///     <typeparamref name="T" />.
     /// </summary>
     /// <typeparam name="T">The entity type.</typeparam>
-    public interface IBaseRepository<T> where T : class
+    public interface IRepository<T>
+        where T : class
     {
         /// <summary>
         ///     Gets an entity by its identifier.
         /// </summary>
         /// <param name="id">The entity identifier.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>The entity if found, null otherwise.</returns>
-        Task<T?> GetByIdAsync(object id);
+        Task<T?> GetByIdAsync(object id, CancellationToken cancellationToken = default);
 
         /// <summary>
         ///     Gets all entities.
