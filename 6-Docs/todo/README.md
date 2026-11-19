@@ -4,7 +4,7 @@ title: Todos
 doc-type: index
 status: current
 owner: 'unassigned'
-last-reviewed: 2026-11-14
+last-reviewed: 2026-11-19
 ---
 
 # Todos
@@ -20,7 +20,6 @@ Add one document per todo and list it here, ordered by priority (`P1` high, `P2`
 | [Complete Azure configuration support](azure-configuration-support.md) | P1 | Open | Api | Plan and verify local settings and Azure App Configuration with Key Vault references. |
 | [Add the missing Payments table migration](payments-table.md) | P2 | Open | Api | `PaymentRepository` targets a `Payments` table no migration creates; add the migration and real-database tests. |
 | [Converge repository contracts on IRepository<T> and cancellation](repository-contract-convergence.md) | P3 | Open | Api | Bring the five domain-specific repository contracts under `IRepository<T>` and add cancellation tokens to its remaining members. |
-| [Review unauthenticated endpoints](unauthenticated-endpoints.md) | P1 | Open | Api | `TrackingController` has no `[Authorize]`; payment webhooks are blocked by the class-level `[Authorize]`. |
 | [Pass CancellationToken through driver endpoints and billing queries](driver-cancellation-tokens.md) | P3 | Open | Api | `DriversController` and two billing queries drop the token because the service and repository methods take none. |
 | [Stop exposing entities and mutable shared DTOs from actions](entities-in-controller-actions.md) | P3 | Open | Api | Controllers still take and return entities and mutable `Domain.DTOs`; introduce `sealed record` HTTP DTOs. |
 | [Build the Add Driver and Generate Invoice forms](admin-dashboard-quick-action-forms.md) | P2 | Open | admin-dashboard | The Quick Actions link to `?action=add` and `?action=generate`, but the Drivers and Billing pages have no such forms. |

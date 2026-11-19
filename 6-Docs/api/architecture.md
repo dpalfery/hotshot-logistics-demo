@@ -71,6 +71,17 @@ Every error answers `application/problem+json` with `traceId` and `correlationId
 `UseStatusCodePages` fills the body of bodiless 401/403/404/405 responses. Controllers keep per-action catches of
 named exceptions and return `ApiControllerBase` helpers; they do not catch `Exception`.
 
+## Authorization
+
+Every controller is `[Authorize]`; actions add a policy. `TrackingController`: `start`, `stop/{jobId}`, `location` and
+`check-deviation` need `ManagerOrDriver`; `location/{jobId}` and `history/{jobId}` need `ManagerOrAdmin`. The only
+anonymous actions are `GET api/Tracking/public/{jobId}` (returns `PublicTrackingInfo`: job id, position, last update,
+status, estimated arrival, no driver data) and the two payment webhooks. A webhook is accepted only if the provider's
+signature verifies, before any processing: Stripe's `Stripe-Signature` (HMAC-SHA256 over `timestamp.payload` with
+`Stripe:WebhookSecret`) and PayPal's `PAYPAL-TRANSMISSION-SIG` family of headers (RSA-SHA256 with PayPal's certificate,
+webhook id `PayPal:WebhookId`), each with a five-minute timestamp tolerance. A failed check answers 401 and nothing is
+processed. The secrets come from configuration only.
+
 ## Health
 
 `/health/live` runs no checks and answers 200 while the process serves requests. `/health/ready` runs the checks tagged
@@ -80,8 +91,7 @@ when one fails. `/health` runs every check. All three are anonymous and write on
 ## Rate limiting
 
 `UseRateLimiter()` runs after CORS and before authentication. The global limit is a fixed window per client address;
-`/health*` is exempt. The `public` policy is stricter and is applied to public tracking and the payment webhooks only; the other
-`TrackingController` actions are currently anonymous and get only the global limit (see the unauthenticated-endpoints todo). Limits bind from the `RateLimiting` section and are validated at startup; a rejection is a 429
+`/health*` is exempt. The `public` policy is stricter and is applied to public tracking and the payment webhooks only. Limits bind from the `RateLimiting` section and are validated at startup; a rejection is a 429
 `ProblemDetails` with `Retry-After`.
 
 ## Resilience

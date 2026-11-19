@@ -2,7 +2,7 @@
 id: todos/unauthenticated-endpoints
 title: Review endpoints that are unauthenticated or unreachable by their callers
 doc-type: todo
-status: current
+status: resolved
 component: Api
 owner: unassigned
 last-reviewed: 2026-11-19
@@ -13,12 +13,30 @@ last-reviewed: 2026-11-19
 Found while adding rate limiting (see [rate limiting](../archive/todo/rate-limiting.md)); changing it alters who can call
 the API, so it needs an owner decision.
 
-- `TrackingController` has no `[Authorize]`. Every action, including `start`, `stop`, `location` updates and
-  `route-deviation`, is anonymous; only `public/{jobId}` is meant to be. Recommendation: put `[Authorize]` on the class
-  and `[AllowAnonymous]` on `public/{jobId}`, then update the driver clients that call it.
-- `BillingController` is `[Authorize]` at class level, so the Stripe and PayPal webhook actions reject the providers'
-  unauthenticated calls with 401. Recommendation: `[AllowAnonymous]` on the two webhook actions, with the signature
-  check in `IPaymentProcessor.ProcessWebhookAsync` as the authentication.
+- `TrackingController` had no `[Authorize]`. Every action, including `start`, `stop`, `location` updates and
+  `route-deviation`, was anonymous; only `public/{jobId}` is meant to be.
+- `BillingController` is `[Authorize]` at class level, so the Stripe and PayPal webhook actions rejected the providers'
+  unauthenticated calls with 401. The processors' signature checks were placeholders (a Stripe header longer than ten
+  characters, a PayPal header containing `paypal`), so simply allowing anonymous access would have let anyone post
+  forged payment events.
 - The `Public` rate limit (`RateLimiting:PublicPermitLimit`) already applies to `public/{jobId}` and both webhooks.
 
-**Next action:** Decide the two recommendations, then add tests that prove the anonymous and authenticated behaviour.
+## Resolution
+
+Resolved 2026-11-19; the [API architecture](../../api/architecture.md#authorization) states the resulting behaviour.
+
+- `TrackingController` is `[Authorize]` at class level. `start`, `stop/{jobId}`, `location` and `check-deviation` need
+  the `ManagerOrDriver` policy; `location/{jobId}` and `history/{jobId}` need `ManagerOrAdmin`; `public/{jobId}` is
+  `[AllowAnonymous]` and returns `PublicTrackingInfo`, which carries no driver id, internal id, speed or notes.
+- The two webhook actions are `[AllowAnonymous]` and are authenticated by the provider signature, verified inside
+  `IPaymentProcessor.ProcessWebhookAsync` before anything is read from the payload or processed. A request that fails
+  verification gets 401 and `SignatureRejected` is set on the result. Stripe: `Stripe-Signature` HMAC-SHA256 over
+  `timestamp.payload` with `Stripe:WebhookSecret`, five-minute tolerance. PayPal: `PAYPAL-TRANSMISSION-SIG` RSA-SHA256
+  over `id|time|webhookId|crc32(body)` with the certificate at `PAYPAL-CERT-URL` (fetched only from `*.paypal.com`,
+  chain-validated), webhook id from `PayPal:WebhookId`, five-minute tolerance.
+- Tests: `HotshotLogistics.Api.Tests.TrackingAuthorizationTests`, `HotshotLogistics.Api.Tests.PaymentWebhookTests`,
+  `HotshotLogistics.Tests.Billing.PayPalCertificateProviderTests`.
+
+Not done: replay protection beyond the timestamp window (no event-id de-duplication), and the public tracking page
+still reports a fixed `In Transit` status and an estimated arrival two hours after the last fix because the job status
+is not looked up.

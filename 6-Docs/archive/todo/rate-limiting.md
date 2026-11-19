@@ -26,6 +26,6 @@ Resolved 2026-11-19. `AddApiRateLimiting()` (`RateLimiting/RateLimitingExtension
 
 The defaults are generous because the partition is the remote address and no forwarded-header handling is configured:
 behind a single proxy every client shares one bucket. Configure forwarded headers (an owner decision) before lowering them.
-Auth gaps found on the public endpoints are tracked in [unauthenticated endpoints](../../todo/unauthenticated-endpoints.md).
+Auth gaps found on the public endpoints are tracked in [unauthenticated endpoints](unauthenticated-endpoints.md).
 
 Tests: `HotshotLogistics.Api.Tests.RateLimitingTests`.
