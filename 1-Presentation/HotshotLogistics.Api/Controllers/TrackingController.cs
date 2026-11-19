@@ -3,9 +3,11 @@
 // </copyright>
 
 using HotshotLogistics.Api.Models;
+using HotshotLogistics.Application.Authorization;
 using HotshotLogistics.Contracts.Services;
 using HotshotLogistics.Domain.Entities;
 using HotshotLogistics.Api.RateLimiting;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 
@@ -16,6 +18,7 @@ namespace HotshotLogistics.Api.Controllers
     /// </summary>
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public sealed class TrackingController : ApiControllerBase
     {
         private readonly ILogger<TrackingController> _logger;
@@ -41,6 +44,7 @@ namespace HotshotLogistics.Api.Controllers
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>Success status of starting tracking.</returns>
         [HttpPost("start")]
+        [Authorize(Policy = AuthorizationPolicies.ManagerOrDriver)]
         [ProducesResponseType(typeof(TrackingResult), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -98,6 +102,7 @@ namespace HotshotLogistics.Api.Controllers
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>Success status of stopping tracking.</returns>
         [HttpPost("stop/{jobId}")]
+        [Authorize(Policy = AuthorizationPolicies.ManagerOrDriver)]
         [ProducesResponseType(typeof(TrackingResult), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -142,6 +147,7 @@ namespace HotshotLogistics.Api.Controllers
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>The created location tracking record.</returns>
         [HttpPost("location")]
+        [Authorize(Policy = AuthorizationPolicies.ManagerOrDriver)]
         [ProducesResponseType(typeof(LocationTracking), StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -201,6 +207,7 @@ namespace HotshotLogistics.Api.Controllers
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>The latest location tracking record.</returns>
         [HttpGet("location/{jobId}")]
+        [Authorize(Policy = AuthorizationPolicies.ManagerOrAdmin)]
         [ProducesResponseType(typeof(LocationTracking), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult<LocationTracking>> GetCurrentLocation(string jobId,
@@ -225,6 +232,7 @@ namespace HotshotLogistics.Api.Controllers
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>The location tracking history.</returns>
         [HttpGet("history/{jobId}")]
+        [Authorize(Policy = AuthorizationPolicies.ManagerOrAdmin)]
         [ProducesResponseType(typeof(IEnumerable<LocationTracking>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<ActionResult<IEnumerable<LocationTracking>>> GetLocationHistory(
@@ -259,6 +267,7 @@ namespace HotshotLogistics.Api.Controllers
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>Route deviation status.</returns>
         [HttpPost("check-deviation")]
+        [Authorize(Policy = AuthorizationPolicies.ManagerOrDriver)]
         [ProducesResponseType(typeof(RouteDeviationResult), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -312,12 +321,14 @@ namespace HotshotLogistics.Api.Controllers
         }
 
         /// <summary>
-        ///     Gets a public tracking link for a job (for customer access).
+        ///     Gets the public tracking information for a job (for customer access). This is the only
+        ///     anonymous action; <see cref="PublicTrackingInfo" /> carries no driver or internal identifiers.
         /// </summary>
         /// <param name="jobId">The job ID.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>Public tracking information.</returns>
         [HttpGet("public/{jobId}")]
+        [AllowAnonymous]
         [EnableRateLimiting(RateLimitPolicies.Public)]
         [ProducesResponseType(typeof(PublicTrackingInfo), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
