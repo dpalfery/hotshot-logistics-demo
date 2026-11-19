@@ -15,6 +15,7 @@ code-refs:
   - ApiControllerBase
   - HealthCheckExtensions
   - RateLimitingExtensions
+  - TelemetryExtensions
 ---
 
 # API architecture
@@ -50,6 +51,7 @@ flowchart TD
 | `DomainExceptionHandler`, `CorrelationIdMiddleware`, `ApiControllerBase` | One RFC 9457 `ProblemDetails` error contract with trace and correlation ids |
 | `HealthCheckExtensions`, `DatabaseHealthCheck` | `/health`, `/health/live`, `/health/ready` probes; the database is the only readiness dependency |
 | `RateLimitingExtensions` | Global and `public` per-address limits; 429 `ProblemDetails` with `Retry-After`; health exempt |
+| `TelemetryExtensions` | OpenTelemetry traces and metrics; Application Insights export only when a connection string is set |
 | Application `RealtimeHub` | Real-time updates mapped from the API host |
 
 Authorization policies include `Admin`, `Manager`, `Driver`, `Customer`, and combined roles.
@@ -88,6 +90,13 @@ standard pipeline from `Microsoft.Extensions.Http.Resilience` (total timeout, bo
 failures, per-attempt timeout, circuit breaker), configured under `Resilience:Outbound`. Payment retries in
 `BillingService` handle only transport failures and the processor's transient error codes (`Payments:Retry`); a decline
 is never retried and the payment id travels as the idempotency key.
+
+## Telemetry
+
+OpenTelemetry traces and metrics cover ASP.NET Core, outbound `HttpClient` and the .NET runtime. The Application
+Insights exporter is registered only when `Telemetry:ApplicationInsights:ConnectionString` or
+`APPLICATIONINSIGHTS_CONNECTION_STRING` is set; otherwise nothing is exported. The correlation id is tagged on the
+request activity.
 
 ## Testing strategy
 

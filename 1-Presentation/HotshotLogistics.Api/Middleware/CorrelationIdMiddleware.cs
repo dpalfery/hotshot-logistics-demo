@@ -2,6 +2,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
+using System.Diagnostics;
 using Microsoft.Extensions.Primitives;
 
 namespace HotshotLogistics.Api.Middleware
@@ -54,6 +55,7 @@ namespace HotshotLogistics.Api.Middleware
                 : Guid.NewGuid().ToString();
 
             context.Items[HeaderName] = correlationId;
+            Activity.Current?.SetTag("correlation.id", correlationId);
             context.Response.OnStarting(() =>
             {
                 context.Response.Headers[HeaderName] = correlationId;

@@ -20,7 +20,6 @@ Add one document per todo and list it here, ordered by priority (`P1` high, `P2`
 | [Complete Azure configuration support](azure-configuration-support.md) | P1 | Open | Api | Plan and verify local settings and Azure App Configuration with Key Vault references. |
 | [Make invoice number generation concurrency-safe](invoice-number-concurrency.md) | P2 | Open | Api | Replace unlocked `MAX() + 1` in `GetNextInvoiceNumberAsync` with a sequence or lock-safe allocation. |
 | [Admin dashboard Playwright tests marked fixme](admin-dashboard-playwright-baseline.md) | P2 | Open | admin-dashboard | Eleven dashboard e2e tests check behaviour the app lacks: overview error/empty states, Quick Actions, live stats, SignalR injection. |
-| [Define metrics and tracing](telemetry.md) | P2 | Open | Api | Configure OpenTelemetry metrics, distributed tracing, and Application Insights export. |
 | [Review unauthenticated endpoints](unauthenticated-endpoints.md) | P1 | Open | Api | `TrackingController` has no `[Authorize]`; payment webhooks are blocked by the class-level `[Authorize]`. |
 | [Remove Data dependency on Application](persistence-application-dependency.md) | P2 | Open | Api | Remove `HotshotLogistics.Data` project reference to `HotshotLogistics.Application`. |
 | [Introduce a SQL connection factory](sql-connection-factory.md) | P2 | Open | Api | Plan a factory and migrate direct repository connection creation. |

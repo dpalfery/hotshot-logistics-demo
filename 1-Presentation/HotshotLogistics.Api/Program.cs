@@ -7,6 +7,7 @@ using HotshotLogistics.Api;
 using HotshotLogistics.Api.Errors;
 using HotshotLogistics.Api.Health;
 using HotshotLogistics.Api.RateLimiting;
+using HotshotLogistics.Api.Telemetry;
 using HotshotLogistics.Application;
 using HotshotLogistics.Application.Hubs;
 using HotshotLogistics.Application.Services;
@@ -72,6 +73,7 @@ builder.Services.AddSwaggerGen(c =>
 builder.Services.AddApiErrorHandling();
 builder.Services.AddApiHealthChecks(builder.Configuration);
 builder.Services.AddApiRateLimiting(builder.Configuration);
+builder.Services.AddApiTelemetry(builder.Configuration);
 
 // Add HTTP client factory for external API calls
 builder.Services.AddHttpClient();

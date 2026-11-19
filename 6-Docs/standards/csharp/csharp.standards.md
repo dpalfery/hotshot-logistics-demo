@@ -254,9 +254,9 @@ Do not merge code that fails the build, and do not restate analyzer rules here.
   `Console.WriteLine` is not production logging. Configure providers per environment.
 - Middleware creates or accepts the correlation id and propagates it to outbound calls,
   logs, traces, and `ProblemDetails` responses.
-- Target: emit metrics (latency, error rate, throughput) and distributed traces to
-  Application Insights through OpenTelemetry (tracked in the
-  [telemetry todo](../../todo/telemetry.md)).
+- Metrics (latency, error rate, throughput) and distributed traces are emitted through OpenTelemetry, and exported to
+  Application Insights only when a connection string is configured (`AddApiTelemetry()`). Never put the connection
+  string in the repository.
 - HTTPS and HSTS are on. Authenticate, then authorize. CORS is explicit. CSRF
   protection is on wherever cookie-authenticated browser clients can POST. Persist
   Data Protection keys and rotate them.
