@@ -3,7 +3,7 @@ namespace HotshotLogistics.Domain.DTOs
     /// <summary>
     ///     Represents an entry in the aging report.
     /// </summary>
-    public class AgingReportEntry
+    public class AgingReportEntryDto
     {
         /// <summary>
         ///     Gets or sets the customer identifier.

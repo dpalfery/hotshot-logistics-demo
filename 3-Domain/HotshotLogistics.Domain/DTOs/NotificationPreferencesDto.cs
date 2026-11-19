@@ -5,7 +5,7 @@ namespace HotshotLogistics.Domain.DTOs
     /// <summary>
     ///     Represents notification preferences for a user.
     /// </summary>
-    public class NotificationPreferences
+    public class NotificationPreferencesDto
     {
         /// <summary>
         ///     Gets or sets the user identifier.

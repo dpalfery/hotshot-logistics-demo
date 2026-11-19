@@ -5,7 +5,7 @@ namespace HotshotLogistics.Domain.DTOs
     /// <summary>
     ///     Represents payment method details.
     /// </summary>
-    public class PaymentMethodDetails
+    public class PaymentMethodDetailsDto
     {
         /// <summary>
         ///     Gets or sets the payment method type.

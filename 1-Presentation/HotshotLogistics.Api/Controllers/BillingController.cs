@@ -127,7 +127,7 @@ namespace HotshotLogistics.Api.Controllers
         public async Task<ActionResult<InvoiceSummaryMetricsResponse>> GetInvoiceSummary(
             CancellationToken cancellationToken = default)
         {
-            InvoiceSummary summary = await _billingService.GetInvoiceSummaryAsync(cancellationToken);
+            InvoiceSummaryDto summary = await _billingService.GetInvoiceSummaryAsync(cancellationToken);
             return Ok(new InvoiceSummaryMetricsResponse
             {
                 TotalInvoiced = summary.TotalAmount,
@@ -146,7 +146,7 @@ namespace HotshotLogistics.Api.Controllers
         public async Task<ActionResult<InvoiceAgingBucketsResponse>> GetInvoiceAging(
             CancellationToken cancellationToken = default)
         {
-            List<AgingReportEntry> entries =
+            List<AgingReportEntryDto> entries =
                 (await _billingService.GetAgingReportAsync(cancellationToken)).ToList();
             return Ok(new InvoiceAgingBucketsResponse
             {
@@ -374,7 +374,7 @@ namespace HotshotLogistics.Api.Controllers
                 using StreamReader reader = new(Request.Body);
                 string payload = await reader.ReadToEndAsync(cancellationToken);
 
-                WebhookEventData webhookData = new()
+                WebhookEventDataDto webhookData = new()
                 {
                     Payload = payload,
                     Signature = Request.Headers[signatureHeaderName].FirstOrDefault() ?? string.Empty,
@@ -385,7 +385,7 @@ namespace HotshotLogistics.Api.Controllers
                     EventType = extractEventType(payload)
                 };
 
-                WebhookProcessingResult result = await processor.ProcessWebhookAsync(webhookData, cancellationToken);
+                WebhookProcessingResultDto result = await processor.ProcessWebhookAsync(webhookData, cancellationToken);
 
                 if (result.SignatureRejected)
                 {
@@ -422,7 +422,7 @@ namespace HotshotLogistics.Api.Controllers
         /// <param name="statusUpdate">The payment status update.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>A task representing the asynchronous operation.</returns>
-        private async Task HandlePaymentStatusUpdateAsync(PaymentStatusUpdate statusUpdate,
+        private async Task HandlePaymentStatusUpdateAsync(PaymentStatusUpdateDto statusUpdate,
             CancellationToken cancellationToken)
         {
             _logger.LogInformation("Handling payment status update: Status={Status}", statusUpdate.Status);

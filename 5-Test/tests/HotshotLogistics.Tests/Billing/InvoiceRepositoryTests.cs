@@ -274,7 +274,7 @@ namespace HotshotLogistics.Tests.Billing
         {
             // Arrange
             await CreateTestInvoicesAsync();
-            InvoiceFilter filter = new()
+            InvoiceFilterDto filter = new()
             {
                 CustomerId = _customerId,
                 Status = InvoiceStatus.Draft,
@@ -411,7 +411,7 @@ namespace HotshotLogistics.Tests.Billing
             await CreateTestInvoicesAsync();
 
             // Act
-            InvoiceSummary result = await _invoiceRepository.GetInvoiceSummaryAsync();
+            InvoiceSummaryDto result = await _invoiceRepository.GetInvoiceSummaryAsync();
 
             // Assert
             result.Should().NotBeNull();
@@ -495,7 +495,7 @@ namespace HotshotLogistics.Tests.Billing
             await CreateTestInvoicesAsync();
 
             // Act
-            IEnumerable<AgingReportEntry> result = await _invoiceRepository.GetAgingReportAsync();
+            IEnumerable<AgingReportEntryDto> result = await _invoiceRepository.GetAgingReportAsync();
 
             // Assert
             result.Should().NotBeNull();

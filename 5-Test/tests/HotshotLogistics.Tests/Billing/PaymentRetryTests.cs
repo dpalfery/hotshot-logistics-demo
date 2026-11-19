@@ -81,7 +81,7 @@ namespace HotshotLogistics.Tests.Billing
         public async Task ProcessPaymentAsync_WhenTransportFailsTwice_RetriesAndSucceeds()
         {
             SetupProcessor(call => call < 3
-                ? Task.FromException<PaymentProcessingResult>(new HttpRequestException("connection reset"))
+                ? Task.FromException<PaymentProcessingResultDto>(new HttpRequestException("connection reset"))
                 : Task.FromResult(Success()));
 
             bool result = await _service.ProcessPaymentAsync(s_invoiceId, s_amount, "Credit Card", TestContext.Current.CancellationToken);
@@ -104,7 +104,7 @@ namespace HotshotLogistics.Tests.Billing
         [Fact]
         public async Task ProcessPaymentAsync_WhenProcessorThrowsUnexpectedly_DoesNotRetry()
         {
-            SetupProcessor(_ => Task.FromException<PaymentProcessingResult>(new InvalidOperationException("bug")));
+            SetupProcessor(_ => Task.FromException<PaymentProcessingResultDto>(new InvalidOperationException("bug")));
 
             bool result = await _service.ProcessPaymentAsync(s_invoiceId, s_amount, "Credit Card", TestContext.Current.CancellationToken);
 
@@ -119,7 +119,7 @@ namespace HotshotLogistics.Tests.Billing
             SetupProcessor(_ =>
             {
                 caller.Cancel();
-                return Task.FromException<PaymentProcessingResult>(new OperationCanceledException(caller.Token));
+                return Task.FromException<PaymentProcessingResultDto>(new OperationCanceledException(caller.Token));
             });
 
             Func<Task<bool>> act = () => _service.ProcessPaymentAsync(s_invoiceId, s_amount, "Credit Card", caller.Token);
@@ -139,26 +139,26 @@ namespace HotshotLogistics.Tests.Billing
             _seenMetadata.Select(m => m["idempotency_key"]).Distinct().Should().ContainSingle();
         }
 
-        private static PaymentProcessingResult Failure(string errorCode)
+        private static PaymentProcessingResultDto Failure(string errorCode)
         {
-            return new PaymentProcessingResult { Success = false, Message = "failed", ErrorCode = errorCode };
+            return new PaymentProcessingResultDto { Success = false, Message = "failed", ErrorCode = errorCode };
         }
 
-        private static PaymentProcessingResult Success()
+        private static PaymentProcessingResultDto Success()
         {
-            return new PaymentProcessingResult { Success = true, TransactionId = "txn-1", Message = "ok" };
+            return new PaymentProcessingResultDto { Success = true, TransactionId = "txn-1", Message = "ok" };
         }
 
-        private void SetupProcessor(Func<int, Task<PaymentProcessingResult>> respond)
+        private void SetupProcessor(Func<int, Task<PaymentProcessingResultDto>> respond)
         {
             int calls = 0;
             _processor.Setup(p => p.ProcessPaymentAsync(
                     It.IsAny<decimal>(),
                     It.IsAny<string>(),
-                    It.IsAny<PaymentMethodDetails>(),
+                    It.IsAny<PaymentMethodDetailsDto>(),
                     It.IsAny<Dictionary<string, string>>(),
                     It.IsAny<CancellationToken>()))
-                .Returns((decimal _, string _, PaymentMethodDetails _, Dictionary<string, string> metadata, CancellationToken _) =>
+                .Returns((decimal _, string _, PaymentMethodDetailsDto _, Dictionary<string, string> metadata, CancellationToken _) =>
                 {
                     _seenMetadata.Add(metadata);
                     return respond(Interlocked.Increment(ref calls));
@@ -171,7 +171,7 @@ namespace HotshotLogistics.Tests.Billing
                 p => p.ProcessPaymentAsync(
                     It.IsAny<decimal>(),
                     It.IsAny<string>(),
-                    It.IsAny<PaymentMethodDetails>(),
+                    It.IsAny<PaymentMethodDetailsDto>(),
                     It.IsAny<Dictionary<string, string>>(),
                     It.IsAny<CancellationToken>()),
                 Times.Exactly(expected),

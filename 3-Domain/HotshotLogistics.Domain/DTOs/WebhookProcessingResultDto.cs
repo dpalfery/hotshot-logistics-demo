@@ -3,7 +3,7 @@ namespace HotshotLogistics.Domain.DTOs
     /// <summary>
     ///     Represents the result of webhook processing.
     /// </summary>
-    public class WebhookProcessingResult
+    public class WebhookProcessingResultDto
     {
         /// <summary>
         ///     Gets or sets a value indicating whether the webhook was processed successfully.
@@ -18,7 +18,7 @@ namespace HotshotLogistics.Domain.DTOs
         /// <summary>
         ///     Gets or sets the payment status update if applicable.
         /// </summary>
-        public PaymentStatusUpdate? StatusUpdate { get; set; }
+        public PaymentStatusUpdateDto? StatusUpdate { get; set; }
 
         /// <summary>
         ///     Gets or sets the message.

@@ -5,7 +5,7 @@ namespace HotshotLogistics.Domain.DTOs
     /// <summary>
     ///     Filter criteria for invoice queries.
     /// </summary>
-    public class InvoiceFilter
+    public class InvoiceFilterDto
     {
         /// <summary>
         ///     Gets or sets the customer identifier filter.

@@ -241,7 +241,7 @@ namespace HotshotLogistics.Application.Services
                     _paymentProcessorFactory.GetProcessorForPaymentMethod(payment.PaymentMethod);
 
                 // Prepare payment method details
-                PaymentMethodDetails paymentMethodDetails = new()
+                PaymentMethodDetailsDto paymentMethodDetails = new()
                 {
                     Type = payment.PaymentMethod,
                     Token = paymentMethod, // In real implementation, this would be a secure token
@@ -254,9 +254,9 @@ namespace HotshotLogistics.Application.Services
 
                 // Process payment with retry logic. The payment id is stable across attempts, so a
                 // processor that honours idempotency keys cannot charge twice for one payment.
-                PaymentProcessingResult result = await _retryPolicy.ExecuteAsync(async retryToken =>
+                PaymentProcessingResultDto result = await _retryPolicy.ExecuteAsync(async retryToken =>
                 {
-                    PaymentProcessingResult processingResult = await processor.ProcessPaymentAsync(
+                    PaymentProcessingResultDto processingResult = await processor.ProcessPaymentAsync(
                         paymentAmount,
                         "USD", // Default currency
                         paymentMethodDetails,
@@ -351,13 +351,13 @@ namespace HotshotLogistics.Application.Services
         }
 
         /// <inheritdoc />
-        public Task<InvoiceSummary> GetInvoiceSummaryAsync(CancellationToken cancellationToken = default)
+        public Task<InvoiceSummaryDto> GetInvoiceSummaryAsync(CancellationToken cancellationToken = default)
         {
             return _invoiceRepository.GetInvoiceSummaryAsync();
         }
 
         /// <inheritdoc />
-        public Task<IEnumerable<AgingReportEntry>> GetAgingReportAsync(CancellationToken cancellationToken = default)
+        public Task<IEnumerable<AgingReportEntryDto>> GetAgingReportAsync(CancellationToken cancellationToken = default)
         {
             return _invoiceRepository.GetAgingReportAsync();
         }

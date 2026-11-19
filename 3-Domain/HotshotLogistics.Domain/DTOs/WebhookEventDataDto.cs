@@ -3,7 +3,7 @@ namespace HotshotLogistics.Domain.DTOs
     /// <summary>
     ///     Represents webhook event data.
     /// </summary>
-    public class WebhookEventData
+    public class WebhookEventDataDto
     {
         /// <summary>
         ///     Gets or sets the event type.

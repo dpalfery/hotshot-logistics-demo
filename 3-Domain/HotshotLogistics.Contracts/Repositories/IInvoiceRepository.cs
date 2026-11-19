@@ -98,7 +98,7 @@ namespace HotshotLogistics.Contracts.Repositories
         /// </summary>
         /// <param name="filter">The invoice filter criteria.</param>
         /// <returns>A paged result of invoices.</returns>
-        Task<PagedResult<Invoice>> GetPagedAsync(InvoiceFilter filter);
+        Task<PagedResult<Invoice>> GetPagedAsync(InvoiceFilterDto filter);
 
         /// <summary>
         ///     Gets the next invoice number.
@@ -110,7 +110,7 @@ namespace HotshotLogistics.Contracts.Repositories
         ///     Gets aging report data for accounts receivable.
         /// </summary>
         /// <returns>A list of aging report entries.</returns>
-        Task<IEnumerable<AgingReportEntry>> GetAgingReportAsync();
+        Task<IEnumerable<AgingReportEntryDto>> GetAgingReportAsync();
 
         /// <summary>
         ///     Gets total outstanding balance for a customer.
@@ -123,7 +123,7 @@ namespace HotshotLogistics.Contracts.Repositories
         ///     Gets invoice summary statistics.
         /// </summary>
         /// <returns>Invoice summary statistics.</returns>
-        Task<InvoiceSummary> GetInvoiceSummaryAsync();
+        Task<InvoiceSummaryDto> GetInvoiceSummaryAsync();
 
         /// <summary>
         ///     Gets invoices by invoice number (partial match).

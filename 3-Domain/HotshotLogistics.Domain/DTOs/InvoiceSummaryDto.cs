@@ -3,7 +3,7 @@ namespace HotshotLogistics.Domain.DTOs
     /// <summary>
     ///     Represents invoice summary statistics.
     /// </summary>
-    public class InvoiceSummary
+    public class InvoiceSummaryDto
     {
         /// <summary>
         ///     Gets or sets the total number of invoices.

@@ -3,7 +3,7 @@ namespace HotshotLogistics.Domain.DTOs
     /// <summary>
     ///     Represents the result of a payment processing operation.
     /// </summary>
-    public class PaymentProcessingResult
+    public class PaymentProcessingResultDto
     {
         /// <summary>
         ///     Gets or sets a value indicating whether the operation was successful.

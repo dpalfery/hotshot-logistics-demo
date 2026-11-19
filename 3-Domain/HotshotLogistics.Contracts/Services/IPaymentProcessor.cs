@@ -21,10 +21,10 @@ namespace HotshotLogistics.Contracts.Services
         /// <param name="metadata">Additional metadata for the payment.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>The payment processing result.</returns>
-        Task<PaymentProcessingResult> ProcessPaymentAsync(
+        Task<PaymentProcessingResultDto> ProcessPaymentAsync(
             decimal amount,
             string currency,
-            PaymentMethodDetails paymentMethod,
+            PaymentMethodDetailsDto paymentMethod,
             Dictionary<string, string> metadata,
             CancellationToken cancellationToken = default);
 
@@ -36,7 +36,7 @@ namespace HotshotLogistics.Contracts.Services
         /// <param name="reason">The reason for the refund.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>The refund processing result.</returns>
-        Task<PaymentProcessingResult> RefundPaymentAsync(
+        Task<PaymentProcessingResultDto> RefundPaymentAsync(
             string transactionId,
             decimal amount,
             string reason,
@@ -51,18 +51,18 @@ namespace HotshotLogistics.Contracts.Services
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>True if the signature is valid, false otherwise.</returns>
         Task<bool> ValidateWebhookSignatureAsync(
-            WebhookEventData webhookData,
+            WebhookEventDataDto webhookData,
             CancellationToken cancellationToken = default);
 
         /// <summary>
         ///     Processes a webhook event. The signature is verified first; a request that fails verification is
-        ///     not processed and the result has <see cref="WebhookProcessingResult.SignatureRejected" /> set.
+        ///     not processed and the result has <see cref="WebhookProcessingResultDto.SignatureRejected" /> set.
         /// </summary>
         /// <param name="webhookData">The webhook event data.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>The webhook processing result.</returns>
-        Task<WebhookProcessingResult> ProcessWebhookAsync(
-            WebhookEventData webhookData,
+        Task<WebhookProcessingResultDto> ProcessWebhookAsync(
+            WebhookEventDataDto webhookData,
             CancellationToken cancellationToken = default);
     }
 }

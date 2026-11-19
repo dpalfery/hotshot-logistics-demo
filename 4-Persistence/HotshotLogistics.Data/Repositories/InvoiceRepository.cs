@@ -177,7 +177,7 @@ namespace HotshotLogistics.Data.Repositories
         }
 
         /// <inheritdoc />
-        public async Task<PagedResult<Invoice>> GetPagedAsync(InvoiceFilter filter)
+        public async Task<PagedResult<Invoice>> GetPagedAsync(InvoiceFilterDto filter)
         {
             StringBuilder whereClause = new();
             List<SqlParameter> parameters = new();
@@ -312,7 +312,7 @@ namespace HotshotLogistics.Data.Repositories
         }
 
         /// <inheritdoc />
-        public async Task<IEnumerable<AgingReportEntry>> GetAgingReportAsync()
+        public async Task<IEnumerable<AgingReportEntryDto>> GetAgingReportAsync()
         {
             const string sql = @"
             SELECT
@@ -337,7 +337,7 @@ namespace HotshotLogistics.Data.Repositories
                 new("@CancelledStatus", (int)InvoiceStatus.Cancelled)
             ];
 
-            List<AgingReportEntry> entries = new();
+            List<AgingReportEntryDto> entries = new();
 
             await using SqlConnection connection = await ConnectionFactory.OpenConnectionAsync();
 
@@ -347,7 +347,7 @@ namespace HotshotLogistics.Data.Repositories
             await using SqlDataReader reader = await command.ExecuteReaderAsync();
             while (await reader.ReadAsync())
             {
-                entries.Add(new AgingReportEntry
+                entries.Add(new AgingReportEntryDto
                 {
                     CustomerId = reader.GetString(reader.GetOrdinal("CustomerId")),
                     CustomerName = reader.GetString(reader.GetOrdinal("CustomerName")),
@@ -382,7 +382,7 @@ namespace HotshotLogistics.Data.Repositories
         }
 
         /// <inheritdoc />
-        public async Task<InvoiceSummary> GetInvoiceSummaryAsync()
+        public async Task<InvoiceSummaryDto> GetInvoiceSummaryAsync()
         {
             const string sql = @"
             SELECT
@@ -410,7 +410,7 @@ namespace HotshotLogistics.Data.Repositories
             await using SqlDataReader reader = await command.ExecuteReaderAsync();
             if (await reader.ReadAsync())
             {
-                return new InvoiceSummary
+                return new InvoiceSummaryDto
                 {
                     TotalInvoices = reader.GetInt32(reader.GetOrdinal("TotalInvoices")),
                     TotalAmount = reader.GetDecimal(reader.GetOrdinal("TotalAmount")),
@@ -422,7 +422,7 @@ namespace HotshotLogistics.Data.Repositories
                 };
             }
 
-            return new InvoiceSummary();
+            return new InvoiceSummaryDto();
         }
 
         /// <inheritdoc />

@@ -5,7 +5,7 @@ namespace HotshotLogistics.Domain.DTOs
     /// <summary>
     ///     Represents a payment status update from a webhook.
     /// </summary>
-    public class PaymentStatusUpdate
+    public class PaymentStatusUpdateDto
     {
         /// <summary>
         ///     Gets or sets the transaction ID.

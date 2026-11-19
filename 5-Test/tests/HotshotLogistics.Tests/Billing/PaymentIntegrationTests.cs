@@ -78,7 +78,7 @@ namespace HotshotLogistics.Tests.Billing
             _mockCustomerRepository.Setup(r => r.GetByIdAsync("customer-123", It.IsAny<CancellationToken>()))
                 .ReturnsAsync(customer);
 
-            PaymentProcessingResult paymentResult = new()
+            PaymentProcessingResultDto paymentResult = new()
             {
                 Success = true,
                 TransactionId = "stripe_txn_123",
@@ -88,7 +88,7 @@ namespace HotshotLogistics.Tests.Billing
             _mockStripeProcessor.Setup(p => p.ProcessPaymentAsync(
                     paymentAmount,
                     "USD",
-                    It.IsAny<PaymentMethodDetails>(),
+                    It.IsAny<PaymentMethodDetailsDto>(),
                     It.IsAny<Dictionary<string, string>>(),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(paymentResult);
@@ -143,7 +143,7 @@ namespace HotshotLogistics.Tests.Billing
             _mockStripeProcessor.Setup(p => p.ProcessPaymentAsync(
                     paymentAmount,
                     "USD",
-                    It.IsAny<PaymentMethodDetails>(),
+                    It.IsAny<PaymentMethodDetailsDto>(),
                     It.IsAny<Dictionary<string, string>>(),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(() =>
@@ -151,7 +151,7 @@ namespace HotshotLogistics.Tests.Billing
                     callCount++;
                     if (callCount <= 2)
                     {
-                        return new PaymentProcessingResult
+                        return new PaymentProcessingResultDto
                         {
                             Success = false,
                             Message = "Temporary failure",
@@ -159,7 +159,7 @@ namespace HotshotLogistics.Tests.Billing
                         };
                     }
 
-                    return new PaymentProcessingResult
+                    return new PaymentProcessingResultDto
                     {
                         Success = true,
                         TransactionId = "stripe_txn_123",
@@ -190,7 +190,7 @@ namespace HotshotLogistics.Tests.Billing
             _mockStripeProcessor.Verify(p => p.ProcessPaymentAsync(
                 paymentAmount,
                 "USD",
-                It.IsAny<PaymentMethodDetails>(),
+                It.IsAny<PaymentMethodDetailsDto>(),
                 It.IsAny<Dictionary<string, string>>(),
                 It.IsAny<CancellationToken>()), Times.Exactly(3)); // Should retry 3 times
         }
@@ -215,7 +215,7 @@ namespace HotshotLogistics.Tests.Billing
             _mockCustomerRepository.Setup(r => r.GetByIdAsync("customer-456", It.IsAny<CancellationToken>()))
                 .ReturnsAsync(customer);
 
-            PaymentProcessingResult paymentResult = new()
+            PaymentProcessingResultDto paymentResult = new()
             {
                 Success = true,
                 TransactionId = "paypal_txn_456",
@@ -225,7 +225,7 @@ namespace HotshotLogistics.Tests.Billing
             _mockPayPalProcessor.Setup(p => p.ProcessPaymentAsync(
                     paymentAmount,
                     "USD",
-                    It.IsAny<PaymentMethodDetails>(),
+                    It.IsAny<PaymentMethodDetailsDto>(),
                     It.IsAny<Dictionary<string, string>>(),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(paymentResult);
@@ -247,7 +247,7 @@ namespace HotshotLogistics.Tests.Billing
             _mockPayPalProcessor.Verify(p => p.ProcessPaymentAsync(
                 paymentAmount,
                 "USD",
-                It.IsAny<PaymentMethodDetails>(),
+                It.IsAny<PaymentMethodDetailsDto>(),
                 It.IsAny<Dictionary<string, string>>(),
                 It.IsAny<CancellationToken>()), Times.Once);
         }

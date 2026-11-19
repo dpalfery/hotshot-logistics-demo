@@ -57,7 +57,7 @@ namespace HotshotLogistics.Contracts.Services
         /// <param name="userId">The user identifier.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>The user's notification preferences.</returns>
-        Task<NotificationPreferences?> GetNotificationPreferencesAsync(string userId,
+        Task<NotificationPreferencesDto?> GetNotificationPreferencesAsync(string userId,
             CancellationToken cancellationToken = default);
 
         /// <summary>
@@ -67,7 +67,7 @@ namespace HotshotLogistics.Contracts.Services
         /// <param name="preferences">The notification preferences.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>True if preferences were updated successfully.</returns>
-        Task<bool> UpdateNotificationPreferencesAsync(string userId, NotificationPreferences preferences,
+        Task<bool> UpdateNotificationPreferencesAsync(string userId, NotificationPreferencesDto preferences,
             CancellationToken cancellationToken = default);
     }
 }
