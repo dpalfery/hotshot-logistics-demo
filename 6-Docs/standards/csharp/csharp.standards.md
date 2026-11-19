@@ -196,9 +196,10 @@ Version the API. OpenAPI is served with Swashbuckle (`AddSwaggerGen` / `UseSwagg
 `UseSwaggerUI`).
 New and modified public API members carry XML documentation comments.
 
-Target: expose `/health` with checks for the dependencies this process needs (database,
-queue, downstream API) so an orchestrator can tell liveness from readiness (tracked in
-the [health-checks todo](../../todo/health-checks.md)).
+The API exposes `/health` (every check), `/health/live` (process up, runs no checks) and `/health/ready`
+(checks tagged `ready`: the database) so an orchestrator can tell liveness from readiness. The endpoints are
+anonymous and report names and statuses only. Add a dependency this process needs before serving as a `ready`
+check; do not open connections in the Api project (the database check lives in `HotshotLogistics.Data.Health`).
 
 Cache responses only where the data is safe to reuse. Rate-limit public endpoints (see the
 [rate-limiting todo](../../todo/rate-limiting.md)). Measure with the platform diagnostics

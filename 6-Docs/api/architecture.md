@@ -13,6 +13,7 @@ code-refs:
   - DomainExceptionHandler
   - CorrelationIdMiddleware
   - ApiControllerBase
+  - HealthCheckExtensions
 ---
 
 # API architecture
@@ -46,6 +47,7 @@ flowchart TD
 | `TestAuthHandler` | Development and test authentication |
 | JWT Bearer + Microsoft Identity Web | Non-development Azure AD B2C |
 | `DomainExceptionHandler`, `CorrelationIdMiddleware`, `ApiControllerBase` | One RFC 9457 `ProblemDetails` error contract with trace and correlation ids |
+| `HealthCheckExtensions`, `DatabaseHealthCheck` | `/health`, `/health/live`, `/health/ready` probes; the database is the only readiness dependency |
 | Application `RealtimeHub` | Real-time updates mapped from the API host |
 
 Authorization policies include `Admin`, `Manager`, `Driver`, `Customer`, and combined roles.
@@ -63,6 +65,12 @@ Every error answers `application/problem+json` with `traceId` and `correlationId
 `ExternalServiceException` to 502; any other exception is a 500 with no message or stack trace.
 `UseStatusCodePages` fills the body of bodiless 401/403/404/405 responses. Controllers keep per-action catches of
 named exceptions and return `ApiControllerBase` helpers; they do not catch `Exception`.
+
+## Health
+
+`/health/live` runs no checks and answers 200 while the process serves requests. `/health/ready` runs the checks tagged
+`ready` (the database: connect plus `SELECT 1` within `Health:Database:TimeoutSeconds`, default 3) and answers 503
+when one fails. `/health` runs every check. All three are anonymous and write only check names and statuses.
 
 ## Testing strategy
 

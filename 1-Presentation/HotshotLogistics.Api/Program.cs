@@ -5,6 +5,7 @@
 using Azure.Identity;
 using HotshotLogistics.Api;
 using HotshotLogistics.Api.Errors;
+using HotshotLogistics.Api.Health;
 using HotshotLogistics.Application;
 using HotshotLogistics.Application.Hubs;
 using HotshotLogistics.Core.Extensions;
@@ -63,6 +64,7 @@ builder.Services.AddSwaggerGen(c =>
 
 // One error contract: ProblemDetails plus the domain exception handler
 builder.Services.AddApiErrorHandling();
+builder.Services.AddApiHealthChecks(builder.Configuration);
 
 // Add HTTP client factory for external API calls
 builder.Services.AddHttpClient();
@@ -141,6 +143,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapApiHealthChecks();
 app.MapHub<RealtimeHub>("/realtime");
 
 app.Run();

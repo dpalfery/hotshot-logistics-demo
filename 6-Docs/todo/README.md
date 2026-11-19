@@ -18,7 +18,6 @@ Add one document per todo and list it here, ordered by priority (`P1` high, `P2`
 |---|---|---|---|---|
 | [Resolve unresolved DashboardOverview issues](admin-dashboard-job-status-unresolved.md) | P1 | Open | admin-dashboard | D6 follow-up: SignalR event name mismatch, first-page Active Jobs count, stale `JobStatus` enum in `src/types/index.ts`. |
 | [Complete Azure configuration support](azure-configuration-support.md) | P1 | Open | Api | Plan and verify local settings and Azure App Configuration with Key Vault references. |
-| [Add API health checks](health-checks.md) | P1 | Open | Api | Add `/health` dependency, readiness, and liveness checks. |
 | [Make invoice number generation concurrency-safe](invoice-number-concurrency.md) | P2 | Open | Api | Replace unlocked `MAX() + 1` in `GetNextInvoiceNumberAsync` with a sequence or lock-safe allocation. |
 | [Admin dashboard Playwright tests marked fixme](admin-dashboard-playwright-baseline.md) | P2 | Open | admin-dashboard | Eleven dashboard e2e tests check behaviour the app lacks: overview error/empty states, Quick Actions, live stats, SignalR injection. |
 | [Define external-call resilience policies](resilience-policies.md) | P2 | Open | Api | Narrow `BillingService` retry exceptions and add Polly timeouts/circuit breakers on outbound HTTP clients. |
