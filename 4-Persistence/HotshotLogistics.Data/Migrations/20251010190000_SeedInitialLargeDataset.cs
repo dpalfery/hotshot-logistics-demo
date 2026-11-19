@@ -358,7 +358,22 @@ public class SeedInitialLargeDataset : Migration
                 if (job.Status == JobStatus.Completed)
                 {
                     var invoiceId = $"INV-{jobId}";
-                    var invoiceNumber = $"INV-{random.Next(10000, 99999)}";
+                    const string jobIdPrefix = "JOB-";
+                    if (!jobId.StartsWith(jobIdPrefix, StringComparison.Ordinal) || jobId.Length == jobIdPrefix.Length)
+                    {
+                        throw new InvalidOperationException($"Seeded job id '{jobId}' must use the '{jobIdPrefix}<digits>' form.");
+                    }
+
+                    var invoiceSuffix = jobId.Substring(jobIdPrefix.Length);
+                    foreach (char c in invoiceSuffix)
+                    {
+                        if (c < '0' || c > '9')
+                        {
+                            throw new InvalidOperationException($"Seeded job id '{jobId}' must end with digits.");
+                        }
+                    }
+
+                    var invoiceNumber = $"INV-{invoiceSuffix}";
                     var invoiceDate = job.EstimatedDeliveryTime.Date;
                     var dueDate = invoiceDate.AddDays(30);
 

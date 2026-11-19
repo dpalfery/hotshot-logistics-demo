@@ -160,7 +160,7 @@ entry in the canonical drift register below.
 ```mermaid
 flowchart TD
   pr["pull_request / push (main) / schedule / workflow_dispatch"]
-  ci["CI (.github/workflows/ci.yml)<br/>changes -> backend, dashboard, dashboard-e2e, docs-gate, codeql, secret-scanning, terraform-validate -> ci-summary"]
+  ci["CI (.github/workflows/ci.yml)<br/>changes -> backend, dashboard, dashboard-e2e, docs-gate, skill-gate, codeql, secret-scanning, terraform-validate -> ci-summary"]
   rel["Release (.github/workflows/release.yml)<br/>triggered by successful CI push on main, v* tag, or workflow_dispatch"]
   gate["release-gate<br/>classify changed paths via 7-Deployment/ci/ci_helpers.py"]
   tf["terraform<br/>Terraform Plan & Apply (same runner, no tfplan artifact upload)"]
@@ -255,7 +255,7 @@ documents link here rather than restating the items.
 - **DR3 — Workflow vs `hotshot.tfvars` region/resource-group (partially resolved).** Consolidating plan and apply into `.github/workflows/release.yml` eliminated the plan-vs-apply split (`East US 2` / `rg-hotshot-logistics-<env>-eastus2` across both steps), though the committed `7-Deployment/Azure-deploy/environments/dev/hotshot.tfvars` still specifies `East US` / `rg-hotshot-logistics-dev-eastus`.
 - **DR4 — Plan/apply overlap (resolved).** `terraform-plan.yml` and `terraform-apply.yml` were deleted and replaced by the single `terraform` job in `.github/workflows/release.yml`, which plans to local `tfplan`, applies it on the same runner, and deletes `tfplan` under `if: always()`. Offline validation runs in `.github/workflows/ci.yml` (`terraform-validate`).
 - **DR5 — Missing staging/prod environments (open).** `staging` and `prod` appear in `release.yml` `workflow_dispatch` inputs and the Terraform `environment` variable, but `7-Deployment/Azure-deploy/environments/` contains only `dev/hotshot.tfvars` and all deployments share one backend state key (`hotshotlogistics.tfstate`).
-- **DR6 — Action pinning and least-privilege permissions (resolved).** Every third-party action in `.github/workflows/ci.yml` and `.github/workflows/release.yml` is pinned by full 40-character commit SHA. `ci.yml` declares top-level `contents: read` and scopes `security-events: write` strictly to `codeql`; `release.yml` scopes permissions to `id-token: write` and `contents: read`.
+- **DR6 — Action pinning and least-privilege permissions (resolved).** Every third-party action in `.github/workflows/ci.yml` and `.github/workflows/release.yml` is pinned by full 40-character commit SHA. `ci.yml` declares top-level `contents: read` and scopes `security-events: write` strictly to `codeql` and `skill-gate`; `release.yml` scopes permissions to `id-token: write` and `contents: read`.
 - **DR7 — Key Vault name divergence (resolved).** `.github/workflows/release.yml` (`deploy-api`) now reads `sql-connection-string` from `${TARGET_ENV}-hotshot-log-kv-01`, matching Terraform `main.tf`.
 - **DR8 — `tfstate` container not provisioned (open).** The `azurerm` backend names blob container `tfstate`; the launchpad solution creates only the resource group and the storage account, so the container must be created out of band before `terraform init` can succeed.
 - **DR9 — Serverless knobs on a provisioned tier (open).** `compute_model = "Serverless"` is commented out and the `modules/database` submodule of `avm-res-sql-server` 0.1.5 declares no `compute_model` input; the database is created `GP_S_Gen5_1`, while `min_capacity` and `auto_pause_delay_in_minutes` are set as literals that do not take effect on that tier.

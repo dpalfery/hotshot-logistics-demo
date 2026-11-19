@@ -1,0 +1,57 @@
+name: Setup Kyber-Weave CLI
+description: Download, SHA-256 verify, and install the Kyber-Weave CLI for CI gates.
+
+inputs:
+  version:
+    description: Pinned Kyber-Weave release tag (defaults to v0.1.8-rc.27).
+    required: false
+    default: "v0.1.8-rc.27"
+
+runs:
+  using: composite
+  steps:
+    - name: Install Kyber-Weave CLI
+      shell: bash
+      env:
+        KW_VERSION: ${{ inputs.version }}
+        # Pinned to commit 32aee4396c5407e3de876e39eb3c673739175d6b (tag v0.1.8-rc.27).
+        INSTALLER_SHA256: "131a218ed81c4509157e2b7e050ed0fc074d4c07a6ceaa9a5d10295023c6a5de"
+      run: |
+        set -euo pipefail
+        if [ -z "${KW_VERSION}" ]; then
+          echo "::error::Kyber-Weave CLI version must be pinned and non-empty."
+          exit 1
+        fi
+        installer="${RUNNER_TEMP}/kyber-weave-install.sh"
+        curl -fsSL -o "${installer}" \
+          https://raw.githubusercontent.com/dpalfery/kyber-weave/32aee4396c5407e3de876e39eb3c673739175d6b/scripts/install.sh
+        printf '%s  %s\n' "${INSTALLER_SHA256}" "${installer}" | sha256sum -c -
+        bash "${installer}" --no-mcp --no-arbiter --no-kyberdash --version "${KW_VERSION}"
+        echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
+
+    - name: Verify Kyber-Weave version
+      shell: bash
+      env:
+        KW_VERSION: ${{ inputs.version }}
+      run: |
+        set -euo pipefail
+        # Installer tags may include a leading v; the CLI prints the version without it.
+        expected="${KW_VERSION#v}"
+        if [ -z "${expected}" ]; then
+          echo "::error::Kyber-Weave CLI version must be pinned and non-empty."
+          exit 1
+        fi
+        version_output=""
+        if ! version_output="$(kyber-weave --version 2>&1)"; then
+          detail="$(printf '%s' "${version_output}" | tr '\n\r' ' ')"
+          echo "::error::kyber-weave --version failed: ${detail}"
+          exit 1
+        fi
+        # --version prints exactly one line: "kyber-weave <version>".
+        actual_line="${version_output//$'\r'/}"
+        actual_line="${actual_line%$'\n'}"
+        if [ "${actual_line}" != "kyber-weave ${expected}" ] && [ "${actual_line}" != "kyber-weave v${expected}" ]; then
+          detail="$(printf '%s' "${version_output}" | tr '\n\r' ' ')"
+          echo "::error::Installed Kyber-Weave CLI output '${detail}' does not match pinned version '${expected}'."
+          exit 1
+        fi
