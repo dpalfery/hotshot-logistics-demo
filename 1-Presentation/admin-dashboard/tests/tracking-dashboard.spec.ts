@@ -42,6 +42,7 @@ test.describe('Tracking Dashboard', () => {
                 status: 'EnRoute',
                 pickupAddress: '123 Main St',
                 dropoffAddress: '456 Oak Ave',
+                amount: 100,
                 assignedDriverId: 1,
                 scheduledPickupTime: '2024-12-01T10:00:00Z'
               },
@@ -51,6 +52,7 @@ test.describe('Tracking Dashboard', () => {
                 status: 'Assigned',
                 pickupAddress: '789 Pine St',
                 dropoffAddress: '321 Elm Ave',
+                amount: 200,
                 assignedDriverId: 2,
                 scheduledPickupTime: '2024-12-01T14:00:00Z'
               },
@@ -60,6 +62,7 @@ test.describe('Tracking Dashboard', () => {
                 status: 'Pending',
                 pickupAddress: '555 Cedar Rd',
                 dropoffAddress: '777 Birch Ln',
+                amount: 300,
                 assignedDriverId: null,
                 scheduledPickupTime: '2024-12-01T16:00:00Z'
               }
@@ -102,6 +105,7 @@ test.describe('Tracking Dashboard', () => {
                 status: 'EnRoute',
                 pickupAddress: '123 Main St',
                 dropoffAddress: '456 Oak Ave',
+                amount: 100,
                 assignedDriverId: 1,
                 scheduledPickupTime: '2024-12-01T10:00:00Z'
               },
@@ -111,6 +115,7 @@ test.describe('Tracking Dashboard', () => {
                 status: 'Assigned',
                 pickupAddress: '789 Pine St',
                 dropoffAddress: '321 Elm Ave',
+                amount: 200,
                 assignedDriverId: 2,
                 scheduledPickupTime: '2024-12-01T14:00:00Z'
               }

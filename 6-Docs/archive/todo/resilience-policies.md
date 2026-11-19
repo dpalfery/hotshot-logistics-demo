@@ -2,7 +2,8 @@
 id: todos/resilience-policies
 title: Define external-call resilience policies
 doc-type: todo
-status: resolved
+status: superseded
+documentation-impact: no-design-change
 component: Api
 owner: unassigned
 last-reviewed: 2026-11-19
@@ -15,7 +16,7 @@ The Application project references Polly, and `BillingService` configures an
 timeout or circuit breaker. Outbound HTTP clients (`"MappingService"` in
 `ServiceCollectionExtensions.AddMappingServices()`, plus notification services)
 have no Polly retry, timeout, or circuit-breaker policies configured. The
-[C# coding standard](../../standards/csharp/csharp.standards.md#resources) scopes these
+[C# coding standard](../../standards/csharp/README.md#resources) scopes these
 policies to external HTTP/API calls; database retries require separate
 idempotency review.
 
@@ -50,3 +51,19 @@ instead of recording a failed payment. `MaxRetries` and `BaseDelay` bind from `P
 
 Tests: `HotshotLogistics.Tests.Resilience.OutboundResilienceTests` (fake handler),
 `HotshotLogistics.Tests.Billing.PaymentRetryTests`.
+
+## Decisions
+
+| ID | Question | Answer | Status |
+|---|---|---|---|
+| D1 | Where does the durable record of this completed todo live? | The resolution in this archived todo is the record. | Approved |
+
+## Closeout mapping
+
+| ID | Destination |
+|---|---|
+| D1 | Documentation waiver — the resolution in this archived todo is the lasting record |
+
+## Design harvest
+
+Documentation waiver — nothing survives because the completed work is recorded in this archived todo and canonical docs were updated when the work landed.

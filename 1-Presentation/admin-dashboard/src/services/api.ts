@@ -24,12 +24,23 @@ const JOB_STATUS_BY_NUMBER: readonly JobStatus[] = [
   JobStatus.Received
 ];
 
-/** Reads a status from its number or name; anything the server does not define is not a status. */
+/** Reads a status from its number, a numeric string, or its name. Anything else is not a status. */
 function toJobStatus(value: unknown): JobStatus | undefined {
-  if (typeof value === 'number') {
-    return JOB_STATUS_BY_NUMBER[value];
+  if (typeof value === 'number' && Number.isInteger(value)) {
+    return value >= 0 && value < JOB_STATUS_BY_NUMBER.length ? JOB_STATUS_BY_NUMBER[value] : undefined;
   }
-  return Object.values(JobStatus).find(status => status === value);
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (/^\d+$/.test(trimmed)) {
+      const index = Number(trimmed);
+      return index >= 0 && index < JOB_STATUS_BY_NUMBER.length ? JOB_STATUS_BY_NUMBER[index] : undefined;
+    }
+
+    return (Object.values(JobStatus) as string[]).includes(trimmed) ? (trimmed as JobStatus) : undefined;
+  }
+
+  return undefined;
 }
 
 function parseJobsPage(data: unknown): PagedResult<Job> {
@@ -37,13 +48,28 @@ function parseJobsPage(data: unknown): PagedResult<Job> {
     throw unexpectedResponse('/job');
   }
 
-  const items = data.items.map(item => {
-    const status = isRecord(item) ? toJobStatus(item.status) : undefined;
-    if (!isRecord(item) || typeof item.id !== 'string' || status === undefined) {
+  const items = data.items.flatMap(item => {
+    if (!isRecord(item) || typeof item.id !== 'string') {
       throw unexpectedResponse('/job');
     }
-    return { ...item, status };
+
+    const status = toJobStatus(item.status);
+    if (status === undefined) {
+      return [];
+    }
+
+    // amount is rendered with toFixed; a missing value must be the error state, not a crash in the view.
+    if (typeof item.amount !== 'number' || !Number.isFinite(item.amount)) {
+      throw unexpectedResponse('/job');
+    }
+
+    return [{ ...item, status }];
   });
+
+  if (data.items.length > 0 && items.length === 0) {
+    throw unexpectedResponse('/job');
+  }
+
   return { ...data, items } as unknown as PagedResult<Job>;
 }
 
@@ -107,7 +133,16 @@ class ApiService {
       throw new Error(`API Error: ${response.status} ${error}`);
     }
 
-    return response.json();
+    if (response.status === 204 || response.status === 205) {
+      return undefined as T;
+    }
+
+    const body = await response.text();
+    if (body.trim().length === 0) {
+      return undefined as T;
+    }
+
+    return JSON.parse(body) as T;
   }
 
   /** The token the API accepts for the signed-in user, or null when nobody is signed in. */

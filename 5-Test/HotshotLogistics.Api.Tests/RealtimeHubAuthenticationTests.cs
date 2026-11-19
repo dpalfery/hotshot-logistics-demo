@@ -316,5 +316,5 @@ namespace HotshotLogistics.Api.Tests
         public override Task RemoveFromGroupAsync(string connectionId, string groupName,
             CancellationToken cancellationToken = default) =>
             _inner.RemoveFromGroupAsync(connectionId, groupName, cancellationToken);
-}
+    }
 }

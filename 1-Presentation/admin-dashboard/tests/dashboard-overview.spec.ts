@@ -428,9 +428,9 @@ test.describe('Dashboard Overview', () => {
         contentType: 'application/json',
         body: JSON.stringify({
           items: [
-            { id: 'job-1', title: 'Numeric Pending', pickupAddress: 'a', dropoffAddress: 'b', status: 0 },
-            { id: 'job-2', title: 'Numeric En Route', pickupAddress: 'c', dropoffAddress: 'd', status: 2 },
-            { id: 'job-3', title: 'Numeric Received', pickupAddress: 'e', dropoffAddress: 'f', status: 3 }
+            { id: 'job-1', title: 'Numeric Pending', pickupAddress: 'a', dropoffAddress: 'b', status: 0, amount: 10 },
+            { id: 'job-2', title: 'Numeric En Route', pickupAddress: 'c', dropoffAddress: 'd', status: 2, amount: 20 },
+            { id: 'job-3', title: 'Numeric Received', pickupAddress: 'e', dropoffAddress: 'f', status: 3, amount: 30 }
           ],
           totalCount: 3
         })

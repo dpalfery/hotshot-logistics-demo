@@ -38,6 +38,16 @@ namespace HotshotLogistics.Api.Controllers
         }
 
         /// <summary>
+        ///     Creates a 403 response with a problem body.
+        /// </summary>
+        /// <param name="detail">Why the caller may not do this.</param>
+        /// <returns>The result.</returns>
+        protected ObjectResult ForbiddenProblem(string detail)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, CreateProblem(StatusCodes.Status403Forbidden, detail));
+        }
+
+        /// <summary>
         ///     Creates a 404 response with a problem body.
         /// </summary>
         /// <param name="detail">What could not be found.</param>
@@ -73,7 +83,7 @@ namespace HotshotLogistics.Api.Controllers
                 }
             }
 
-            ProblemDetailsFactory? factory = HttpContext?.RequestServices.GetService<ProblemDetailsFactory>();
+            ProblemDetailsFactory? factory = HttpContext?.RequestServices?.GetService<ProblemDetailsFactory>();
             ValidationProblemDetails details = factory is not null
                 ? factory.CreateValidationProblemDetails(HttpContext!, modelState, StatusCodes.Status400BadRequest)
                 : new ValidationProblemDetails(modelState)
@@ -98,7 +108,7 @@ namespace HotshotLogistics.Api.Controllers
 
         private ProblemDetails CreateProblem(int status, string detail)
         {
-            ProblemDetailsFactory? factory = HttpContext?.RequestServices.GetService<ProblemDetailsFactory>();
+            ProblemDetailsFactory? factory = HttpContext?.RequestServices?.GetService<ProblemDetailsFactory>();
             return factory is not null
                 ? factory.CreateProblemDetails(HttpContext!, status, detail: detail)
                 : new ProblemDetails

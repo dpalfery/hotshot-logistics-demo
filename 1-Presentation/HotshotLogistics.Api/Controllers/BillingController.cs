@@ -2,6 +2,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
+using System.Text;
 using HotshotLogistics.Api.Models;
 using HotshotLogistics.Application.Authorization;
 using HotshotLogistics.Contracts.Services;
@@ -12,6 +13,7 @@ using Microsoft.AspNetCore.Authorization;
 using HotshotLogistics.Api.RateLimiting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Primitives;
 
 namespace HotshotLogistics.Api.Controllers
 {
@@ -151,8 +153,8 @@ namespace HotshotLogistics.Api.Controllers
             return Ok(new InvoiceAgingBucketsResponse
             {
                 Current = entries.Sum(e => e.Current),
-                Days30 = entries.Sum(e => e.Days31To60),
-                Days60 = 0,
+                Days30 = entries.Sum(e => e.Days1To30),
+                Days60 = entries.Sum(e => e.Days31To60),
                 Days90 = entries.Sum(e => e.Days61To90),
                 Over90 = entries.Sum(e => e.Over90Days),
                 Total = entries.Sum(e => e.TotalBalance)
@@ -369,19 +371,33 @@ namespace HotshotLogistics.Api.Controllers
         {
             try
             {
+                byte[]? body = await ReadBoundedBodyAsync(Request.Body, s_maxWebhookBodyBytes, cancellationToken);
+                if (body is null)
+                {
+                    return BadRequestProblem("The webhook body is too large.");
+                }
+
+                if (!TrySingleValuedHeaders(Request.Headers, out Dictionary<string, string> headers))
+                {
+                    _logger.LogWarning("{Processor} webhook rejected: a signature header was repeated", processorName);
+                    return UnauthorizedProblem("The webhook signature is invalid.");
+                }
+
+                if (!headers.TryGetValue(signatureHeaderName, out string? signature)
+                    || string.IsNullOrWhiteSpace(signature))
+                {
+                    return UnauthorizedProblem("The webhook signature is invalid.");
+                }
+
+                // The signature covers these exact bytes. The string is only for reading the event type.
+                string payload = Encoding.UTF8.GetString(body);
                 IPaymentProcessor processor = _paymentProcessorFactory.GetProcessor(processorName);
-
-                using StreamReader reader = new(Request.Body);
-                string payload = await reader.ReadToEndAsync(cancellationToken);
-
                 WebhookEventDataDto webhookData = new()
                 {
                     Payload = payload,
-                    Signature = Request.Headers[signatureHeaderName].FirstOrDefault() ?? string.Empty,
-                    Headers = Request.Headers.ToDictionary(
-                        h => h.Key,
-                        h => h.Value.FirstOrDefault() ?? string.Empty,
-                        StringComparer.OrdinalIgnoreCase),
+                    RawBody = body,
+                    Signature = signature,
+                    Headers = headers,
                     EventType = extractEventType(payload)
                 };
 
@@ -408,12 +424,67 @@ namespace HotshotLogistics.Api.Controllers
 
                 return Ok(new { received = true });
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
-                // Deliberately broad: the provider retries on any 4xx and must never see internals.
-                _logger.LogError(ex, "Error processing {Processor} webhook", processorName);
-                return BadRequestProblem("Webhook processing failed");
+                // Missing webhook secret or id is misconfiguration. A 400 would be retried and hide the fault.
+                _logger.LogError(ex, "{Processor} webhook processing is misconfigured", processorName);
+                throw;
             }
+        }
+
+        /// <summary>
+        ///     Reads the body up to <paramref name="maxBytes" />. Returns null when the body is larger.
+        /// </summary>
+        private static async Task<byte[]?> ReadBoundedBodyAsync(Stream body, int maxBytes, CancellationToken cancellationToken)
+        {
+            using MemoryStream buffer = new();
+            byte[] chunk = new byte[8192];
+            while (true)
+            {
+                int read = await body.ReadAsync(chunk.AsMemory(0, chunk.Length), cancellationToken);
+                if (read == 0)
+                {
+                    return buffer.ToArray();
+                }
+
+                if (buffer.Length + read > maxBytes)
+                {
+                    return null;
+                }
+
+                buffer.Write(chunk, 0, read);
+            }
+        }
+
+        /// <summary>
+        ///     Copies headers that have exactly one value. A repeated signature header is rejected rather than
+        ///     taking the first value, which would let a second header change what was verified.
+        /// </summary>
+        private static bool TrySingleValuedHeaders(IHeaderDictionary headers, out Dictionary<string, string> single)
+        {
+            single = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (KeyValuePair<string, StringValues> header in headers)
+            {
+                if (header.Value.Count != 1)
+                {
+                    if (IsSignatureHeader(header.Key))
+                    {
+                        return false;
+                    }
+
+                    continue;
+                }
+
+                single[header.Key] = header.Value.ToString();
+            }
+
+            return true;
+        }
+
+        private static bool IsSignatureHeader(string name)
+        {
+            return name.Equals("Stripe-Signature", StringComparison.OrdinalIgnoreCase)
+                   || name.StartsWith("PAYPAL-", StringComparison.OrdinalIgnoreCase);
         }
 
         /// <summary>

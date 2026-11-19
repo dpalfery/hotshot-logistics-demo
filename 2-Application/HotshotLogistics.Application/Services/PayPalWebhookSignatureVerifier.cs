@@ -19,16 +19,21 @@ namespace HotshotLogistics.Application.Services
     internal static class PayPalWebhookSignatureVerifier
     {
         /// <summary>
-        ///     How far the transmission time may differ from the current time.
+        ///     How old a transmission time may be.
         /// </summary>
         public static TimeSpan Tolerance { get; } = TimeSpan.FromMinutes(5);
+
+        /// <summary>
+        ///     How far ahead of the clock a transmission time may be.
+        /// </summary>
+        public static TimeSpan FutureSkew { get; } = TimeSpan.FromMinutes(1);
 
         private const string s_authAlgorithm = "SHA256withRSA";
 
         /// <summary>
         ///     Checks the headers of a webhook request against its body.
         /// </summary>
-        /// <param name="payload">The raw request body.</param>
+        /// <param name="payload">The exact request bytes.</param>
         /// <param name="headers">The request headers; names are matched ignoring case.</param>
         /// <param name="webhookId">The id of the webhook registered with PayPal.</param>
         /// <param name="certificates">Supplies the signing certificate.</param>
@@ -36,7 +41,7 @@ namespace HotshotLogistics.Application.Services
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>True when every header is present, the time is fresh and the signature verifies.</returns>
         public static async Task<bool> IsValidAsync(
-            string payload,
+            ReadOnlyMemory<byte> payload,
             IReadOnlyDictionary<string, string> headers,
             string webhookId,
             IPayPalCertificateProvider certificates,
@@ -59,12 +64,14 @@ namespace HotshotLogistics.Application.Services
                     CultureInfo.InvariantCulture,
                     DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
                     out DateTimeOffset sentAt)
-                || (now - sentAt).Duration() > Tolerance
+                || sentAt > now + FutureSkew
+                || now - sentAt > Tolerance
                 || !Uri.TryCreate(certificateUrl, UriKind.Absolute, out Uri? certificateUri))
             {
                 return false;
             }
 
+            uint checksum = Crc32(payload.Span);
             try
             {
                 byte[] signatureBytes = Convert.FromBase64String(signature);
@@ -76,7 +83,7 @@ namespace HotshotLogistics.Application.Services
                     return false;
                 }
 
-                string message = $"{transmissionId}|{transmissionTime}|{webhookId}|{Crc32(payload)}";
+                string message = $"{transmissionId}|{transmissionTime}|{webhookId}|{checksum}";
                 return publicKey.VerifyData(
                     Encoding.UTF8.GetBytes(message),
                     signatureBytes,
@@ -92,12 +99,12 @@ namespace HotshotLogistics.Application.Services
         /// <summary>
         ///     Computes the CRC-32 (IEEE, as <c>java.util.zip.CRC32</c>) of the UTF-8 body, as PayPal's signed message uses it.
         /// </summary>
-        /// <param name="payload">The raw request body.</param>
+        /// <param name="payload">The exact request bytes.</param>
         /// <returns>The unsigned checksum.</returns>
-        public static uint Crc32(string payload)
+        public static uint Crc32(ReadOnlySpan<byte> payload)
         {
             uint crc = uint.MaxValue;
-            foreach (byte value in Encoding.UTF8.GetBytes(payload))
+            foreach (byte value in payload)
             {
                 crc ^= value;
                 for (int bit = 0; bit < 8; bit++)

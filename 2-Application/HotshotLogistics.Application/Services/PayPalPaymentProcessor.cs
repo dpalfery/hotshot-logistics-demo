@@ -129,7 +129,7 @@ namespace HotshotLogistics.Application.Services
         {
             ArgumentNullException.ThrowIfNull(webhookData);
             return PayPalWebhookSignatureVerifier.IsValidAsync(
-                webhookData.Payload,
+                webhookData.BodyBytes(),
                 webhookData.Headers,
                 _webhookId,
                 _certificates,

@@ -3,6 +3,9 @@
 import { useEffect, useState } from 'react';
 import { signalRService, SignalRService } from '@/services/signalr';
 
+// One connection serves every mounted consumer. The last one to leave closes it.
+let activeSubscribers = 0;
+
 /**
  * Keeps the SignalR connection open while the calling component is mounted and registers its
  * handlers on it. `subscribe` registers the handlers and returns the function that removes them;
@@ -19,10 +22,20 @@ export function useRealtimeSubscription(subscribe: (service: SignalRService) => 
     let cancelled = false;
     let unsubscribe: (() => void) | undefined;
 
+    activeSubscribers += 1;
+
     const connect = async () => {
       try {
         await signalRService.connect();
-        if (cancelled) return;
+        if (cancelled) {
+          if (activeSubscribers === 0) {
+            void signalRService.disconnect().catch(error => {
+              console.error('Failed to disconnect from SignalR:', error);
+            });
+          }
+          return;
+        }
+        setConnectionFailed(false);
         unsubscribe = subscribe(signalRService);
       } catch (error) {
         if (cancelled) return;
@@ -31,12 +44,18 @@ export function useRealtimeSubscription(subscribe: (service: SignalRService) => 
       }
     };
 
-    connect();
+    void connect();
 
     return () => {
       cancelled = true;
       unsubscribe?.();
-      signalRService.disconnect();
+      activeSubscribers -= 1;
+      if (activeSubscribers > 0) return;
+
+      activeSubscribers = 0;
+      void signalRService.disconnect().catch(error => {
+        console.error('Failed to disconnect from SignalR:', error);
+      });
     };
   }, [subscribe]);
 

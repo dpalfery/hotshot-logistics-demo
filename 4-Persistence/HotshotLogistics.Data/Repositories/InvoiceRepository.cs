@@ -300,8 +300,9 @@ namespace HotshotLogistics.Data.Repositories
                 i.CustomerId,
                 c.CompanyName as CustomerName,
                 SUM(CASE WHEN DATEDIFF(day, i.DueDate, GETUTCDATE()) <= 0 THEN i.TotalAmount - i.PaidAmount ELSE 0 END) as [Current],
-                SUM(CASE WHEN DATEDIFF(day, i.DueDate, GETUTCDATE()) BETWEEN 1 AND 30 THEN i.TotalAmount - i.PaidAmount ELSE 0 END) as Days31To60,
-                SUM(CASE WHEN DATEDIFF(day, i.DueDate, GETUTCDATE()) BETWEEN 31 AND 90 THEN i.TotalAmount - i.PaidAmount ELSE 0 END) as Days61To90,
+                SUM(CASE WHEN DATEDIFF(day, i.DueDate, GETUTCDATE()) BETWEEN 1 AND 30 THEN i.TotalAmount - i.PaidAmount ELSE 0 END) as Days1To30,
+                SUM(CASE WHEN DATEDIFF(day, i.DueDate, GETUTCDATE()) BETWEEN 31 AND 60 THEN i.TotalAmount - i.PaidAmount ELSE 0 END) as Days31To60,
+                SUM(CASE WHEN DATEDIFF(day, i.DueDate, GETUTCDATE()) BETWEEN 61 AND 90 THEN i.TotalAmount - i.PaidAmount ELSE 0 END) as Days61To90,
                 SUM(CASE WHEN DATEDIFF(day, i.DueDate, GETUTCDATE()) > 90 THEN i.TotalAmount - i.PaidAmount ELSE 0 END) as Over90Days,
                 SUM(i.TotalAmount - i.PaidAmount) as TotalBalance
             FROM Invoices i
@@ -333,6 +334,7 @@ namespace HotshotLogistics.Data.Repositories
                     CustomerId = reader.GetString(reader.GetOrdinal("CustomerId")),
                     CustomerName = reader.GetString(reader.GetOrdinal("CustomerName")),
                     Current = reader.GetDecimal(reader.GetOrdinal("Current")),
+                    Days1To30 = reader.GetDecimal(reader.GetOrdinal("Days1To30")),
                     Days31To60 = reader.GetDecimal(reader.GetOrdinal("Days31To60")),
                     Days61To90 = reader.GetDecimal(reader.GetOrdinal("Days61To90")),
                     Over90Days = reader.GetDecimal(reader.GetOrdinal("Over90Days")),

@@ -100,6 +100,12 @@ namespace HotshotLogistics.Api.Controllers
             [FromQuery] SortDirection sortDirection = SortDirection.Descending,
             CancellationToken cancellationToken = default)
         {
+            string? contradiction = ContradictoryJobFilter(status, isActive, isOverdue);
+            if (contradiction is not null)
+            {
+                return BadRequestProblem(contradiction);
+            }
+
             JobFilterDto filter = new()
             {
                 Status = status,
@@ -321,7 +327,7 @@ namespace HotshotLogistics.Api.Controllers
             catch (ArgumentException ex)
             {
                 _logger.LogWarning(ex, "Invalid assignment request: {Message}", ex.Message);
-                return NotFoundProblem(ex.Message);
+                return BadRequestProblem(ex.Message);
             }
             catch (InvalidOperationException ex)
             {
@@ -360,7 +366,7 @@ namespace HotshotLogistics.Api.Controllers
             catch (ArgumentException ex)
             {
                 _logger.LogWarning(ex, "Invalid status update request: {Message}", ex.Message);
-                return NotFoundProblem(ex.Message);
+                return BadRequestProblem(ex.Message);
             }
         }
 
@@ -427,6 +433,31 @@ namespace HotshotLogistics.Api.Controllers
         {
             IEnumerable<Job> jobs = await _jobRepository.GetOverdueJobsAsync(cancellationToken);
             return Ok(jobs);
+        }
+
+        /// <summary>
+        ///     Names a filter combination the query cannot satisfy. Active jobs are every status except
+        ///     <see cref="JobStatus.Received" />, and an overdue job is also not received, so pairing those
+        ///     flags with the opposite status matches nothing.
+        /// </summary>
+        private static string? ContradictoryJobFilter(JobStatus? status, bool? isActive, bool? isOverdue)
+        {
+            if (isActive == true && status == JobStatus.Received)
+            {
+                return "isActive=true excludes Received jobs, so it cannot be combined with status=Received.";
+            }
+
+            if (isActive == false && status is not null && status != JobStatus.Received)
+            {
+                return "isActive=false matches only Received jobs, so it cannot be combined with another status.";
+            }
+
+            if (isOverdue == true && (isActive == false || status == JobStatus.Received))
+            {
+                return "isOverdue=true excludes Received jobs, so it cannot be combined with isActive=false or status=Received.";
+            }
+
+            return null;
         }
     }
 }

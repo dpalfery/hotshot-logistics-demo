@@ -2,6 +2,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
+using System.Globalization;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Authentication;
@@ -16,6 +17,7 @@ namespace HotshotLogistics.Api
     public class TestAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions>
     {
         private const string s_developmentToken = "test-token";
+        private const string s_driverIdHeader = "X-Test-Driver-Id";
         private const string s_hubBearerToken = "Bearer " + s_developmentToken;
         private static readonly PathString s_hubPath = new("/realtime");
 
@@ -65,7 +67,7 @@ namespace HotshotLogistics.Api
                 requestedRole = roleHeader.ToString().Trim();
             }
 
-            Claim[] claims =
+            List<Claim> claims =
             [
                 new(ClaimTypes.NameIdentifier, "test-user-id"),
                 new(ClaimTypes.Name, "Test User"),
@@ -73,6 +75,13 @@ namespace HotshotLogistics.Api
                 new(ClaimTypes.Role, requestedRole),
                 new("roles", requestedRole)
             ];
+
+            if (Request.Headers.TryGetValue(s_driverIdHeader, out StringValues driverHeader)
+                && int.TryParse(driverHeader.ToString(), NumberStyles.None, CultureInfo.InvariantCulture, out int driverId)
+                && driverId > 0)
+            {
+                claims.Add(new Claim("driver_id", driverId.ToString(CultureInfo.InvariantCulture)));
+            }
 
             ClaimsIdentity identity = new(claims, "Test");
             ClaimsPrincipal principal = new(identity);

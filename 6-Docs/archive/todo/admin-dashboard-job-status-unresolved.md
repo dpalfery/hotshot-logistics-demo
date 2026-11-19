@@ -2,7 +2,8 @@
 id: todos/admin-dashboard-job-status-unresolved
 title: Resolve unresolved DashboardOverview issues
 doc-type: todo
-status: resolved
+status: superseded
+documentation-impact: no-design-change
 component: admin-dashboard
 owner: unassigned
 last-reviewed: 2026-11-19
@@ -32,3 +33,19 @@ Resolved 2026-11-19; the [admin dashboard architecture](../../admin-dashboard/ar
 - Not solved here, and tracked: the server sent `JobStatusUpdated` only to per-job groups and no production code sent it
   (since resolved: [job status update delivery](job-status-update-delivery.md)), and the other enums and the job shape
   differ from the wire ([dashboard wire types](../../todo/admin-dashboard-api-wire-types.md)).
+
+## Decisions
+
+| ID | Question | Answer | Status |
+|---|---|---|---|
+| D1 | Where does the durable record of this completed todo live? | The resolution in this archived todo is the record. | Approved |
+
+## Closeout mapping
+
+| ID | Destination |
+|---|---|
+| D1 | Documentation waiver — the resolution in this archived todo is the lasting record |
+
+## Design harvest
+
+Documentation waiver — nothing survives because the completed work is recorded in this archived todo and canonical docs were updated when the work landed.

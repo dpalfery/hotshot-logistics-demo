@@ -2,10 +2,12 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
+using System.Security.Claims;
 using FluentAssertions;
 using HotshotLogistics.Api.Controllers;
 using HotshotLogistics.Api.Models;
 using HotshotLogistics.Domain.Entities;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -18,6 +20,7 @@ namespace HotshotLogistics.Tests.Tracking
     public class TrackingControllerTests
     {
         private readonly TrackingController _controller;
+        private readonly Mock<IJobService> _mockJobService;
         private readonly Mock<ITrackingService> _mockTrackingService;
 
         /// <summary>
@@ -26,8 +29,12 @@ namespace HotshotLogistics.Tests.Tracking
         public TrackingControllerTests()
         {
             _mockTrackingService = new Mock<ITrackingService>();
+            _mockJobService = new Mock<IJobService>();
             Mock<ILogger<TrackingController>> mockLogger = new();
-            _controller = new TrackingController(_mockTrackingService.Object, mockLogger.Object);
+            _controller = new TrackingController(
+                _mockTrackingService.Object,
+                _mockJobService.Object,
+                mockLogger.Object);
         }
 
         /// <summary>
@@ -372,9 +379,17 @@ namespace HotshotLogistics.Tests.Tracking
             // Arrange
             string jobId = "job-123";
             LocationTracking expectedLocation = CreateTestLocationTracking(jobId, 456);
+            DateTime estimatedArrival = new(2026, 11, 20, 15, 0, 0, DateTimeKind.Utc);
 
             _mockTrackingService.Setup(s => s.GetCurrentLocationAsync(jobId, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(expectedLocation);
+            _mockJobService.Setup(s => s.GetJobByIdAsync(jobId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new Job
+                {
+                    Id = jobId,
+                    Status = JobStatus.Assigned,
+                    EstimatedDeliveryTime = estimatedArrival
+                });
 
             // Act
             ActionResult<PublicTrackingInfo> result = await _controller.GetPublicTrackingInfo(jobId);
@@ -386,6 +401,41 @@ namespace HotshotLogistics.Tests.Tracking
             publicInfo.JobId.Should().Be(jobId);
             publicInfo.CurrentLatitude.Should().Be((double)expectedLocation.Latitude);
             publicInfo.CurrentLongitude.Should().Be((double)expectedLocation.Longitude);
+            publicInfo.Status.Should().Be(nameof(JobStatus.Assigned));
+            publicInfo.EstimatedArrival.Should().Be(estimatedArrival);
+        }
+
+        /// <summary>
+        ///     A driver cannot start tracking under another driver's id.
+        /// </summary>
+        /// <returns>A task representing the asynchronous test.</returns>
+        [Fact]
+        public async Task StartTracking_WhenDriverActsAsSomeoneElse_ReturnsForbidden()
+        {
+            _controller.ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext
+                {
+                    User = new ClaimsPrincipal(new ClaimsIdentity(
+                    [
+                        new Claim(ClaimTypes.Role, "Driver"),
+                        new Claim("roles", "Driver"),
+                        new Claim("driver_id", "7")
+                    ], "Test"))
+                }
+            };
+
+            ActionResult<TrackingResult> result = await _controller.StartTracking(new StartTrackingRequest
+            {
+                JobId = "job-123",
+                DriverId = 8
+            });
+
+            ObjectResult forbidden = result.Result.Should().BeOfType<ObjectResult>().Subject;
+            forbidden.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
+            _mockTrackingService.Verify(
+                s => s.StartTrackingAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()),
+                Times.Never);
         }
 
         /// <summary>

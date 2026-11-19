@@ -2,7 +2,8 @@
 id: todos/repository-contract-convergence
 title: Converge repository contracts on IRepository<T> and cancellation
 doc-type: todo
-status: resolved
+status: superseded
+documentation-impact: no-design-change
 component: Api
 owner: unassigned
 last-reviewed: 2026-11-19
@@ -16,7 +17,7 @@ inheriting it would have added overloads that behave differently from their own 
 
 ## Resolution
 
-Resolved 2026-11-19; the [data access standard](../../standards/data-access-layer/data-access-layer.standards.md)
+Resolved 2026-11-19; the [data access standard](../../standards/data-access-layer/README.md)
 states the resulting contract.
 
 - Every member of `IRepository<T>` takes a `CancellationToken`, and the services pass theirs to `AddAsync`,
@@ -33,3 +34,19 @@ states the resulting contract.
 - Tests: `RepositoryContractTests` (contracts extend the generic one; every member takes a token),
   `RepositoryConnectionTests.GenericOperation_WithCancellationToken_PassesTokenToFactory` (all seven repositories by six
   members), `InvoiceRepositoryTests.GenericContract_AddAndGetById_SavesAndLoadsLineItems`.
+
+## Decisions
+
+| ID | Question | Answer | Status |
+|---|---|---|---|
+| D1 | Where does the durable record of this completed todo live? | The resolution in this archived todo is the record. | Approved |
+
+## Closeout mapping
+
+| ID | Destination |
+|---|---|
+| D1 | Documentation waiver — the resolution in this archived todo is the lasting record |
+
+## Design harvest
+
+Documentation waiver — nothing survives because the completed work is recorded in this archived todo and canonical docs were updated when the work landed.

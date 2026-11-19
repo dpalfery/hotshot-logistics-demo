@@ -10,7 +10,7 @@ last-reviewed: 2026-11-19
 
 # Pass CancellationToken through the driver endpoints and billing queries
 
-The [C# coding standard](../standards/csharp/csharp.standards.md#async) requires a `CancellationToken` on I/O, including
+The [C# coding standard](../standards/csharp/README.md#async) requires a `CancellationToken` on I/O, including
 controller actions. `DriversController` has none, because `IDriverService`, `DriverService` and the driver repository take
 no token. `BillingService.GetCustomerInvoicesAsync` and `GetOverdueInvoicesAsync` also drop the token they receive, because
 the invoice repository methods they call take none.

@@ -114,6 +114,17 @@ namespace HotshotLogistics.Application.Services
                 throw new ArgumentException("Invalid location update data", nameof(locationUpdate));
             }
 
+            Job? trackedJob = await _jobRepository.GetJobByIdAsync(jobId, cancellationToken);
+            if (trackedJob == null)
+            {
+                throw new KeyNotFoundException($"Job not found: {jobId}");
+            }
+
+            if (trackedJob.AssignedDriverId != driverId)
+            {
+                throw new UnauthorizedAccessException($"Driver {driverId} is not assigned to job {jobId}");
+            }
+
             // Check if tracking is active
             string trackingKey = $"tracking:{jobId}";
             string? trackingJson = await _cache.GetStringAsync(trackingKey, cancellationToken);

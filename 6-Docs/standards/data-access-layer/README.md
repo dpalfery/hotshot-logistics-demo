@@ -68,7 +68,7 @@ write SQL.
 - Multi-statement work that must be atomic runs in one transaction, with an explicit
   rollback path. Do not nest transactions.
 - Connection strings and credentials follow the
-  [C# configuration standard](../csharp/csharp.standards.md#configuration) — never a literal,
+  [C# configuration standard](../csharp/README.md#configuration) — never a literal,
   never a committed file, never a log line.
 - Register the factory as Singleton and repositories as Scoped in
   `ServiceCollectionExtensions.AddHotshotRepositories()`.

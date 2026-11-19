@@ -2,7 +2,8 @@
 id: todos/unauthenticated-endpoints
 title: Review endpoints that are unauthenticated or unreachable by their callers
 doc-type: todo
-status: resolved
+status: superseded
+documentation-impact: no-design-change
 component: Api
 owner: unassigned
 last-reviewed: 2026-11-19
@@ -40,3 +41,19 @@ Resolved 2026-11-19; the [API architecture](../../api/architecture.md#authorizat
 Not done: replay protection beyond the timestamp window (no event-id de-duplication), and the public tracking page
 still reports a fixed `In Transit` status and an estimated arrival two hours after the last fix because the job status
 is not looked up.
+
+## Decisions
+
+| ID | Question | Answer | Status |
+|---|---|---|---|
+| D1 | Where does the durable record of this completed todo live? | The resolution in this archived todo is the record. | Approved |
+
+## Closeout mapping
+
+| ID | Destination |
+|---|---|
+| D1 | Documentation waiver — the resolution in this archived todo is the lasting record |
+
+## Design harvest
+
+Documentation waiver — nothing survives because the completed work is recorded in this archived todo and canonical docs were updated when the work landed.

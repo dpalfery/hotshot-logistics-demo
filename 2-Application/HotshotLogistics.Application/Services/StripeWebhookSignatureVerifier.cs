@@ -16,19 +16,25 @@ namespace HotshotLogistics.Application.Services
     internal static class StripeWebhookSignatureVerifier
     {
         /// <summary>
-        ///     How far the signed timestamp may differ from the current time. This is Stripe's default.
+        ///     How old a signed timestamp may be. This is Stripe's default.
         /// </summary>
         public static TimeSpan Tolerance { get; } = TimeSpan.FromMinutes(5);
 
         /// <summary>
-        ///     Checks a signature header against the payload.
+        ///     How far ahead of the clock a timestamp may be. A captured request stamped in the future is not
+        ///     accepted for the whole tolerance window.
         /// </summary>
-        /// <param name="payload">The raw request body.</param>
+        public static TimeSpan FutureSkew { get; } = TimeSpan.FromMinutes(1);
+
+        /// <summary>
+        ///     Checks a signature header against the raw request body.
+        /// </summary>
+        /// <param name="payload">The exact request bytes.</param>
         /// <param name="signatureHeader">The <c>Stripe-Signature</c> header value.</param>
         /// <param name="secret">The webhook signing secret.</param>
         /// <param name="now">The current time.</param>
         /// <returns>True when a <c>v1</c> signature matches and the timestamp is within the tolerance.</returns>
-        public static bool IsValid(string payload, string signatureHeader, string secret, DateTimeOffset now)
+        public static bool IsValid(ReadOnlySpan<byte> payload, string signatureHeader, string secret, DateTimeOffset now)
         {
             if (string.IsNullOrWhiteSpace(secret) || string.IsNullOrWhiteSpace(signatureHeader))
             {
@@ -63,14 +69,17 @@ namespace HotshotLogistics.Application.Services
                 return false;
             }
 
-            if ((now - DateTimeOffset.FromUnixTimeSeconds(seconds)).Duration() > Tolerance)
+            DateTimeOffset sentAt = DateTimeOffset.FromUnixTimeSeconds(seconds);
+            if (sentAt > now + FutureSkew || now - sentAt > Tolerance)
             {
                 return false;
             }
 
-            byte[] expected = HMACSHA256.HashData(
-                Encoding.UTF8.GetBytes(secret),
-                Encoding.UTF8.GetBytes($"{timestamp}.{payload}"));
+            byte[] prefix = Encoding.ASCII.GetBytes($"{timestamp}.");
+            byte[] signed = new byte[prefix.Length + payload.Length];
+            prefix.CopyTo(signed, 0);
+            payload.CopyTo(signed.AsSpan(prefix.Length));
+            byte[] expected = HMACSHA256.HashData(Encoding.UTF8.GetBytes(secret), signed);
             return candidates.Exists(candidate => CryptographicOperations.FixedTimeEquals(candidate, expected));
         }
 

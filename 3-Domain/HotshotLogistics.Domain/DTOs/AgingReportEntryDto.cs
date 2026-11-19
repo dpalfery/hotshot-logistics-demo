@@ -16,17 +16,22 @@ namespace HotshotLogistics.Domain.DTOs
         public string CustomerName { get; set; } = string.Empty;
 
         /// <summary>
-        ///     Gets or sets the current balance (0-30 days).
+        ///     Gets or sets the balance that is not yet due.
         /// </summary>
         public decimal Current { get; set; }
 
         /// <summary>
-        ///     Gets or sets the 31-60 days balance.
+        ///     Gets or sets the balance 1–30 days past due.
+        /// </summary>
+        public decimal Days1To30 { get; set; }
+
+        /// <summary>
+        ///     Gets or sets the balance 31–60 days past due.
         /// </summary>
         public decimal Days31To60 { get; set; }
 
         /// <summary>
-        ///     Gets or sets the 61-90 days balance.
+        ///     Gets or sets the balance 61–90 days past due.
         /// </summary>
         public decimal Days61To90 { get; set; }
 

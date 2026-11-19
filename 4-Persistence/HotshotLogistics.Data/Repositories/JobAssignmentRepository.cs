@@ -30,8 +30,15 @@ namespace HotshotLogistics.Data.Repositories
             {EntityColumns.JobAssignmentJoined}
             WHERE ja.Id = @Id";
 
+            ArgumentNullException.ThrowIfNull(id);
+            string? assignmentId = id as string ?? Convert.ToString(id, CultureInfo.InvariantCulture);
+            if (string.IsNullOrWhiteSpace(assignmentId))
+            {
+                throw new ArgumentException("Assignment id is required.", nameof(id));
+            }
+
             SqlParameter[] parameters =
-                [new("@Id", SqlDbType.NVarChar) { Value = Convert.ToString(id, CultureInfo.InvariantCulture) }];
+                [new("@Id", SqlDbType.NVarChar) { Value = assignmentId }];
             IEnumerable<JobAssignmentDto> assignments = await ExecuteQueryAsync(sql, parameters, cancellationToken);
             return assignments.FirstOrDefault();
         }
@@ -95,8 +102,20 @@ namespace HotshotLogistics.Data.Repositories
                 throw new ArgumentNullException(nameof(jobAssignment));
             }
 
-            jobAssignment.Id = Guid.NewGuid().ToString();
             return await AddAsync(jobAssignment, cancellationToken);
+        }
+
+        /// <inheritdoc />
+        public override async Task<JobAssignmentDto> AddAsync(JobAssignmentDto jobAssignment,
+            CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(jobAssignment);
+            if (string.IsNullOrWhiteSpace(jobAssignment.Id))
+            {
+                jobAssignment.Id = Guid.NewGuid().ToString();
+            }
+
+            return await base.AddAsync(jobAssignment, cancellationToken);
         }
 
         /// <inheritdoc />

@@ -150,7 +150,7 @@ namespace HotshotLogistics.Api.Tests
         }
 
         [Fact]
-        public async Task Webhook_WhenTheSecretIsNotConfigured_Returns400AndProcessesNothing()
+        public async Task Webhook_WhenTheSecretIsNotConfigured_Returns500AndProcessesNothing()
         {
             Dictionary<string, string?> settings = new(WebhookSigning.Settings) { ["Stripe:WebhookSecret"] = string.Empty };
             await using WebApplicationFactory<Program> factory = CreateFactory(settings);
@@ -162,7 +162,7 @@ namespace HotshotLogistics.Api.Tests
                 WebhookSigning.StripeBody,
                 StripeHeaders(WebhookSigning.StripeBody, string.Empty, DateTimeOffset.UtcNow));
 
-            response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+            response.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
             VerifyProcessed(Times.Never());
         }
 

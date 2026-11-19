@@ -2,6 +2,8 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
+using System.Globalization;
+using System.Security.Claims;
 using HotshotLogistics.Api.Models;
 using HotshotLogistics.Application.Authorization;
 using HotshotLogistics.Contracts.Services;
@@ -21,6 +23,9 @@ namespace HotshotLogistics.Api.Controllers
     [Authorize]
     public sealed class TrackingController : ApiControllerBase
     {
+        private const string s_driverIdClaim = "driver_id";
+
+        private readonly IJobService _jobService;
         private readonly ILogger<TrackingController> _logger;
         private readonly ITrackingService _trackingService;
 
@@ -28,12 +33,15 @@ namespace HotshotLogistics.Api.Controllers
         ///     Initializes a new instance of the <see cref="TrackingController" /> class.
         /// </summary>
         /// <param name="trackingService">The tracking service.</param>
+        /// <param name="jobService">The job service, used to check that a driver owns the job.</param>
         /// <param name="logger">The _logger.</param>
         public TrackingController(
             ITrackingService trackingService,
+            IJobService jobService,
             ILogger<TrackingController> logger)
         {
             _trackingService = trackingService ?? throw new ArgumentNullException(nameof(trackingService));
+            _jobService = jobService ?? throw new ArgumentNullException(nameof(jobService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
@@ -67,6 +75,12 @@ namespace HotshotLogistics.Api.Controllers
                 if (request.DriverId <= 0)
                 {
                     return BadRequestProblem("Valid driver ID is required");
+                }
+
+                ActionResult? forbidden = RejectIfDriverImpersonating(request.DriverId);
+                if (forbidden is not null)
+                {
+                    return forbidden;
                 }
 
                 bool success =
@@ -114,6 +128,12 @@ namespace HotshotLogistics.Api.Controllers
                 if (string.IsNullOrWhiteSpace(jobId))
                 {
                     return BadRequestProblem("Job ID is required");
+                }
+
+                ActionResult? forbidden = await RejectIfDriverDoesNotOwnJobAsync(jobId, cancellationToken);
+                if (forbidden is not null)
+                {
+                    return forbidden;
                 }
 
                 bool success = await _trackingService.StopTrackingAsync(jobId, cancellationToken);
@@ -177,6 +197,12 @@ namespace HotshotLogistics.Api.Controllers
                     return BadRequestProblem("Location update data is required");
                 }
 
+                ActionResult? forbidden = RejectIfDriverImpersonating(request.DriverId);
+                if (forbidden is not null)
+                {
+                    return forbidden;
+                }
+
                 LocationTracking locationTracking = await _trackingService.UpdateLocationAsync(
                     request.JobId,
                     request.DriverId,
@@ -197,6 +223,11 @@ namespace HotshotLogistics.Api.Controllers
             {
                 _logger.LogWarning(ex, "Job or driver not found for location update: {Message}", ex.Message);
                 return NotFoundProblem(ex.Message);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                _logger.LogWarning(ex, "Location update refused: the driver is not assigned to the job");
+                return ForbiddenProblem("You cannot record a location for this job.");
             }
         }
 
@@ -292,6 +323,12 @@ namespace HotshotLogistics.Api.Controllers
                     return BadRequestProblem("Current location is required");
                 }
 
+                ActionResult? forbidden = await RejectIfDriverDoesNotOwnJobAsync(request.JobId, cancellationToken);
+                if (forbidden is not null)
+                {
+                    return forbidden;
+                }
+
                 bool hasDeviated = await _trackingService.CheckRouteDeviationAsync(
                     request.JobId,
                     request.CurrentLocation,
@@ -342,17 +379,84 @@ namespace HotshotLogistics.Api.Controllers
                 return NotFoundProblem($"No tracking information available for job {jobId}");
             }
 
+            Job? job = await _jobService.GetJobByIdAsync(jobId, cancellationToken);
+            if (job == null)
+            {
+                return NotFoundProblem($"No tracking information available for job {jobId}");
+            }
+
             PublicTrackingInfo publicInfo = new()
             {
                 JobId = jobId,
                 CurrentLatitude = (double)currentLocation.Latitude,
                 CurrentLongitude = (double)currentLocation.Longitude,
                 LastUpdated = currentLocation.Timestamp,
-                Status = "In Transit", // This could be derived from job status
-                EstimatedArrival = currentLocation.Timestamp.AddHours(2) // Placeholder calculation
+                Status = job.Status.ToString(),
+                EstimatedArrival = job.EstimatedDeliveryTime
             };
 
             return Ok(publicInfo);
+        }
+
+        /// <summary>
+        ///     A driver may record tracking only as themselves. A manager may name the assigned driver.
+        /// </summary>
+        private ActionResult? RejectIfDriverImpersonating(int requestedDriverId)
+        {
+            if (!IsDriver(User) || IsManager(User))
+            {
+                return null;
+            }
+
+            if (!TryGetOwnDriverId(User, out int ownDriverId) || ownDriverId != requestedDriverId)
+            {
+                return ForbiddenProblem("A driver can only track as themselves.");
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        ///     A driver may read or stop only a job assigned to them. Missing and unassigned jobs answer the same
+        ///     way, so the call cannot be used to learn whether some other job exists.
+        /// </summary>
+        private async Task<ActionResult?> RejectIfDriverDoesNotOwnJobAsync(string jobId, CancellationToken cancellationToken)
+        {
+            if (!IsDriver(User) || IsManager(User))
+            {
+                return null;
+            }
+
+            if (!TryGetOwnDriverId(User, out int ownDriverId))
+            {
+                return ForbiddenProblem("A driver identity is required.");
+            }
+
+            Job? job = await _jobService.GetJobByIdAsync(jobId, cancellationToken);
+            if (job?.AssignedDriverId != ownDriverId)
+            {
+                return ForbiddenProblem("A driver can only access jobs assigned to them.");
+            }
+
+            return null;
+        }
+
+        private static bool IsManager(ClaimsPrincipal? user)
+        {
+            return user is not null
+                && (user.IsInRole("Manager") || user.HasClaim(claim => claim.Type == "roles" && claim.Value == "Manager"));
+        }
+
+        private static bool IsDriver(ClaimsPrincipal? user)
+        {
+            return user is not null
+                && (user.IsInRole("Driver") || user.HasClaim(claim => claim.Type == "roles" && claim.Value == "Driver"));
+        }
+
+        private static bool TryGetOwnDriverId(ClaimsPrincipal? user, out int driverId)
+        {
+            string? value = user?.FindFirst(s_driverIdClaim)?.Value;
+            return int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out driverId) && driverId > 0;
         }
     }
 }

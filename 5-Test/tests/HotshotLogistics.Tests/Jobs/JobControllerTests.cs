@@ -110,6 +110,42 @@ namespace HotshotLogistics.Tests.Jobs
         }
 
         /// <summary>
+        ///     A filter that cannot match any row is a bad request, not an empty page.
+        /// </summary>
+        /// <returns>A task representing the asynchronous test.</returns>
+        [Fact]
+        public async Task GetJobs_WhenActiveAndReceivedContradict_ReturnsBadRequest()
+        {
+            ActionResult<PagedResult<Job>> result = await _controller.GetJobs(
+                status: JobStatus.Received,
+                isActive: true);
+
+            result.Result.Should().BeOfType<BadRequestObjectResult>();
+            _mockJobRepository.Verify(
+                r => r.GetJobsAsync(
+                    It.IsAny<JobFilterDto>(),
+                    It.IsAny<PaginationParameters>(),
+                    It.IsAny<SortParameters>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
+        /// <summary>
+        ///     An invalid assignment is a bad request. Not-found stays a different status.
+        /// </summary>
+        /// <returns>A task representing the asynchronous test.</returns>
+        [Fact]
+        public async Task AssignDriver_WhenTheRequestIsInvalid_ReturnsBadRequest()
+        {
+            _mockJobService.Setup(s => s.AssignDriverAsync("job-1", 1, It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new ArgumentException("Driver id is invalid."));
+
+            ActionResult<Job> result = await _controller.AssignDriver("job-1", new AssignDriverRequest { DriverId = 1 });
+
+            result.Result.Should().BeOfType<BadRequestObjectResult>();
+        }
+
+        /// <summary>
         ///     Tests that GetJobById returns the job when found.
         /// </summary>
         /// <returns>A task representing the asynchronous test.</returns>

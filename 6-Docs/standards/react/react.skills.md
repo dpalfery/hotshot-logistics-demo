@@ -1,9 +1,8 @@
 ---
 id: standards/react/skills
 title: react skills
-doc-type: skill
+doc-type: reference
 status: draft
-technology: react
 owner: unassigned
 last-reviewed: 2026-11-19
 ---

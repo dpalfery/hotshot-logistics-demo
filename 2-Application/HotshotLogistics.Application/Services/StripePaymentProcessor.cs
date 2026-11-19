@@ -122,7 +122,7 @@ namespace HotshotLogistics.Application.Services
         {
             ArgumentNullException.ThrowIfNull(webhookData);
             return Task.FromResult(StripeWebhookSignatureVerifier.IsValid(
-                webhookData.Payload,
+                webhookData.BodyBytes(),
                 webhookData.Signature,
                 _webhookSecret,
                 _timeProvider.GetUtcNow()));

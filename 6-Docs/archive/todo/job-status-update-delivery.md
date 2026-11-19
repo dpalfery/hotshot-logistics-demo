@@ -2,7 +2,8 @@
 id: todos/job-status-update-delivery
 title: Make the server deliver job status updates to the dashboard
 doc-type: todo
-status: resolved
+status: superseded
+documentation-impact: no-design-change
 component: Api
 owner: unassigned
 last-reviewed: 2026-11-19
@@ -44,3 +45,19 @@ Resolved 2026-11-19; the [API architecture](../../api/architecture.md#realtime-h
 - Not solved here, and tracked in [tracking dashboard live events](../../todo/tracking-live-events-contract.md): the
   client's `LocationUpdate` and `Notification` events and their payloads still differ from the hub's `LocationUpdated`
   and `NotificationReceived`, and the server never sends either to the dashboard.
+
+## Decisions
+
+| ID | Question | Answer | Status |
+|---|---|---|---|
+| D1 | Where does the durable record of this completed todo live? | The resolution in this archived todo is the record. | Approved |
+
+## Closeout mapping
+
+| ID | Destination |
+|---|---|
+| D1 | Documentation waiver — the resolution in this archived todo is the lasting record |
+
+## Design harvest
+
+Documentation waiver — nothing survives because the completed work is recorded in this archived todo and canonical docs were updated when the work landed.

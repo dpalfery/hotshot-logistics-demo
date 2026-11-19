@@ -25,8 +25,11 @@ namespace HotshotLogistics.Tests.Billing
         [InlineData("https://evilpaypal.com/certs/CERT-1", false)]
         [InlineData("https://api.paypal.com@evil.example/certs/CERT-1", false)]
         [InlineData("https://user:pass@api.paypal.com/certs/CERT-1", false)]
-        [InlineData("https://api.paypal.com:8443/certs/CERT-1", false)]
+        [InlineData("https://api.paypal.com:8443/v1/notifications/certs/CERT-1", false)]
         [InlineData("https://169.254.169.254/latest/meta-data", false)]
+        [InlineData("https://attacker.paypal.com/v1/notifications/certs/CERT-1", false)]
+        [InlineData("https://paypal.com/v1/notifications/certs/CERT-1", false)]
+        [InlineData("https://api.paypal.com/certs/CERT-1", false)]
         public void IsTrustedCertificateUrl_OnlyAcceptsPlainHttpsPayPalHosts(string url, bool expected)
         {
             PayPalCertificateProvider.IsTrustedCertificateUrl(new Uri(url)).Should().Be(expected);

@@ -2,7 +2,8 @@
 id: todos/rate-limiting
 title: Add API rate limiting
 doc-type: todo
-status: resolved
+status: superseded
+documentation-impact: no-design-change
 component: Api
 owner: unassigned
 last-reviewed: 2026-11-19
@@ -10,7 +11,7 @@ last-reviewed: 2026-11-19
 
 # Add API rate limiting
 
-The [C# coding standard](../../standards/csharp/csharp.standards.md#http-pipeline) calls for rate-limiting public endpoints, but the API currently has no `AddRateLimiter()` or `UseRateLimiter()` configuration.
+The [C# coding standard](../../standards/csharp/README.md#http-pipeline) calls for rate-limiting public endpoints, but the API currently has no `AddRateLimiter()` or `UseRateLimiter()` configuration.
 
 ## Resolution
 
@@ -29,3 +30,19 @@ behind a single proxy every client shares one bucket. Configure forwarded header
 Auth gaps found on the public endpoints are tracked in [unauthenticated endpoints](unauthenticated-endpoints.md).
 
 Tests: `HotshotLogistics.Api.Tests.RateLimitingTests`.
+
+## Decisions
+
+| ID | Question | Answer | Status |
+|---|---|---|---|
+| D1 | Where does the durable record of this completed todo live? | The resolution in this archived todo is the record. | Approved |
+
+## Closeout mapping
+
+| ID | Destination |
+|---|---|
+| D1 | Documentation waiver — the resolution in this archived todo is the lasting record |
+
+## Design harvest
+
+Documentation waiver — nothing survives because the completed work is recorded in this archived todo and canonical docs were updated when the work landed.

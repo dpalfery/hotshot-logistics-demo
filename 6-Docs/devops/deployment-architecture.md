@@ -347,6 +347,6 @@ on 2026-10-20, and the locations in which each of the two claims was recorded.
 - [API architecture](../api/architecture.md) and [API onboarding](../api/onboarding.md)
 - [DbSetup architecture](../dbsetup/architecture.md) and [DbSetup onboarding](../dbsetup/onboarding.md)
 - [Admin dashboard architecture](../admin-dashboard/architecture.md)
-- [github-actions coding standard](../standards/github-actions/github-actions.standards.md)
+- [github-actions coding standard](../standards/github-actions/README.md)
 - [Security guidelines](../security.md)
 - Source roots: [7-Deployment/README.md](../../7-Deployment/README.md) and [7-Deployment/DbSetup/README.md](../../7-Deployment/DbSetup/README.md)

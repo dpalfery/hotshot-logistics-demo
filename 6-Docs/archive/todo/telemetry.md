@@ -2,7 +2,8 @@
 id: todos/telemetry
 title: Define metrics and tracing
 doc-type: todo
-status: resolved
+status: superseded
+documentation-impact: no-design-change
 component: Api
 owner: unassigned
 last-reviewed: 2026-11-19
@@ -10,7 +11,7 @@ last-reviewed: 2026-11-19
 
 # Define metrics and tracing
 
-The [C# coding standard](../../standards/csharp/csharp.standards.md#safety) calls for application metrics, distributed tracing via OpenTelemetry, and Application Insights export. The API currently has no metrics/tracing registration or exporter.
+The [C# coding standard](../../standards/csharp/README.md#safety) calls for application metrics, distributed tracing via OpenTelemetry, and Application Insights export. The API currently has no metrics/tracing registration or exporter.
 
 ## Resolution
 
@@ -29,3 +30,19 @@ Not done: SQL client and log export. Add `OpenTelemetry.Instrumentation.SqlClien
 dashboards need them.
 
 Tests: `HotshotLogistics.Api.Tests.TelemetryTests`.
+
+## Decisions
+
+| ID | Question | Answer | Status |
+|---|---|---|---|
+| D1 | Where does the durable record of this completed todo live? | The resolution in this archived todo is the record. | Approved |
+
+## Closeout mapping
+
+| ID | Destination |
+|---|---|
+| D1 | Documentation waiver — the resolution in this archived todo is the lasting record |
+
+## Design harvest
+
+Documentation waiver — nothing survives because the completed work is recorded in this archived todo and canonical docs were updated when the work landed.

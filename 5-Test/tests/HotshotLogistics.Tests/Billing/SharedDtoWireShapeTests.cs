@@ -37,7 +37,11 @@ namespace HotshotLogistics.Tests.Billing
             {
                 nameof(AgingReportEntryDto),
                 new AgingReportEntryDto(),
-                new[] { "customerId", "customerName", "current", "days31To60", "days61To90", "over90Days", "totalBalance" }
+                new[]
+                {
+                    "customerId", "customerName", "current", "days1To30", "days31To60", "days61To90", "over90Days",
+                    "totalBalance"
+                }
             },
             {
                 nameof(InvoiceSummaryDto),

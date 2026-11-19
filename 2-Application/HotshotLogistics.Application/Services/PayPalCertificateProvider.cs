@@ -11,8 +11,8 @@ namespace HotshotLogistics.Application.Services
 {
     /// <summary>
     ///     Downloads PayPal's webhook signing certificate. The URL comes from an unauthenticated request, so
-    ///     it is fetched only when it is an https URL on a <c>paypal.com</c> host (never an attacker-chosen
-    ///     address), and the certificate is used only when it chains to a trusted root.
+    ///     it is fetched only from PayPal's API hosts and the certificate path, and the certificate is used
+    ///     only when it chains to a trusted root and is not revoked.
     /// </summary>
     public sealed class PayPalCertificateProvider : IPayPalCertificateProvider
     {
@@ -20,6 +20,11 @@ namespace HotshotLogistics.Application.Services
         private const int s_maxCachedCertificates = 16;
         private static readonly TimeSpan s_downloadTimeout = TimeSpan.FromSeconds(10);
         private static readonly TimeSpan s_cacheLifetime = TimeSpan.FromHours(1);
+        private static readonly HashSet<string> s_allowedHosts = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "api.paypal.com",
+            "api.sandbox.paypal.com"
+        };
 
         private readonly ConcurrentDictionary<Uri, (X509Certificate2 Certificate, DateTimeOffset ExpiresAt)> _cache = new();
         private readonly IHttpClientFactory _httpClientFactory;
@@ -46,7 +51,10 @@ namespace HotshotLogistics.Application.Services
         ///     Checks that a certificate URL is one this service may fetch.
         /// </summary>
         /// <param name="url">The URL from the request header.</param>
-        /// <returns>True for an https URL, without credentials or a custom port, on a paypal.com host.</returns>
+        /// <returns>
+        ///     True for an https URL, without credentials or a custom port, on <c>api.paypal.com</c> or
+        ///     <c>api.sandbox.paypal.com</c>, whose path is a webhook certificate.
+        /// </returns>
         public static bool IsTrustedCertificateUrl(Uri url)
         {
             ArgumentNullException.ThrowIfNull(url);
@@ -54,7 +62,8 @@ namespace HotshotLogistics.Application.Services
                    && url.Scheme == Uri.UriSchemeHttps
                    && url.IsDefaultPort
                    && string.IsNullOrEmpty(url.UserInfo)
-                   && url.Host.EndsWith(".paypal.com", StringComparison.OrdinalIgnoreCase);
+                   && s_allowedHosts.Contains(url.Host)
+                   && url.AbsolutePath.StartsWith("/v1/notifications/certs/", StringComparison.Ordinal);
         }
 
         /// <inheritdoc />
@@ -109,8 +118,9 @@ namespace HotshotLogistics.Application.Services
         {
             using X509Chain chain = new();
 
-            // Revocation lookups would make an unauthenticated request depend on a second outbound call.
-            chain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
+            // A compromised certificate must stop verifying as soon as its issuer revokes it.
+            chain.ChainPolicy.RevocationMode = X509RevocationMode.Online;
+            chain.ChainPolicy.RevocationFlag = X509RevocationFlag.ExcludeRoot;
             for (int index = 1; index < certificates.Count; index++)
             {
                 chain.ChainPolicy.ExtraStore.Add(certificates[index]);

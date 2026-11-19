@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using FluentAssertions;
 using HotshotLogistics.Contracts.Services;
+using HotshotLogistics.Core.Enums;
 using HotshotLogistics.Domain.Entities;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Moq;
@@ -74,8 +75,15 @@ namespace HotshotLogistics.Api.Tests
             Mock<ITrackingService> service = new();
             service.Setup(s => s.StartTrackingAsync(s_jobId, 7, It.IsAny<CancellationToken>())).ReturnsAsync(true);
             service.Setup(s => s.StopTrackingAsync(s_jobId, It.IsAny<CancellationToken>())).ReturnsAsync(true);
-            await using WebApplicationFactory<Program> factory = CreateFactory(service);
+            Mock<IJobService> jobs = new();
+            jobs.Setup(s => s.GetJobByIdAsync(s_jobId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new Job { Id = s_jobId, AssignedDriverId = 7, Status = JobStatus.Assigned });
+            await using WebApplicationFactory<Program> factory = CreateFactory(service, jobs);
             using HttpClient client = factory.CreateAuthenticatedClient(role);
+            if (role == "Driver")
+            {
+                client.DefaultRequestHeaders.Add("X-Test-Driver-Id", "7");
+            }
 
             using HttpResponseMessage response = await client.SendAsync(
                 CreateRequest(method, path, body),
@@ -114,7 +122,15 @@ namespace HotshotLogistics.Api.Tests
                     Heading = 90,
                     Accuracy = 5m,
                 });
-            await using WebApplicationFactory<Program> factory = CreateFactory(service);
+            Mock<IJobService> jobs = new();
+            jobs.Setup(s => s.GetJobByIdAsync(s_jobId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new Job
+                {
+                    Id = s_jobId,
+                    Status = JobStatus.EnRoute,
+                    EstimatedDeliveryTime = new DateTime(2026, 11, 20, 16, 0, 0, DateTimeKind.Utc)
+                });
+            await using WebApplicationFactory<Program> factory = CreateFactory(service, jobs);
             using HttpClient client = factory.CreateClient();
 
             using HttpResponseMessage response = await client.GetAsync(
@@ -144,6 +160,22 @@ namespace HotshotLogistics.Api.Tests
             response.StatusCode.Should().Be(HttpStatusCode.NotFound);
         }
 
+        [Fact]
+        public async Task StartTracking_WhenADriverNamesAnotherDriver_Returns403AndCallsNoService()
+        {
+            Mock<ITrackingService> service = new(MockBehavior.Strict);
+            await using WebApplicationFactory<Program> factory = CreateFactory(service);
+            using HttpClient client = factory.CreateAuthenticatedClient("Driver");
+            client.DefaultRequestHeaders.Add("X-Test-Driver-Id", "7");
+
+            using HttpResponseMessage response = await client.SendAsync(
+                CreateRequest("POST", "/api/Tracking/start", "{\"jobId\":\"job-1\",\"driverId\":8}"),
+                TestContext.Current.CancellationToken);
+
+            response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+            service.VerifyNoOtherCalls();
+        }
+
         private static HttpRequestMessage CreateRequest(string method, string path, string? body)
         {
             HttpRequestMessage request = new(new HttpMethod(method), path);
@@ -155,11 +187,20 @@ namespace HotshotLogistics.Api.Tests
             return request;
         }
 
-        private static WebApplicationFactory<Program> CreateFactory(Mock<ITrackingService> service)
+        private static WebApplicationFactory<Program> CreateFactory(
+            Mock<ITrackingService> service,
+            Mock<IJobService>? jobs = null)
         {
             return ApiHostFactory.Create(
                 new Dictionary<string, string?> { ["ConnectionStrings:DefaultConnection"] = string.Empty },
-                services => services.ReplaceScoped(service.Object));
+                services =>
+                {
+                    services.ReplaceScoped(service.Object);
+                    if (jobs is not null)
+                    {
+                        services.ReplaceScoped(jobs.Object);
+                    }
+                });
         }
     }
 }
