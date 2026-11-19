@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiService } from '@/services/api';
-import { signalRService } from '@/services/signalr';
-import { LocationUpdate, NotificationMessage } from '@/types';
+import { useRealtimeSubscription } from '@/lib/useRealtimeSubscription';
+import { SignalRService } from '@/services/signalr';
+import { JobStatus, LocationUpdate, NotificationMessage } from '@/types';
 import { MapIcon, BellIcon } from '@heroicons/react/24/outline';
 
 const LIVE_ITEM_LIMIT = 10;
@@ -12,7 +13,6 @@ const LIVE_ITEM_LIMIT = 10;
 export function TrackingDashboard() {
   const [locationUpdates, setLocationUpdates] = useState<LocationUpdate[]>([]);
   const [notifications, setNotifications] = useState<NotificationMessage[]>([]);
-  const [liveUpdatesFailed, setLiveUpdatesFailed] = useState(false);
 
   const { data: jobsResult, isPending: jobsPending, isError: jobsError } = useQuery({
     queryKey: ['jobs'],
@@ -20,40 +20,25 @@ export function TrackingDashboard() {
     retry: false,
   });
 
-  useEffect(() => {
-    // StrictMode runs this effect, its cleanup and this effect again: a connection attempt that
-    // the cleanup has already cancelled must not register handlers or report a failure
-    let cancelled = false;
-
-    const connectSignalR = async () => {
-      try {
-        await signalRService.connect();
-        if (cancelled) return;
-
-        signalRService.onLocationUpdate((update) => {
-          setLocationUpdates(prev => [update, ...prev.slice(0, LIVE_ITEM_LIMIT - 1)]);
-        });
-
-        signalRService.onNotification((notification) => {
-          setNotifications(prev => [notification, ...prev.slice(0, LIVE_ITEM_LIMIT - 1)]);
-        });
-      } catch (error) {
-        if (cancelled) return;
-        console.error('Failed to connect to SignalR:', error);
-        setLiveUpdatesFailed(true);
-      }
+  const subscribeToLiveUpdates = useCallback((service: SignalRService) => {
+    const onLocationUpdate = (update: LocationUpdate) => {
+      setLocationUpdates(prev => [update, ...prev.slice(0, LIVE_ITEM_LIMIT - 1)]);
     };
-
-    connectSignalR();
+    const onNotification = (notification: NotificationMessage) => {
+      setNotifications(prev => [notification, ...prev.slice(0, LIVE_ITEM_LIMIT - 1)]);
+    };
+    service.onLocationUpdate(onLocationUpdate);
+    service.onNotification(onNotification);
 
     return () => {
-      cancelled = true;
-      signalRService.disconnect();
+      service.offLocationUpdate(onLocationUpdate);
+      service.offNotification(onNotification);
     };
   }, []);
+  const liveUpdatesFailed = useRealtimeSubscription(subscribeToLiveUpdates);
 
   const activeJobs = jobsResult?.items.filter(job =>
-    job.status === 'InProgress' || job.status === 'Assigned'
+    job.status === JobStatus.EnRoute || job.status === JobStatus.Assigned
   ) || [];
 
   return (
@@ -104,7 +89,7 @@ export function TrackingDashboard() {
                       </p>
                     </div>
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                      job.status === 'InProgress'
+                      job.status === JobStatus.EnRoute
                         ? 'bg-green-100 text-green-800'
                         : 'bg-blue-100 text-blue-800'
                     }`}>

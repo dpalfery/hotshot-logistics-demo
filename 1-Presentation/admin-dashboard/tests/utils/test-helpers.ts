@@ -8,7 +8,7 @@ import { Page, expect } from '@playwright/test';
 export interface MockJob {
   id: string;
   title: string;
-  status: 'Pending' | 'Assigned' | 'InProgress' | 'Completed' | 'Cancelled';
+  status: 'Pending' | 'Assigned' | 'EnRoute' | 'Received';
   pickupAddress: string;
   dropoffAddress: string;
   assignedDriverId?: number | null;

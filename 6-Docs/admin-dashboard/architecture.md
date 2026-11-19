@@ -6,7 +6,7 @@ status: current
 component: admin-dashboard
 source-root: 1-Presentation/admin-dashboard
 owner: unassigned
-last-reviewed: 2026-11-10
+last-reviewed: 2026-11-19
 code-refs:
   - JobsManagement
 ---
@@ -30,7 +30,7 @@ flowchart LR
   apiClient --> api
 ```
 
-TanStack Query caches server state. MSAL handles Azure AD sign-in. SignalR connects to the API `/realtime` hub for live updates.
+TanStack Query caches server state. MSAL handles Azure AD sign-in. SignalR connects to the API `/realtime` hub for live updates: `useRealtimeSubscription` (`src/lib`) opens the connection while a view is mounted and registers its handlers, and the event names live in `src/services/signalr-events.ts`. The overview refetches its job queries when the hub sends `JobStatusUpdated`, and says so when the connection cannot be opened.
 
 ## Components and interfaces
 
@@ -45,16 +45,17 @@ TanStack Query caches server state. MSAL handles Azure AD sign-in. SignalR conne
 | Login | `src/app/(auth)/login/page.tsx` |
 | Auth | `src/components/auth/` |
 | HTTP | `src/services/api.ts` |
+| Live updates | `src/services/signalr.ts`, `src/services/signalr-events.ts`, `src/lib/useRealtimeSubscription.ts` |
 | Request interception | `proxy.ts` (dashboard root) — production HTTPS redirect and security headers |
 
 ## Data models
 
-Shared TypeScript types live in `src/types`. They mirror API DTOs; the API remains the source of truth.
+Shared TypeScript types live in `src/types`. They mirror API DTOs; the API remains the source of truth. `JobStatus` is the server's `Pending`, `Assigned`, `EnRoute` and `Received`; the API sends it as a number and `apiService` converts it. The other enums are not converted yet ([wire types todo](../todo/admin-dashboard-api-wire-types.md)).
 
 ## Error handling
 
-`apiService` validates the shape of the jobs, drivers and overdue-invoices responses; a response that fails is an error. Each view shows distinct loading, error, empty and data states, and each overview statistic and the Recent Jobs list wait only for their own request. Query and mutation errors surface in the feature components. Auth failures redirect through the MSAL / protected-route wrappers.
+`apiService` validates the shape of the jobs, drivers and overdue-invoices responses (a job with a status the server does not define fails it); a response that fails is an error. Each view shows distinct loading, error, empty and data states, and each overview statistic and the Recent Jobs list wait only for their own request (Active Jobs is a server-side count, `GET /api/job?isActive=true&pageSize=1`, separate from the first page of jobs). Query and mutation errors surface in the feature components. Auth failures redirect through the MSAL / protected-route wrappers.
 
 ## Testing strategy
 
-Playwright specs under `tests/` cover auth, dashboard overview, jobs, drivers, tracking, and billing. Run `npm test` from the dashboard source root. Tests mock the API per test; live updates are tested by mocking the SignalR negotiate request and WebSocket (`tests/utils/signalr-mock.ts`), so the app runs its real client. One test, live overview statistics, stays `fixme` until the SignalR contract is decided (see [Resolve unresolved DashboardOverview issues](../todo/admin-dashboard-job-status-unresolved.md)).
+Playwright specs under `tests/` cover auth, dashboard overview, jobs, drivers, tracking, and billing. Run `npm test` from the dashboard source root. Tests mock the API per test; live updates are tested by mocking the SignalR negotiate request and WebSocket (`tests/utils/signalr-mock.ts`), so the app runs its real client. A test pushes `JobStatusUpdated` and checks the overview refetches. Delivery from the server is not complete ([job status update delivery](../todo/job-status-update-delivery.md)).

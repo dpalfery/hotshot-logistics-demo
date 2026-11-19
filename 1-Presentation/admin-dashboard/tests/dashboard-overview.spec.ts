@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { mockSignalR } from './utils/signalr-mock';
 
 // Window extensions used by the auth test-mode mocks
 declare global {
@@ -10,6 +11,43 @@ declare global {
     useMsalAuthentication?: unknown;
   }
 }
+
+// The fields the Jobs page renders are included because the navigation test visits it
+const firstPageOfJobs = [
+  {
+    id: 'job-1',
+    title: 'Job 1',
+    pickupAddress: '1 Pickup St',
+    dropoffAddress: '1 Dropoff Ave',
+    amount: 100,
+    status: 'EnRoute',
+    assignedDriverId: 1,
+    scheduledPickupTime: '2024-12-01T10:00:00Z'
+  },
+  {
+    id: 'job-2',
+    title: 'Job 2',
+    pickupAddress: '2 Pickup St',
+    dropoffAddress: '2 Dropoff Ave',
+    amount: 200,
+    status: 'Pending',
+    assignedDriverId: null,
+    scheduledPickupTime: '2024-12-01T14:00:00Z'
+  },
+  {
+    id: 'job-3',
+    title: 'Job 3',
+    pickupAddress: '3 Pickup St',
+    dropoffAddress: '3 Dropoff Ave',
+    amount: 300,
+    status: 'EnRoute',
+    assignedDriverId: 2,
+    scheduledPickupTime: '2024-12-01T16:00:00Z'
+  }
+];
+
+// What the mocked jobs endpoint answers; a test changes it to simulate the server's data changing
+let jobsState: { items: typeof firstPageOfJobs; totalCount: number; activeCount: number };
 
 test.describe('Dashboard Overview', () => {
   test.beforeEach(async ({ page }) => {
@@ -44,46 +82,17 @@ test.describe('Dashboard Overview', () => {
       window.useMsalAuthentication = () => ({});
     });
 
-    // Mock jobs API with realistic data - matches apiService.getJobs() endpoint; the fields the Jobs page renders are included because the nav test visits it
-    await page.route('https://localhost:5001/api/job', async route => {
+    // Mock jobs API - matches apiService.getJobs() and apiService.getActiveJobCount(), which both call /api/job.
+    // The active count is a one-item page whose totalCount covers every job, so it is answered separately from the first page.
+    jobsState = { items: firstPageOfJobs, totalCount: 3, activeCount: 3 };
+    await page.route(url => url.origin === 'https://localhost:5001' && url.pathname === '/api/job', async route => {
+      const isActiveCount = new URL(route.request().url()).searchParams.get('isActive') === 'true';
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({
-          items: [
-            {
-              id: 'job-1',
-              title: 'Job 1',
-              pickupAddress: '1 Pickup St',
-              dropoffAddress: '1 Dropoff Ave',
-              amount: 100,
-              status: 'InProgress',
-              assignedDriverId: 1,
-              scheduledPickupTime: '2024-12-01T10:00:00Z'
-            },
-            {
-              id: 'job-2',
-              title: 'Job 2',
-              pickupAddress: '2 Pickup St',
-              dropoffAddress: '2 Dropoff Ave',
-              amount: 200,
-              status: 'Pending',
-              assignedDriverId: null,
-              scheduledPickupTime: '2024-12-01T14:00:00Z'
-            },
-            {
-              id: 'job-3',
-              title: 'Job 3',
-              pickupAddress: '3 Pickup St',
-              dropoffAddress: '3 Dropoff Ave',
-              amount: 300,
-              status: 'InProgress',
-              assignedDriverId: 2,
-              scheduledPickupTime: '2024-12-01T16:00:00Z'
-            }
-          ],
-          totalCount: 3
-        })
+        body: JSON.stringify(isActiveCount
+          ? { items: jobsState.items.slice(0, 1), totalCount: jobsState.activeCount }
+          : { items: jobsState.items, totalCount: jobsState.totalCount })
       });
     });
 
@@ -167,7 +176,7 @@ test.describe('Dashboard Overview', () => {
     });
 
     test('should handle loading state for statistics', async ({ page }) => {
-      // Hold the jobs response back so the loading state is still showing when it is asserted
+      // Hold the first-page jobs response back so the loading state is still showing when it is asserted
       let releaseJobs: () => void = () => {};
       const jobsHeld = new Promise<void>(resolve => { releaseJobs = resolve; });
       await page.route('**/api/job', async route => {
@@ -181,8 +190,9 @@ test.describe('Dashboard Overview', () => {
 
       await page.reload();
 
-      // Only the two job cards wait for the jobs request: the drivers and invoices cards show their data
-      await expect(page.locator('[data-testid="loading-spinner"]')).toHaveCount(2);
+      // Only Total Jobs waits for the first page of jobs: Active Jobs has its own request, and the drivers and invoices cards show their data
+      await expect(page.locator('[data-testid="loading-spinner"]')).toHaveCount(1);
+      await expect(page.locator('[data-testid="metric-active-jobs"]')).toHaveText('3');
       await expect(page.locator('[data-testid="metric-active-drivers"]')).toHaveText('2');
       await expect(page.locator('[data-testid="metric-overdue-invoices"]')).toHaveText('2');
       await expect(page.locator('[data-testid="metric-total-jobs"]')).toHaveCount(0);
@@ -190,6 +200,15 @@ test.describe('Dashboard Overview', () => {
       releaseJobs();
       await expect(page.locator('[data-testid="metric-total-jobs"]')).toHaveText('7');
       await expect(page.locator('[data-testid="loading-spinner"]')).toHaveCount(0);
+    });
+
+    test('should count Active Jobs from every job, not the first page', async ({ page }) => {
+      // The first page holds 3 jobs; the server knows 120 jobs, 87 of them active
+      jobsState = { items: firstPageOfJobs, totalCount: 120, activeCount: 87 };
+      await page.reload();
+
+      await expect(page.locator('[data-testid="metric-total-jobs"]')).toHaveText('120');
+      await expect(page.locator('[data-testid="metric-active-jobs"]')).toHaveText('87');
     });
 
     test('should handle error state for statistics', async ({ page }) => {
@@ -205,13 +224,33 @@ test.describe('Dashboard Overview', () => {
       await page.reload();
 
       // One error message, naming only what failed
-      await expect(page.getByText('Error loading statistics')).toBeVisible();
-      // The two job cards show an error, never a 0
+      await expect(page.getByText('Error loading statistics (jobs)')).toBeVisible();
+      // Total Jobs shows an error, never a 0
       await expect(page.locator('[data-testid="metric-total-jobs"]')).toHaveCount(0);
-      await expect(page.locator('[data-testid="metric-active-jobs"]')).toHaveCount(0);
-      // The cards whose own requests succeeded still show their data
+      // The cards whose own requests succeeded still show their data, Active Jobs included
+      await expect(page.locator('[data-testid="metric-active-jobs"]')).toHaveText('3');
       await expect(page.locator('[data-testid="metric-active-drivers"]')).toHaveText('2');
       await expect(page.locator('[data-testid="metric-overdue-invoices"]')).toHaveText('2');
+    });
+
+    test('should show an error on Active Jobs only when its own request fails', async ({ page }) => {
+      await page.route(url => url.pathname === '/api/job' && url.searchParams.get('isActive') === 'true', route =>
+        route.fulfill({
+          status: 500,
+          contentType: 'application/json',
+          body: JSON.stringify({ error: 'Internal server error' })
+        })
+      );
+
+      await page.reload();
+
+      await expect(page.getByText('Error loading statistics (active jobs)')).toBeVisible();
+      const activeJobsCard = page.getByTestId('stats-card').filter({ hasText: 'Active Jobs' });
+      await expect(activeJobsCard.getByText('Failed to load')).toBeVisible();
+      await expect(page.locator('[data-testid="metric-active-jobs"]')).toHaveCount(0);
+      // Everything else loaded from its own request
+      await expect(page.locator('[data-testid="metric-total-jobs"]')).toHaveText('3');
+      await expect(page.getByTestId('recent-jobs').getByText('Job 1')).toBeVisible();
     });
   });
 
@@ -278,7 +317,7 @@ test.describe('Dashboard Overview', () => {
           pickupAddress: '123 Main St',
           dropoffAddress: '456 Oak Ave',
           amount: 100,
-          status: 'InProgress',
+          status: 'EnRoute',
           assignedDriverId: 1,
           scheduledPickupTime: '2024-12-01T10:00:00Z'
         },
@@ -326,9 +365,9 @@ test.describe('Dashboard Overview', () => {
 
       // Check status badges
       const recentJobs = page.getByTestId('recent-jobs');
-      const inProgressBadge = recentJobs.getByText('InProgress', { exact: true });
-      await expect(inProgressBadge).toBeVisible();
-      await expect(inProgressBadge).toHaveClass(/bg-green-100.*text-green-800/);
+      const enRouteBadge = recentJobs.getByText('EnRoute', { exact: true });
+      await expect(enRouteBadge).toBeVisible();
+      await expect(enRouteBadge).toHaveClass(/bg-green-100.*text-green-800/);
 
       const pendingBadge = recentJobs.getByText('Pending', { exact: true });
       await expect(pendingBadge).toBeVisible();
@@ -380,6 +419,42 @@ test.describe('Dashboard Overview', () => {
 
       await expect(page.getByTestId('recent-jobs').getByText('Error loading recent jobs')).toBeVisible();
       await expect(page.getByText('Error loading statistics')).toBeVisible();
+    });
+
+    test('should read the numeric job statuses the API sends', async ({ page }) => {
+      // The API serialises JobStatus as its number: 0 Pending, 1 Assigned, 2 EnRoute, 3 Received
+      await page.route('**/api/job', route => route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          items: [
+            { id: 'job-1', title: 'Numeric Pending', pickupAddress: 'a', dropoffAddress: 'b', status: 0 },
+            { id: 'job-2', title: 'Numeric En Route', pickupAddress: 'c', dropoffAddress: 'd', status: 2 },
+            { id: 'job-3', title: 'Numeric Received', pickupAddress: 'e', dropoffAddress: 'f', status: 3 }
+          ],
+          totalCount: 3
+        })
+      }));
+      await page.reload();
+
+      const recentJobs = page.getByTestId('recent-jobs');
+      await expect(recentJobs.getByText('Pending', { exact: true })).toBeVisible();
+      await expect(recentJobs.getByText('EnRoute', { exact: true })).toBeVisible();
+      await expect(recentJobs.getByText('Received', { exact: true })).toBeVisible();
+    });
+
+    test('should show an error state when a job has a status the server does not define', async ({ page }) => {
+      await page.route('**/api/job', route => route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          items: [{ id: 'job-1', title: 'Stale Status', pickupAddress: 'a', dropoffAddress: 'b', status: 'InProgress' }],
+          totalCount: 1
+        })
+      }));
+      await page.reload();
+
+      await expect(page.getByTestId('recent-jobs').getByText('Error loading recent jobs')).toBeVisible();
     });
 
     test('should handle empty recent jobs list', async ({ page }) => {
@@ -442,36 +517,52 @@ test.describe('Dashboard Overview', () => {
   });
 
   test.describe('Real-time Updates', () => {
-    // FIXME: DashboardOverview does not listen for 'dashboard-update', fetch /api/dashboard/stats or show revenue; live updates are an unresolved SignalR follow-up (6-Docs/todo/admin-dashboard-job-status-unresolved.md).
-    test.fixme('should handle real-time statistics updates', async ({ page }) => {
-      // Initial load
+    test('should refresh the statistics and recent jobs when the server pushes a job status update', async ({ page }) => {
+      const signalR = await mockSignalR(page);
+      await page.reload();
+      await expect.poll(() => signalR.openConnections()).toBe(1);
       await expect(page.locator('[data-testid="metric-total-jobs"]')).toHaveText('3');
+      await expect(page.locator('[data-testid="metric-active-jobs"]')).toHaveText('3');
 
-      // Mock updated statistics
-      await page.route('**/api/dashboard/stats', async route => {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            totalJobs: 4,
-            activeDrivers: 3,
-            revenue: 5200.00,
-            pendingJobs: 1
-          })
-        });
-      });
+      // The server's data changes: a fourth job exists, and it is not the one the update names
+      jobsState = {
+        items: [
+          ...firstPageOfJobs,
+          { ...firstPageOfJobs[0], id: 'job-4', title: 'Job 4', status: 'Pending' }
+        ],
+        totalCount: 4,
+        activeCount: 4
+      };
 
-      // Simulate real-time update (would normally come via SignalR)
-      await page.evaluate(() => {
-        // Trigger a refetch of statistics
-        window.dispatchEvent(new CustomEvent('dashboard-update'));
-      });
+      // Push the event under the name the server sends (IRealtimeHubClient.JobStatusUpdated), spelled out here so the
+      // test fails if the client listens for any other name. The handler registers just after the connection opens,
+      // so push again until the page has reacted.
+      await expect(async () => {
+        signalR.invoke('JobStatusUpdated', 'job-2', 1);
+        await expect(page.locator('[data-testid="metric-total-jobs"]')).toHaveText('4', { timeout: 1000 });
+      }).toPass();
+      await expect(page.locator('[data-testid="metric-active-jobs"]')).toHaveText('4');
+      await expect(page.getByTestId('recent-jobs').getByText('Job 4')).toBeVisible();
+    });
 
-      // Check updated values
-      await expect(page.locator('[data-testid="metric-total-jobs"]')).toHaveText('4');
-      await expect(page.locator('[data-testid="metric-active-drivers"]')).toHaveText('3');
-      await expect(page.getByText('$5,200.00')).toBeVisible();
-      await expect(page.getByText('1')).toBeVisible();
+    test('should tell the user when live updates are unavailable', async ({ page }) => {
+      await page.route('**/realtime/negotiate**', route => route.fulfill({ status: 500 }));
+      await page.reload();
+
+      await expect(page.getByRole('alert').filter({ hasText: 'Live updates are unavailable' })).toBeVisible();
+      // The statistics still load from the API
+      await expect(page.locator('[data-testid="metric-total-jobs"]')).toHaveText('3');
+    });
+
+    test('should close the live connection when leaving the overview', async ({ page }) => {
+      const signalR = await mockSignalR(page);
+      await page.reload();
+      await expect.poll(() => signalR.openConnections()).toBe(1);
+
+      await page.click('nav a[href="/jobs"]:visible');
+      await expect(page).toHaveURL('/jobs');
+
+      await expect.poll(() => signalR.openConnections()).toBe(0);
     });
   });
 
@@ -516,167 +607,18 @@ test.describe('Dashboard Overview', () => {
 
   test.describe('Key Metrics Non-Zero Validation', () => {
     test('should display non-zero values for key metrics', async ({ page }) => {
-      // Set longer timeout for this test since it needs to wait for Next.js to fully load
-      test.setTimeout(30000);
-      
-      // Log all network requests to debug the routing issue
-      page.on('request', request => {
-        if (request.url().includes('/api/')) {
-          console.log('API Request:', request.method(), request.url());
-        }
-      });
-      
-      page.on('response', response => {
-        if (response.url().includes('/api/')) {
-          console.log('API Response:', response.status(), response.url());
-        }
-      });
-      
-      // Mock jobs API with realistic data - matches apiService.getJobs() endpoint
-      await page.route('**/api/job**', async route => {
-        console.log('Intercepted jobs API call:', route.request().url());
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            items: [
-              {
-                id: 'job-1',
-                status: 'InProgress',
-                assignedDriverId: 1,
-                scheduledPickupTime: '2024-12-01T10:00:00Z'
-              },
-              {
-                id: 'job-2',
-                status: 'Pending',
-                assignedDriverId: null,
-                scheduledPickupTime: '2024-12-01T14:00:00Z'
-              },
-              {
-                id: 'job-3',
-                status: 'InProgress',
-                assignedDriverId: 2,
-                scheduledPickupTime: '2024-12-01T16:00:00Z'
-              }
-            ],
-            totalCount: 3
-          })
-        });
-      });
+      // One of the three jobs has been received, so it is counted in Total Jobs but not in Active Jobs
+      jobsState = {
+        items: [firstPageOfJobs[0], firstPageOfJobs[1], { ...firstPageOfJobs[2], status: 'Received' }],
+        totalCount: 3,
+        activeCount: 2
+      };
+      await page.reload();
 
-      // Mock drivers API with active drivers - matches apiService.getDrivers() endpoint
-      await page.route('**/api/driver**', async route => {
-        console.log('Intercepted drivers API call:', route.request().url());
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify([
-            {
-              id: 1,
-              name: 'John Driver',
-              isActive: true,
-              licenseNumber: 'DL123456'
-            },
-            {
-              id: 2,
-              name: 'Jane Driver',
-              isActive: true,
-              licenseNumber: 'DL789012'
-            },
-            {
-              id: 3,
-              name: 'Bob Driver',
-              isActive: false,
-              licenseNumber: 'DL345678'
-            }
-          ])
-        });
-      });
-
-      // Mock invoices API with overdue invoices - matches apiService.getInvoices() endpoint (/billing/invoices/overdue returns only overdue invoices)
-      await page.route('**/api/billing/invoices**', async route => {
-        console.log('Intercepted invoices API call:', route.request().url());
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            items: [
-              {
-                id: 'inv-1',
-                dueDate: '2024-11-15T00:00:00Z', // Past date
-                balanceDue: 1500.00,
-                status: 'Overdue'
-              },
-              {
-                id: 'inv-3',
-                dueDate: '2024-11-01T00:00:00Z', // Past date
-                balanceDue: 800.00,
-                status: 'Overdue'
-              }
-            ],
-            totalCount: 2
-          })
-        });
-      });
-
-      await page.goto('/');
-      await page.waitForLoadState('networkidle');
-  
-      // Wait for Next.js to fully load and render
-      await page.waitForSelector('h1:has-text("Dashboard Overview")', { timeout: 10000 });
-  
-      // Wait for metrics to be calculated and displayed
-      await page.waitForTimeout(2000);
-  
-      // Debug: Check if the page content is loaded
-      const pageTitle = await page.textContent('h1');
-      console.log('Page title found:', pageTitle);
-  
-      // Debug: Check if any metric cards are present
-      const metricCards = await page.locator('[data-testid^="metric-"]').count();
-      console.log('Number of metric cards found:', metricCards);
-
-      // Debug: Check if the page content is loaded first
-      console.log('Page title found:', pageTitle);
-
-      // Debug: Check if any metric cards are present
-      const metricCardsCount = await page.locator('[data-testid^="metric-"]').count();
-      console.log('Number of metric cards found:', metricCardsCount);
-
-      // If no metric cards are found, the page isn't rendering properly
-      if (metricCardsCount === 0) {
-        const bodyContent = await page.textContent('body');
-        console.log('Body content length:', bodyContent?.length || 0);
-        console.log('Body content preview:', bodyContent?.substring(0, 500) || 'No content');
-
-        // Check if we're being redirected to login
-        const currentUrl = page.url();
-        console.log('Current URL:', currentUrl);
-      }
-
-      // Extract and log the actual metric values for debugging
-      const totalJobsValue = await page.textContent('[data-testid="metric-total-jobs"]');
-      const activeJobsValue = await page.textContent('[data-testid="metric-active-jobs"]');
-      const activeDriversValue = await page.textContent('[data-testid="metric-active-drivers"]');
-      const overdueInvoicesValue = await page.textContent('[data-testid="metric-overdue-invoices"]');
-
-      console.log('Dashboard Metrics Debug Info:');
-      console.log('Total Jobs:', totalJobsValue);
-      console.log('Active Jobs:', activeJobsValue);
-      console.log('Active Drivers:', activeDriversValue);
-      console.log('Overdue Invoices:', overdueInvoicesValue);
-
-      // Assert that each metric displays a non-zero value
-      expect(parseInt(totalJobsValue || '0')).toBeGreaterThan(0);
-      expect(parseInt(activeJobsValue || '0')).toBeGreaterThan(0);
-      expect(parseInt(activeDriversValue || '0')).toBeGreaterThan(0);
-      expect(parseInt(overdueInvoicesValue || '0')).toBeGreaterThan(0);
-
-      // Additional assertions for expected values based on mock data
-      expect(parseInt(totalJobsValue || '0')).toBe(3); // 3 total jobs
-      expect(parseInt(activeJobsValue || '0')).toBe(3); // Active = Pending + Assigned + InProgress: 2 InProgress + 1 Pending
-      expect(parseInt(activeDriversValue || '0')).toBe(2); // 2 active drivers
-      expect(parseInt(overdueInvoicesValue || '0')).toBe(2); // 2 overdue invoices returned by the overdue endpoint
+      await expect(page.locator('[data-testid="metric-total-jobs"]')).toHaveText('3');
+      await expect(page.locator('[data-testid="metric-active-jobs"]')).toHaveText('2');
+      await expect(page.locator('[data-testid="metric-active-drivers"]')).toHaveText('2'); // 2 of the 3 mocked drivers are active
+      await expect(page.locator('[data-testid="metric-overdue-invoices"]')).toHaveText('2'); // 2 overdue invoices returned by the overdue endpoint
     });
   });
 
@@ -698,12 +640,17 @@ test.describe('Dashboard Overview', () => {
       await expect(page.locator('[data-testid="metric-total-jobs"]')).toHaveText('3');
 
       let jobsRequestCount = 0;
+      let activeJobsRequestCount = 0;
       let driversRequestCount = 0;
       let invoicesRequestCount = 0;
 
-      // Count the three requests the overview makes (it computes its statistics client-side)
-      await page.route('**/api/job', async route => {
-        jobsRequestCount++;
+      // Count the requests the overview makes: the first page of jobs, the count of active jobs, drivers and overdue invoices
+      await page.route(url => url.pathname === '/api/job', async route => {
+        if (new URL(route.request().url()).searchParams.get('isActive') === 'true') {
+          activeJobsRequestCount++;
+        } else {
+          jobsRequestCount++;
+        }
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
@@ -731,10 +678,13 @@ test.describe('Dashboard Overview', () => {
 
       await page.reload();
       await expect(page.locator('[data-testid="metric-total-jobs"]')).toHaveText('0');
-      await page.waitForTimeout(1000);
+      await expect(page.locator('[data-testid="metric-active-jobs"]')).toHaveText('0');
+      await expect(page.locator('[data-testid="metric-active-drivers"]')).toHaveText('0');
+      await expect(page.locator('[data-testid="metric-overdue-invoices"]')).toHaveText('0');
 
-      // Should make only one request to each endpoint
+      // Every statistic is fetched once
       expect(jobsRequestCount).toBe(1);
+      expect(activeJobsRequestCount).toBe(1);
       expect(driversRequestCount).toBe(1);
       expect(invoicesRequestCount).toBe(1);
     });

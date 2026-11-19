@@ -39,7 +39,7 @@ test.describe('Tracking Dashboard', () => {
               {
                 id: 'job-1',
                 title: 'Active Delivery 1',
-                status: 'InProgress',
+                status: 'EnRoute',
                 pickupAddress: '123 Main St',
                 dropoffAddress: '456 Oak Ave',
                 assignedDriverId: 1,
@@ -74,7 +74,7 @@ test.describe('Tracking Dashboard', () => {
       // Check active jobs section
       await expect(page.getByRole('heading', { name: 'Active Jobs' })).toBeVisible();
       
-      // Should show only InProgress and Assigned jobs, not Pending
+      // Should show only EnRoute and Assigned jobs, not Pending
       await expect(page.getByText('Active Delivery 1')).toBeVisible();
       await expect(page.getByText('Assigned Delivery 2')).toBeVisible();
       await expect(page.getByText('Pending Delivery 3')).not.toBeVisible();
@@ -99,7 +99,7 @@ test.describe('Tracking Dashboard', () => {
               {
                 id: 'job-1',
                 title: 'In Progress Job',
-                status: 'InProgress',
+                status: 'EnRoute',
                 pickupAddress: '123 Main St',
                 dropoffAddress: '456 Oak Ave',
                 assignedDriverId: 1,
@@ -123,9 +123,9 @@ test.describe('Tracking Dashboard', () => {
       await page.reload();
 
       // Check status styling
-      const inProgressStatus = page.getByText('InProgress', { exact: true });
-      await expect(inProgressStatus).toBeVisible();
-      await expect(inProgressStatus).toHaveClass(/bg-green-100.*text-green-800/);
+      const enRouteStatus = page.getByText('EnRoute', { exact: true });
+      await expect(enRouteStatus).toBeVisible();
+      await expect(enRouteStatus).toHaveClass(/bg-green-100.*text-green-800/);
 
       const assignedStatus = page.getByText('Assigned', { exact: true });
       await expect(assignedStatus).toBeVisible();
@@ -331,11 +331,8 @@ test.describe('Tracking Dashboard', () => {
 
       await page.reload();
 
-      // Wait for connection attempt
-      await page.waitForTimeout(500);
-
-      // Check that error is logged
-      expect(consoleErrors.some(error => error.includes('Failed to connect to SignalR'))).toBe(true);
+      // The error is logged once the connection attempt has failed
+      await expect.poll(() => consoleErrors.some(error => error.includes('Failed to connect to SignalR'))).toBe(true);
       
       // Verify page still displays correctly despite connection failure
       await expect(page.getByText('Real-Time Tracking')).toBeVisible();

@@ -24,12 +24,12 @@ export interface Job {
   tracking: TrackingInfo;
 }
 
+/** The server's job statuses (`HotshotLogistics.Core.Enums.JobStatus`); the API sends them as numbers in this order. */
 export enum JobStatus {
   Pending = 'Pending',
   Assigned = 'Assigned',
-  InProgress = 'InProgress',
-  Completed = 'Completed',
-  Cancelled = 'Cancelled'
+  EnRoute = 'EnRoute',
+  Received = 'Received'
 }
 
 export enum JobPriority {
@@ -186,6 +186,8 @@ export interface PaginationParameters {
 // Filter types
 export interface JobFilter {
   status?: JobStatus;
+  /** Active jobs (every status but Received) when true, received jobs when false. */
+  isActive?: boolean;
   priority?: JobPriority;
   assignedDriverId?: number;
   customerId?: string;

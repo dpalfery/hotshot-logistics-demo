@@ -10,7 +10,7 @@ last-reviewed: 2026-11-19
 
 # Admin dashboard Playwright tests marked fixme
 
-Eleven dashboard Playwright tests were `test.fixme` because the app did not implement the behaviour they check. Ten now pass. The eleventh moved to [Resolve unresolved DashboardOverview issues](../../todo/admin-dashboard-job-status-unresolved.md) because it depends on the open SignalR decision.
+Eleven dashboard Playwright tests were `test.fixme` because the app did not implement the behaviour they check. Ten now pass. The eleventh moved to, and was later resolved in, [Resolve unresolved DashboardOverview issues](admin-dashboard-job-status-unresolved.md) because it depended on the SignalR event contract.
 
 ## What changed
 

@@ -1,5 +1,6 @@
 import { HubConnectionBuilder, HubConnection, LogLevel } from '@microsoft/signalr';
 import { LocationUpdate, NotificationMessage } from '@/types';
+import { JOB_STATUS_UPDATED_EVENT } from './signalr-events';
 
 const SIGNALR_URL = resolveSignalRUrl();
 
@@ -12,7 +13,7 @@ function resolveSignalRUrl(): string {
   return `${configured.replace(/\/$/, '')}/realtime`;
 }
 
-class SignalRService {
+export class SignalRService {
   private connection: HubConnection | null = null;
   private isConnected = false;
 
@@ -70,16 +71,16 @@ class SignalRService {
     }
   }
 
-  // Job status updates
-  onJobStatusUpdate(callback: (jobId: string, status: string) => void): void {
+  // Job status updates; the server sends the job id and the new status as its number
+  onJobStatusUpdated(callback: (jobId: string, status: number) => void): void {
     if (this.connection) {
-      this.connection.on('JobStatusUpdate', callback);
+      this.connection.on(JOB_STATUS_UPDATED_EVENT, callback);
     }
   }
 
-  offJobStatusUpdate(callback: (jobId: string, status: string) => void): void {
+  offJobStatusUpdated(callback: (jobId: string, status: number) => void): void {
     if (this.connection) {
-      this.connection.off('JobStatusUpdate', callback);
+      this.connection.off(JOB_STATUS_UPDATED_EVENT, callback);
     }
   }
 

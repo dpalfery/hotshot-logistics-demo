@@ -1,6 +1,6 @@
 import { msalInstance } from '@/lib/providers';
 import { loginRequest } from '@/config/auth';
-import { Job, Driver, Invoice, Customer, PagedResult, JobFilter, InvoiceFilter, PaginationParameters, InvoiceSummaryMetrics, InvoiceAgingBuckets } from '@/types';
+import { Job, JobStatus, Driver, Invoice, Customer, PagedResult, JobFilter, InvoiceFilter, PaginationParameters, InvoiceSummaryMetrics, InvoiceAgingBuckets } from '@/types';
 
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL || '/api').trim();
 
@@ -16,16 +16,35 @@ function unexpectedResponse(endpoint: string): Error {
   return new Error(`Unexpected response shape from ${endpoint}`);
 }
 
+// The API sends JobStatus as its number, in the order of the server enum
+const JOB_STATUS_BY_NUMBER: readonly JobStatus[] = [
+  JobStatus.Pending,
+  JobStatus.Assigned,
+  JobStatus.EnRoute,
+  JobStatus.Received
+];
+
+/** Reads a status from its number or name; anything the server does not define is not a status. */
+function toJobStatus(value: unknown): JobStatus | undefined {
+  if (typeof value === 'number') {
+    return JOB_STATUS_BY_NUMBER[value];
+  }
+  return Object.values(JobStatus).find(status => status === value);
+}
+
 function parseJobsPage(data: unknown): PagedResult<Job> {
-  if (
-    !isRecord(data) ||
-    !Array.isArray(data.items) ||
-    typeof data.totalCount !== 'number' ||
-    !data.items.every(item => isRecord(item) && typeof item.id === 'string' && typeof item.status === 'string')
-  ) {
+  if (!isRecord(data) || !Array.isArray(data.items) || typeof data.totalCount !== 'number') {
     throw unexpectedResponse('/job');
   }
-  return data as unknown as PagedResult<Job>;
+
+  const items = data.items.map(item => {
+    const status = isRecord(item) ? toJobStatus(item.status) : undefined;
+    if (!isRecord(item) || typeof item.id !== 'string' || status === undefined) {
+      throw unexpectedResponse('/job');
+    }
+    return { ...item, status };
+  });
+  return { ...data, items } as unknown as PagedResult<Job>;
 }
 
 function parseDrivers(data: unknown): Driver[] {
@@ -151,6 +170,15 @@ class ApiService {
 
     const query = params.toString();
     return parseJobsPage(await this.request<unknown>('/job', {}, query || undefined));
+  }
+
+  /**
+   * Counts the active jobs across every page. The API reports the total of a filtered query in
+   * `totalCount`, so a one-item page is enough.
+   */
+  async getActiveJobCount(): Promise<number> {
+    const page = await this.getJobs({ isActive: true }, { pageNumber: 1, pageSize: 1 });
+    return page.totalCount;
   }
 
   async getJobById(id: string): Promise<Job> {

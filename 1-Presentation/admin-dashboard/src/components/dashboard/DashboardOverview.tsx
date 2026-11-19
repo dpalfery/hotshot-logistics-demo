@@ -1,16 +1,27 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
+import { useRealtimeSubscription } from '@/lib/useRealtimeSubscription';
 import { apiService } from '@/services/api';
-import { JobStatus } from '@/types';
+import { SignalRService } from '@/services/signalr';
 import { StatCard, StatValue } from './StatCard';
 import { RecentJobs, RecentJobsState } from './RecentJobs';
 
 export function DashboardOverview() {
+  const queryClient = useQueryClient();
+
   const jobsQuery = useQuery({
     queryKey: ['jobs'],
     queryFn: () => apiService.getJobs(),
+    retry: false,
+  });
+
+  // Counted by the server across every page, so it needs a request of its own
+  const activeJobsQuery = useQuery({
+    queryKey: ['jobs', 'active-count'],
+    queryFn: () => apiService.getActiveJobCount(),
     retry: false,
   });
 
@@ -36,23 +47,27 @@ export function DashboardOverview() {
   };
 
   const totalJobs = statFor(jobsQuery, result => result.totalCount);
-  // Active jobs are: Pending, Assigned, InProgress - not Completed or Cancelled
-  const activeJobs = statFor(jobsQuery, result =>
-    result.items.filter(job =>
-      job.status === JobStatus.Pending ||
-      job.status === JobStatus.Assigned ||
-      job.status === JobStatus.InProgress
-    ).length
-  );
+  const activeJobs = statFor(activeJobsQuery, count => count);
   const activeDrivers = statFor(driversQuery, drivers => drivers.filter(driver => driver.isActive).length);
   // The API returns only overdue invoices, so the count is the number of items
   const overdueInvoices = statFor(invoicesQuery, result => result.items.length);
 
   const failedStatistics = [
     jobsQuery.isError ? 'jobs' : null,
+    activeJobsQuery.isError ? 'active jobs' : null,
     driversQuery.isError ? 'drivers' : null,
     invoicesQuery.isError ? 'invoices' : null,
   ].filter(name => name !== null);
+
+  // A job status update changes the totals and the recent jobs; refetch every job query (they share the 'jobs' key prefix)
+  const subscribeToJobUpdates = useCallback((service: SignalRService) => {
+    const refreshJobs = () => {
+      queryClient.invalidateQueries({ queryKey: ['jobs'] });
+    };
+    service.onJobStatusUpdated(refreshJobs);
+    return () => service.offJobStatusUpdated(refreshJobs);
+  }, [queryClient]);
+  const liveUpdatesFailed = useRealtimeSubscription(subscribeToJobUpdates);
 
   const recentJobs: RecentJobsState = jobsQuery.isError
     ? { status: 'error' }
@@ -105,6 +120,12 @@ export function DashboardOverview() {
               <h1 className="text-2xl font-bold text-gray-900">Dashboard Overview</h1>
               <p className="text-gray-600">Welcome to Hotshot Logistics Admin Dashboard</p>
             </div>
+
+            {liveUpdatesFailed && (
+              <p role="alert" className="text-sm text-red-600">
+                Live updates are unavailable: the connection to the server failed.
+              </p>
+            )}
 
             {/* Stats Cards */}
             {failedStatistics.length > 0 && (
