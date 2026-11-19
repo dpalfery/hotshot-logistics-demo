@@ -4,6 +4,7 @@
 
 using FluentValidation;
 using FluentValidation.Results;
+using HotshotLogistics.Api.Models;
 using HotshotLogistics.Application.Authorization;
 using HotshotLogistics.Contracts.Repositories;
 using HotshotLogistics.Contracts.Services;
@@ -421,27 +422,5 @@ namespace HotshotLogistics.Api.Controllers
             IEnumerable<Job> jobs = await _jobRepository.GetOverdueJobsAsync(cancellationToken);
             return Ok(jobs);
         }
-    }
-
-    /// <summary>
-    ///     Request model for assigning a driver to a job.
-    /// </summary>
-    public class AssignDriverRequest
-    {
-        /// <summary>
-        ///     Gets or sets the driver ID.
-        /// </summary>
-        public int DriverId { get; set; }
-    }
-
-    /// <summary>
-    ///     Request model for updating job status.
-    /// </summary>
-    public class UpdateJobStatusRequest
-    {
-        /// <summary>
-        ///     Gets or sets the new job status.
-        /// </summary>
-        public JobStatus Status { get; set; }
     }
 }

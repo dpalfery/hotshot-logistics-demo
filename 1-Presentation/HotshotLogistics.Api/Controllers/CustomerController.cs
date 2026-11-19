@@ -2,6 +2,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
+using HotshotLogistics.Api.Models;
 using HotshotLogistics.Application.Authorization;
 using HotshotLogistics.Contracts.Services;
 using HotshotLogistics.Domain.Entities;
@@ -321,16 +322,5 @@ namespace HotshotLogistics.Api.Controllers
 
             return NoContent();
         }
-    }
-
-    /// <summary>
-    ///     Request model for updating customer credit limit.
-    /// </summary>
-    public class UpdateCreditLimitRequest
-    {
-        /// <summary>
-        ///     Gets or sets the new credit limit.
-        /// </summary>
-        public decimal NewLimit { get; set; }
     }
 }

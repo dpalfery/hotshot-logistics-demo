@@ -58,7 +58,8 @@ Authorization policies include `Admin`, `Manager`, `Driver`, `Customer`, and com
 
 ## Data models
 
-Request and response DTOs live in Domain. Persistence uses native ADO.NET. See the
+Controller request and response types are `sealed record` types with `init` properties under `Models/` (namespace
+`HotshotLogistics.Api.Models`); shared DTOs live in Domain. Persistence uses native ADO.NET. See the
 [data access layer coding standard](../standards/data-access-layer/data-access-layer.standards.md).
 
 ## Error handling

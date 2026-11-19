@@ -2,6 +2,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
+using HotshotLogistics.Api.Models;
 using HotshotLogistics.Application.Authorization;
 using HotshotLogistics.Contracts.Services;
 using HotshotLogistics.Core.Enums;
@@ -212,21 +213,5 @@ namespace HotshotLogistics.Api.Controllers
 
             return NoContent();
         }
-    }
-
-    /// <summary>
-    ///     Request model for assigning a job to a driver.
-    /// </summary>
-    public class AssignJobRequest
-    {
-        /// <summary>
-        ///     Gets or sets the job ID.
-        /// </summary>
-        public string JobId { get; set; } = string.Empty;
-
-        /// <summary>
-        ///     Gets or sets the driver ID.
-        /// </summary>
-        public int DriverId { get; set; }
     }
 }

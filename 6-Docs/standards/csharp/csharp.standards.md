@@ -110,8 +110,9 @@ Do not add getter/setter-only tests to pad coverage.
 - **Target:** ASP.NET Core on .NET 10, using its default C# 14 language version.
 - **HTTP surface:** MVC controllers (`ControllerBase`), not minimal APIs. Use MVC
   `ActionResult` / `ActionResult<T>` and `ControllerBase` helpers. Target request and
-  response bodies are `sealed record` DTOs (tracked in the
-  [sealed-record DTOs todo](../../todo/api-platform-hardening.md)); never return a
+  response bodies are `sealed record` DTOs with `init` properties, one per file under `HotshotLogistics.Api/Models`
+  (the remaining gaps are tracked in the
+  [entities-in-actions todo](../../todo/entities-in-controller-actions.md)); never return a
   domain entity or persistence row from an action.
 - **Data access:** parameterized ADO.NET in the persistence project. Dapper and Entity
   Framework are out of scope. FluentMigrator owns schema change.

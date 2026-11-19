@@ -21,9 +21,10 @@ Add one document per todo and list it here, ordered by priority (`P1` high, `P2`
 | [Make invoice number generation concurrency-safe](invoice-number-concurrency.md) | P2 | Open | Api | Replace unlocked `MAX() + 1` in `GetNextInvoiceNumberAsync` with a sequence or lock-safe allocation. |
 | [Admin dashboard Playwright tests marked fixme](admin-dashboard-playwright-baseline.md) | P2 | Open | admin-dashboard | Eleven dashboard e2e tests check behaviour the app lacks: overview error/empty states, Quick Actions, live stats, SignalR injection. |
 | [Review unauthenticated endpoints](unauthenticated-endpoints.md) | P1 | Open | Api | `TrackingController` has no `[Authorize]`; payment webhooks are blocked by the class-level `[Authorize]`. |
+| [Pass CancellationToken through driver endpoints and billing queries](driver-cancellation-tokens.md) | P3 | Open | Api | `DriversController` and two billing queries drop the token because the service and repository methods take none. |
 | [Remove Data dependency on Application](persistence-application-dependency.md) | P2 | Open | Api | Remove `HotshotLogistics.Data` project reference to `HotshotLogistics.Application`. |
 | [Introduce a SQL connection factory](sql-connection-factory.md) | P2 | Open | Api | Plan a factory and migrate direct repository connection creation. |
 | [Migrate to the generic repository contract](generic-repository-migration.md) | P2 | Open | Api | Design and adopt `IRepository<T>` while preserving repository behavior. |
 | [Align C# contract model placement](contracts-model-placement.md) | P3 | Open | Api | Move the nine non-interface classes in `HotshotLogistics.Contracts` to `HotshotLogistics.Domain.DTOs`. |
-| [Adopt sealed record HTTP DTOs](api-platform-hardening.md) | P3 | Open | Api | Migrate controller request/response DTOs to `sealed record` types. |
+| [Stop exposing entities and mutable shared DTOs from actions](entities-in-controller-actions.md) | P3 | Open | Api | Controllers still take and return entities and mutable `Domain.DTOs`; introduce `sealed record` HTTP DTOs. |
 | [Add frontend unit-test tooling](frontend-unit-test-tooling.md) | P3 | Open | admin-dashboard | Add Vitest and React Testing Library for frontend unit and component tests. |
