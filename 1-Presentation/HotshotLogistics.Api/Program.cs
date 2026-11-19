@@ -9,6 +9,7 @@ using HotshotLogistics.Api.Health;
 using HotshotLogistics.Api.RateLimiting;
 using HotshotLogistics.Application;
 using HotshotLogistics.Application.Hubs;
+using HotshotLogistics.Application.Services;
 using HotshotLogistics.Core.Extensions;
 using HotshotLogistics.Data;
 using HotshotLogistics.Domain.DTOs;
@@ -29,6 +30,10 @@ bool azureAppConfigurationEnabled = builder.Configuration.AddAzureAppConfigurati
 builder.Services.Configure<GoogleMapsSettings>(builder.Configuration.GetSection("Mapping:GoogleMaps"));
 builder.Services.Configure<AzureMapsSettings>(builder.Configuration.GetSection("Mapping:AzureMaps"));
 builder.Services.Configure<SendGridSettings>(builder.Configuration.GetSection("Communication:SendGrid"));
+builder.Services.AddOptions<PaymentRetryOptions>()
+    .Bind(builder.Configuration.GetSection(PaymentRetryOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
 
 // Add services to the container.
 builder.Services.AddHotshotRepositories();

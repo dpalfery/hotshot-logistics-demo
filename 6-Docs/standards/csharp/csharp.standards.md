@@ -161,7 +161,8 @@ Reuse outbound HTTP through `IHttpClientFactory`. Configure retries, timeouts, a
 circuit breaking on the factory with Polly; do not new up `HttpClient` or wrap every
 call site in its own policy.
 
-- Use typed clients. Give every outbound call a timeout and pass the `CancellationToken`.
+- Use typed clients. Give every outbound call a timeout and pass the `CancellationToken`. Register each client
+  with `AddOutboundResilience()` (`HotshotLogistics.Data.Http`), which applies the standard pipeline below.
 - Retry only transient failures, with exponential backoff and a bounded attempt count.
 - Circuit breakers fail fast during prolonged outages. Log retry and breaker events.
 - Database retries need a separate review of transaction boundaries and idempotency.

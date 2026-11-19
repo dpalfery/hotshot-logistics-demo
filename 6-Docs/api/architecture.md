@@ -81,6 +81,14 @@ when one fails. `/health` runs every check. All three are anonymous and write on
 the payment webhooks). Limits bind from the `RateLimiting` section and are validated at startup; a rejection is a 429
 `ProblemDetails` with `Retry-After`.
 
+## Resilience
+
+Outbound HTTP is registered on `IHttpClientFactory` with `AddOutboundResilience()` (`HotshotLogistics.Data.Http`): the
+standard pipeline from `Microsoft.Extensions.Http.Resilience` (total timeout, bounded exponential retry on transient
+failures, per-attempt timeout, circuit breaker), configured under `Resilience:Outbound`. Payment retries in
+`BillingService` handle only transport failures and the processor's transient error codes (`Payments:Retry`); a decline
+is never retried and the payment id travels as the idempotency key.
+
 ## Testing strategy
 
 API tests live under `5-Test/` (`HotshotLogistics.Api.Tests`, integration tests). The `Program` type is public (`Program.Api.cs`) so the test host can use the real composition root.
