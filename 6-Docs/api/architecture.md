@@ -52,7 +52,7 @@ flowchart TD
 | `HealthCheckExtensions`, `DatabaseHealthCheck` | `/health`, `/health/live`, `/health/ready` probes; the database is the only readiness dependency |
 | `RateLimitingExtensions` | Global and `public` per-address limits; 429 `ProblemDetails` with `Retry-After`; health exempt |
 | `TelemetryExtensions` | OpenTelemetry traces and metrics; Application Insights export only when a connection string is set |
-| Application `RealtimeHub` | Real-time updates mapped from the API host |
+| Application `RealtimeHub` | Real-time updates mapped from the API host; see [Realtime hub](#realtime-hub) |
 
 Authorization policies include `Admin`, `Manager`, `Driver`, `Customer`, and combined roles.
 
@@ -112,3 +112,19 @@ request activity.
 ## Testing strategy
 
 API tests live under `5-Test/` (`HotshotLogistics.Api.Tests`, integration tests). The `Program` type is public (`Program.Api.cs`) so the test host can use the real composition root.
+
+## Realtime hub
+
+`RealtimeHub` at `/realtime` is `[Authorize]`: an anonymous negotiate or WebSocket request answers 401. A browser
+WebSocket cannot set the `Authorization` header, so on this path the JWT bearer handler (and, in Development, the
+`Test` scheme with the token `test-token`) also reads the token from the `access_token` query value.
+
+On connect the hub adds a caller that satisfies `ManagerOrAdmin` to the `admins` group (`RealtimeGroups.Admins`); other
+authenticated callers stay connected without it. A reconnect is a new connection and is added again.
+
+`JobService` calls `IRealtimeService.BroadcastJobStatusUpdate` once for each of: job created (`Pending`), update that
+changes the status, driver assigned (`Assigned`), and every status update (start, deliver, receive). `RealtimeService`
+sends `JobStatusUpdated(jobId, status)` to `admins` and to `job-{jobId}`. The change is already saved when it is sent, so
+a send failure is logged as a warning and does not fail the request. `ISignalRClientWrapper` finds the typed client method
+by name through reflection, so `RealtimeBroadcastWireTests` runs the real hub context to prove the name and arguments
+reach the group.

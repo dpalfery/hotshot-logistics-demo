@@ -30,7 +30,7 @@ flowchart LR
   apiClient --> api
 ```
 
-TanStack Query caches server state. MSAL handles Azure AD sign-in. SignalR connects to the API `/realtime` hub for live updates: `useRealtimeSubscription` (`src/lib`) opens the connection while a view is mounted and registers its handlers, and the event names live in `src/services/signalr-events.ts`. The overview refetches its job queries when the hub sends `JobStatusUpdated`, and says so when the connection cannot be opened.
+TanStack Query caches server state. MSAL handles Azure AD sign-in. SignalR connects to the API `/realtime` hub for live updates: `useRealtimeSubscription` (`src/lib`) opens the connection while a view is mounted and registers its handlers, and the event names live in `src/services/signalr-events.ts`. The hub refuses anonymous clients, so the client sends the same token as the API calls (`accessTokenFactory`). The server sends `JobStatusUpdated` to the `admins` group, which the hub adds managers and admins to when they connect; the overview refetches its job queries on it, and says so when the connection cannot be opened.
 
 ## Components and interfaces
 
@@ -58,4 +58,4 @@ Shared TypeScript types live in `src/types`. They mirror API DTOs; the API remai
 
 ## Testing strategy
 
-Playwright specs under `tests/` cover auth, dashboard overview, jobs, drivers, tracking, and billing. Run `npm test` from the dashboard source root. Tests mock the API per test; live updates are tested by mocking the SignalR negotiate request and WebSocket (`tests/utils/signalr-mock.ts`), so the app runs its real client. A test pushes `JobStatusUpdated` and checks the overview refetches. Delivery from the server is not complete ([job status update delivery](../todo/job-status-update-delivery.md)).
+Playwright specs under `tests/` cover auth, dashboard overview, jobs, drivers, tracking, and billing. Run `npm test` from the dashboard source root. Tests mock the API per test; live updates are tested by mocking the SignalR negotiate request and WebSocket (`tests/utils/signalr-mock.ts`), so the app runs its real client. A test pushes `JobStatusUpdated` and checks the overview refetches, and another checks the connection carries the token. Delivery from the server is covered by the API tests. The tracking view's `LocationUpdate` and `Notification` events do not yet match the hub ([tracking live events](../todo/tracking-live-events-contract.md)).

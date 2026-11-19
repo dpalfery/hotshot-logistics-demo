@@ -17,7 +17,7 @@ Add one document per todo and list it here, ordered by priority (`P1` high, `P2`
 | Todo | Priority | Status | Component | Summary |
 |---|---|---|---|---|
 | [Complete Azure configuration support](azure-configuration-support.md) | P1 | Open | Api | Plan and verify local settings and Azure App Configuration with Key Vault references. |
-| [Make the server deliver job status updates to the dashboard](job-status-update-delivery.md) | P1 | Open | Api | `JobStatusUpdated` goes only to per-job groups nobody joins and no production code sends it; the client's other event and method names also differ from the hub. |
+| [Make the tracking dashboard's live events match the hub](tracking-live-events-contract.md) | P2 | Open | admin-dashboard | The tracking view listens for `LocationUpdate` and `Notification` with payloads the hub does not send, and the server never sends either to the dashboard. |
 | [Add the missing Payments table migration](payments-table.md) | P2 | Open | Api | `PaymentRepository` targets a `Payments` table no migration creates; add the migration and real-database tests. |
 | [Build the Add Driver and Generate Invoice forms](admin-dashboard-quick-action-forms.md) | P2 | Open | admin-dashboard | The Quick Actions link to `?action=add` and `?action=generate`, but the Drivers and Billing pages have no such forms. |
 | [Align the dashboard types with what the API sends](admin-dashboard-api-wire-types.md) | P2 | Open | admin-dashboard | Enums arrive as numbers and locations are nested; only job status is converted, priority and invoice status are not, and `Job` expects flat addresses. |

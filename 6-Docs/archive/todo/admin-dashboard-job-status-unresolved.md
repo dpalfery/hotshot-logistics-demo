@@ -29,6 +29,6 @@ Resolved 2026-11-19; the [admin dashboard architecture](../../admin-dashboard/ar
   from `/api/dashboard/stats`, neither of which exists. It is replaced by `should refresh the statistics and recent jobs
   when the server pushes a job status update`, which pushes `JobStatusUpdated` through the SignalR mock and passes.
   Revenue is not a feature of the overview, so that part of the old test is dropped.
-- Not solved here, and tracked: the server sends `JobStatusUpdated` only to per-job groups and no production code sends it
-  ([job status update delivery](../../todo/job-status-update-delivery.md)), and the other enums and the job shape differ
-  from the wire ([dashboard wire types](../../todo/admin-dashboard-api-wire-types.md)).
+- Not solved here, and tracked: the server sent `JobStatusUpdated` only to per-job groups and no production code sent it
+  (since resolved: [job status update delivery](job-status-update-delivery.md)), and the other enums and the job shape
+  differ from the wire ([dashboard wire types](../../todo/admin-dashboard-api-wire-types.md)).
