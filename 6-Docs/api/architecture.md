@@ -80,8 +80,8 @@ when one fails. `/health` runs every check. All three are anonymous and write on
 ## Rate limiting
 
 `UseRateLimiter()` runs after CORS and before authentication. The global limit is a fixed window per client address;
-`/health*` is exempt. The `public` policy is stricter and is applied to the unauthenticated actions (public tracking and
-the payment webhooks). Limits bind from the `RateLimiting` section and are validated at startup; a rejection is a 429
+`/health*` is exempt. The `public` policy is stricter and is applied to public tracking and the payment webhooks only; the other
+`TrackingController` actions are currently anonymous and get only the global limit (see the unauthenticated-endpoints todo). Limits bind from the `RateLimiting` section and are validated at startup; a rejection is a 429
 `ProblemDetails` with `Retry-After`.
 
 ## Resilience

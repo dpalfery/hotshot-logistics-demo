@@ -17,20 +17,16 @@ namespace HotshotLogistics.Api.Controllers
     [Authorize]
     public sealed class UserProfileController : ApiControllerBase
     {
-        private readonly ILogger<UserProfileController> _logger;
         private readonly IUserProfileService _userProfileService;
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="UserProfileController" /> class.
         /// </summary>
         /// <param name="userProfileService">The user profile service.</param>
-        /// <param name="logger">The _logger.</param>
         public UserProfileController(
-            IUserProfileService userProfileService,
-            ILogger<UserProfileController> logger)
+            IUserProfileService userProfileService)
         {
             _userProfileService = userProfileService ?? throw new ArgumentNullException(nameof(userProfileService));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         /// <summary>

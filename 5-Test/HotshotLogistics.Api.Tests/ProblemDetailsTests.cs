@@ -17,7 +17,7 @@ namespace HotshotLogistics.Api.Tests
     {
         private const string s_problemContentType = "application/problem+json";
         private const string s_driversEndpoint = "/api/Drivers";
-        private const string s_secretMessage = "connection string Server=secret;Password=hunter2";
+        private const string s_secretMessage = "internal-detail-sentinel: database host and query text";
 
         public static TheoryData<Exception, HttpStatusCode> DomainExceptions => new()
         {
@@ -65,7 +65,7 @@ namespace HotshotLogistics.Api.Tests
                 await client.GetAsync(s_driversEndpoint, TestContext.Current.CancellationToken);
 
             string raw = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
-            raw.Should().NotContain("hunter2").And.NotContain("StackTrace").And.NotContain("   at ");
+            raw.Should().NotContain("internal-detail-sentinel").And.NotContain("StackTrace").And.NotContain("   at ");
         }
 
         [Fact]

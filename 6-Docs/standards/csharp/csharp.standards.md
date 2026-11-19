@@ -204,8 +204,8 @@ anonymous and report names and statuses only. Add a dependency this process need
 check; do not open connections in the Api project (the database check lives in `HotshotLogistics.Data.Health`).
 
 Cache responses only where the data is safe to reuse. Rate-limit public endpoints: the API applies a global
-limit and a stricter `public` policy (`[EnableRateLimiting(RateLimitPolicies.Public)]`) to every unauthenticated action,
-and health endpoints stay exempt. Measure with the platform diagnostics
+limit to everything and a stricter `public` policy (`[EnableRateLimiting(RateLimitPolicies.Public)]`) to public tracking
+and the payment webhooks; health endpoints stay exempt. Apply the policy to any new unauthenticated action. Measure with the platform diagnostics
 rather than guessing.
 
 ### Dependencies

@@ -32,20 +32,20 @@ namespace HotshotLogistics.Tests.Health
         {
             // Port 1 on loopback refuses immediately, so no network is touched.
             DatabaseHealthCheck check = CreateCheck(
-                "Server=tcp:127.0.0.1,1;Database=none;User Id=none;Password=hunter2;Encrypt=False");
+                "Server=tcp:127.0.0.1,1;Database=leak-sentinel-db;Integrated Security=True;Encrypt=False");
 
             HealthCheckResult result = await check.CheckHealthAsync(new HealthCheckContext(), TestContext.Current.CancellationToken);
 
             result.Status.Should().Be(HealthStatus.Unhealthy);
             result.Exception.Should().BeNull();
-            result.Description.Should().NotContain("127.0.0.1").And.NotContain("hunter2");
+            result.Description.Should().NotContain("127.0.0.1").And.NotContain("leak-sentinel-db");
         }
 
         [Fact]
         public async Task CheckHealthAsync_WhenCallerCancels_ThrowsOperationCanceled()
         {
             DatabaseHealthCheck check = CreateCheck(
-                "Server=tcp:127.0.0.1,1;Database=none;User Id=none;Password=none;Encrypt=False");
+                "Server=tcp:127.0.0.1,1;Database=none;Integrated Security=True;Encrypt=False");
             using CancellationTokenSource cancelled = new();
             await cancelled.CancelAsync();
 

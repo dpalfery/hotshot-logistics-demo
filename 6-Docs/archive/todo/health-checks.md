@@ -23,7 +23,8 @@ anonymous endpoints that report check names and statuses only (no descriptions, 
 
 `HotshotLogistics.Data.Health.DatabaseHealthCheck` opens a connection and runs `SELECT 1` under
 `Health:Database:TimeoutSeconds` (default 3). It reads the connection string when it runs, so a missing setting makes
-the check unhealthy instead of failing startup. The database is the only dependency: the API has no queue and no
+the check unhealthy instead of failing startup. `DatabaseHealthCheck` creates its `SqlConnection` directly because `ISqlConnectionFactory` is not on this branch; switch it
+to the factory when [the connection-factory todo](../../todo/sql-connection-factory.md) lands. The database is the only dependency: the API has no queue and no
 downstream API it must reach before serving.
 
 Tests: `HotshotLogistics.Api.Tests.HealthCheckTests` (database down or unset),

@@ -4,6 +4,7 @@ using FluentAssertions;
 using HotshotLogistics.Contracts.Services;
 using HotshotLogistics.Domain.Entities;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.Options;
 using Moq;
 using Xunit;
 
@@ -99,7 +100,7 @@ namespace HotshotLogistics.Api.Tests
 
             Func<HttpClient> start = factory.CreateClient;
 
-            start.Should().Throw<Exception>().Which.ToString().Should().Contain("GlobalPermitLimit");
+            start.Should().Throw<OptionsValidationException>().Which.Message.Should().Contain("GlobalPermitLimit");
         }
 
         private static WebApplicationFactory<Program> CreateFactory(

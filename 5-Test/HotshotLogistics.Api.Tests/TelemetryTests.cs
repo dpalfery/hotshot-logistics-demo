@@ -20,7 +20,8 @@ namespace HotshotLogistics.Api.Tests
     /// </summary>
     public class TelemetryTests
     {
-        // A closed loopback port: if an exporter ever flushes, nothing leaves the machine.
+        // Placeholder only: an all-zero GUID is not a real key, and the closed loopback port means nothing
+        // leaves the machine if an exporter ever flushes.
         private const string s_connectionString =
             "InstrumentationKey=00000000-0000-0000-0000-000000000000;IngestionEndpoint=http://127.0.0.1:1/";
 

@@ -18,7 +18,7 @@ namespace HotshotLogistics.Api.Tests
         {
             // 198.51.100.0/24 is reserved for documentation (RFC 5737) and never routes.
             ["ConnectionStrings:DefaultConnection"] =
-                $"Server=tcp:{s_unreachableHost},1433;Database=none;User Id=none;Password=none;Connect Timeout=1;Encrypt=False",
+                $"Server=tcp:{s_unreachableHost},1433;Database=leak-sentinel-db;Integrated Security=True;Connect Timeout=1;Encrypt=False",
             ["Health:Database:TimeoutSeconds"] = "1",
         };
 
@@ -51,7 +51,7 @@ namespace HotshotLogistics.Api.Tests
 
             response.StatusCode.Should().Be(HttpStatusCode.ServiceUnavailable);
             string raw = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
-            raw.Should().NotContain(s_unreachableHost).And.NotContain("Password").And.NotContain("SqlException");
+            raw.Should().NotContain(s_unreachableHost).And.NotContain("leak-sentinel-db").And.NotContain("SqlException");
             JsonDocument.Parse(raw).RootElement.GetProperty("status").GetString().Should().Be("Unhealthy");
         }
 

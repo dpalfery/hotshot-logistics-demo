@@ -42,7 +42,9 @@ Resolved 2026-11-19.
 **`BillingService`**: the retry no longer handles `Exception`. It retries `HttpRequestException`, `TimeoutException`,
 `ExternalServiceException` and a `PaymentProcessingException` whose processor error code is listed in
 `Payments:Retry:TransientErrorCodes` (default `TEMPORARY_ERROR`, `TIMEOUT`, `RATE_LIMITED`, `SERVICE_UNAVAILABLE`).
-A decline or an unknown exception is not retried, because retrying a charge is not idempotent. The payment id is sent as
+The current Stripe and PayPal processors emit only `STRIPE_ERROR` / `PAYPAL_ERROR` (an exception caught while processing, so
+the charge may have happened) and decline codes, none of which is transient, so today no processor failure is retried;
+the retry applies to transport exceptions and to processors that report a listed code. A decline or an unknown exception is not retried, because retrying a charge is not idempotent. The payment id is sent as
 `idempotency_key` on every attempt, the caller's `CancellationToken` stops the backoff, and cancellation is rethrown
 instead of recording a failed payment. `MaxRetries` and `BaseDelay` bind from `Payments:Retry`.
 
