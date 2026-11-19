@@ -1,3 +1,4 @@
+using System.Reflection;
 using HotshotLogistics.Application.Services;
 using HotshotLogistics.Domain.Entities;
 using NetArchTest.Rules;
@@ -35,6 +36,20 @@ namespace HotshotLogistics.Tests.Utils.Infrastructure
                 .GetResult();
 
             Assert.True(result.IsSuccessful, string.Join(',', result.FailingTypeNames ?? Array.Empty<string>()));
+        }
+
+        [Fact]
+        public void Data_should_not_depend_on_application()
+        {
+            Assembly data = typeof(DriverRepository).Assembly;
+
+            TestResult result = Types.InAssembly(data)
+                .ShouldNot()
+                .HaveDependencyOn(s_application)
+                .GetResult();
+
+            Assert.True(result.IsSuccessful, string.Join(',', result.FailingTypeNames ?? Array.Empty<string>()));
+            Assert.DoesNotContain(data.GetReferencedAssemblies(), a => a.Name == s_application);
         }
 
         [Fact]

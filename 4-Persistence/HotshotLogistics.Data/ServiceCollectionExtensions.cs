@@ -2,7 +2,6 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
-using HotshotLogistics.Application.Services;
 using HotshotLogistics.Contracts.Repositories;
 using HotshotLogistics.Contracts.Services;
 using HotshotLogistics.Data.Repositories;
@@ -70,7 +69,6 @@ namespace HotshotLogistics.Data
             services.AddTransient<ICommunicationService, TwilioSmsService>();
             services.AddTransient<ICommunicationService, SendGridEmailService>();
             services.AddTransient<ICommunicationService, AzureNotificationHubService>();
-            services.AddTransient<ICommunicationServiceFactory, CommunicationServiceFactory>();
             return services;
         }
     }
