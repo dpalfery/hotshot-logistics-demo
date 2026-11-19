@@ -4,6 +4,55 @@ import { Job, Driver, Invoice, Customer, PagedResult, JobFilter, InvoiceFilter, 
 
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL || '/api').trim();
 
+/**
+ * Response-shape checks at the service boundary: a response that fails one is an error the
+ * calling view shows, never data a component has to guess about.
+ */
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function unexpectedResponse(endpoint: string): Error {
+  return new Error(`Unexpected response shape from ${endpoint}`);
+}
+
+function parseJobsPage(data: unknown): PagedResult<Job> {
+  if (
+    !isRecord(data) ||
+    !Array.isArray(data.items) ||
+    typeof data.totalCount !== 'number' ||
+    !data.items.every(item => isRecord(item) && typeof item.id === 'string' && typeof item.status === 'string')
+  ) {
+    throw unexpectedResponse('/job');
+  }
+  return data as unknown as PagedResult<Job>;
+}
+
+function parseDrivers(data: unknown): Driver[] {
+  if (
+    !Array.isArray(data) ||
+    !data.every(item => isRecord(item) && typeof item.id === 'number' && typeof item.isActive === 'boolean')
+  ) {
+    throw unexpectedResponse('/drivers');
+  }
+  return data as Driver[];
+}
+
+function parseOverdueInvoices(data: unknown): PagedResult<Invoice> {
+  const items = Array.isArray(data) ? data : isRecord(data) ? data.items : undefined;
+  if (!Array.isArray(items) || !items.every(isRecord)) {
+    throw unexpectedResponse('/billing/invoices/overdue');
+  }
+  const totalCount = isRecord(data) && typeof data.totalCount === 'number' ? data.totalCount : items.length;
+  return {
+    items: items as unknown as Invoice[],
+    totalCount,
+    pageNumber: 1,
+    pageSize: items.length || 10,
+    totalPages: 1
+  };
+}
+
 class ApiService {
   private async request<T>(
     endpoint: string,
@@ -13,15 +62,6 @@ class ApiService {
     const baseUrl = API_BASE_URL.replace(/\/$/, '');
     const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
     const url = `${baseUrl}${normalizedEndpoint}${query ? `?${query}` : ''}`;
-
-    const isTestMode = typeof window !== 'undefined' && (window as typeof window & { __BYPASS_AUTH__?: boolean }).__BYPASS_AUTH__ === true;
-    // Test mode uses the configured base URL like every other mode, so Playwright mocks match /api/...
-    const finalUrl = url;
-
-    console.log('=== API REQUEST DEBUG ===');
-    console.log('Making request to:', finalUrl);
-    console.log('Base URL from env:', API_BASE_URL);
-    console.log('Is test mode:', isTestMode);
 
     const config: RequestInit = {
       headers: {
@@ -33,43 +73,27 @@ class ApiService {
 
     // Add authentication token if available
     const token = await this.getAuthToken();
-    console.log('Auth token obtained:', token ? 'Yes' : 'No');
     if (token) {
       // Use Test scheme for test token, Bearer for real tokens
       const scheme = token === 'test-token' ? 'Test' : 'Bearer';
-      console.log('Using auth scheme:', scheme);
       config.headers = {
         ...config.headers,
         Authorization: `${scheme} ${token}`,
       };
     }
 
-    try {
-      const response = await fetch(finalUrl, config);
-      console.log('Response status:', response.status);
-      console.log('Response ok:', response.ok);
-
-      if (!response.ok) {
-        const error = await response.text();
-        console.error('API Error response:', error);
-        throw new Error(`API Error: ${response.status} ${error}`);
-      }
-
-      const data = await response.json();
-      console.log('Response data length/type:', Array.isArray(data) ? data.length : typeof data);
-      console.log('=== END API REQUEST DEBUG ===');
-      return data;
-    } catch (error) {
-      console.error('Fetch error:', error);
-      console.log('=== END API REQUEST DEBUG (ERROR) ===');
-      throw error;
+    const response = await fetch(url, config);
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`API Error: ${response.status} ${error}`);
     }
+
+    return response.json();
   }
 
   private async getAuthToken(): Promise<string | null> {
     // Always use test authentication in development
     if (process.env.NODE_ENV === 'development') {
-      console.log('Development mode: using test authentication');
       return 'test-token';
     }
 
@@ -126,11 +150,7 @@ class ApiService {
     }
 
     const query = params.toString();
-    if (query) {
-      return this.request<PagedResult<Job>>('/job', {}, query);
-    } else {
-      return this.request<PagedResult<Job>>('/job');
-    }
+    return parseJobsPage(await this.request<unknown>('/job', {}, query || undefined));
   }
 
   async getJobById(id: string): Promise<Job> {
@@ -173,7 +193,7 @@ class ApiService {
 
   // Driver API methods
   async getDrivers(): Promise<Driver[]> {
-    return this.request<Driver[]>('/drivers');
+    return parseDrivers(await this.request<unknown>('/drivers'));
   }
 
   async getDriverById(id: number): Promise<Driver> {
@@ -205,29 +225,7 @@ class ApiService {
     _filter?: InvoiceFilter,
     _pagination?: PaginationParameters
   ): Promise<PagedResult<Invoice>> {
-    const response: unknown = await this.request<unknown>('/billing/invoices/overdue');
-    const responseRecord =
-      typeof response === 'object' && response !== null
-        ? (response as { items?: unknown; totalCount?: unknown })
-        : undefined;
-    const items = Array.isArray(response)
-      ? (response as Invoice[])
-      : Array.isArray(responseRecord?.items)
-        ? (responseRecord?.items as Invoice[])
-        : [];
-    const totalCount = Array.isArray(response)
-      ? response.length
-      : typeof responseRecord?.totalCount === 'number'
-        ? responseRecord.totalCount
-        : items.length;
-
-    return {
-      items,
-      totalCount,
-      pageNumber: 1,
-      pageSize: items.length || 10,
-      totalPages: 1
-    };
+    return parseOverdueInvoices(await this.request<unknown>('/billing/invoices/overdue'));
   }
 
   async getInvoiceById(id: string): Promise<Invoice> {

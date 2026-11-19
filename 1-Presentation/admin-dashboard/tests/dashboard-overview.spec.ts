@@ -167,37 +167,34 @@ test.describe('Dashboard Overview', () => {
     });
 
     test('should handle loading state for statistics', async ({ page }) => {
-      // Mock delayed response
-      await page.route('**/api/dashboard/stats', async route => {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+      // Hold the jobs response back so the loading state is still showing when it is asserted
+      let releaseJobs: () => void = () => {};
+      const jobsHeld = new Promise<void>(resolve => { releaseJobs = resolve; });
+      await page.route('**/api/job', async route => {
+        await jobsHeld;
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify({
-            totalJobs: 3,
-            activeDrivers: 2,
-            revenue: 4800.00,
-            pendingJobs: 1
-          })
+          body: JSON.stringify({ items: [], totalCount: 7 })
         });
       });
 
       await page.reload();
 
-      // Check for loading indicators
-      const loadingIndicators = page.locator('[data-testid="loading-spinner"]');
-      if (await loadingIndicators.first().isVisible()) {
-        await expect(loadingIndicators).toHaveCount(4);
-      }
+      // Only the two job cards wait for the jobs request: the drivers and invoices cards show their data
+      await expect(page.locator('[data-testid="loading-spinner"]')).toHaveCount(2);
+      await expect(page.locator('[data-testid="metric-active-drivers"]')).toHaveText('2');
+      await expect(page.locator('[data-testid="metric-overdue-invoices"]')).toHaveText('2');
+      await expect(page.locator('[data-testid="metric-total-jobs"]')).toHaveCount(0);
 
-      // Wait for data to load
-      await expect(page.locator('[data-testid="metric-total-jobs"]')).toHaveText('3');
+      releaseJobs();
+      await expect(page.locator('[data-testid="metric-total-jobs"]')).toHaveText('7');
+      await expect(page.locator('[data-testid="loading-spinner"]')).toHaveCount(0);
     });
 
-    // FIXME: DashboardOverview has no statistics error state and no /api/dashboard/stats call; query errors are only logged and the cards show 0 (6-Docs/todo/admin-dashboard-playwright-baseline.md).
-    test.fixme('should handle error state for statistics', async ({ page }) => {
-      // Mock error response
-      await page.route('**/api/dashboard/stats', async route => {
+    test('should handle error state for statistics', async ({ page }) => {
+      // The overview computes its statistics from the jobs, drivers and invoices endpoints; there is no /api/dashboard/stats endpoint
+      await page.route('**/api/job', async route => {
         await route.fulfill({
           status: 500,
           contentType: 'application/json',
@@ -207,8 +204,14 @@ test.describe('Dashboard Overview', () => {
 
       await page.reload();
 
-      // Check for error state
+      // One error message, naming only what failed
       await expect(page.getByText('Error loading statistics')).toBeVisible();
+      // The two job cards show an error, never a 0
+      await expect(page.locator('[data-testid="metric-total-jobs"]')).toHaveCount(0);
+      await expect(page.locator('[data-testid="metric-active-jobs"]')).toHaveCount(0);
+      // The cards whose own requests succeeded still show their data
+      await expect(page.locator('[data-testid="metric-active-drivers"]')).toHaveText('2');
+      await expect(page.locator('[data-testid="metric-overdue-invoices"]')).toHaveText('2');
     });
   });
 
@@ -267,34 +270,121 @@ test.describe('Dashboard Overview', () => {
   });
 
   test.describe('Recent Activity Section', () => {
+    const recentJobsResponse = {
+      items: [
+        {
+          id: 'job-1',
+          title: 'Urgent Delivery',
+          pickupAddress: '123 Main St',
+          dropoffAddress: '456 Oak Ave',
+          amount: 100,
+          status: 'InProgress',
+          assignedDriverId: 1,
+          scheduledPickupTime: '2024-12-01T10:00:00Z'
+        },
+        {
+          id: 'job-2',
+          title: 'Standard Delivery',
+          pickupAddress: '789 Pine St',
+          dropoffAddress: '321 Elm Ave',
+          amount: 200,
+          status: 'Pending',
+          assignedDriverId: null,
+          scheduledPickupTime: '2024-12-01T14:00:00Z'
+        }
+      ],
+      totalCount: 2
+    };
+
     test('should display recent jobs section', async ({ page }) => {
+      await page.route('**/api/job', route => route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(recentJobsResponse)
+      }));
+      await page.reload();
+
       // Check recent jobs section
       await expect(page.getByText('Recent Jobs')).toBeVisible();
-      
+
       // Check job entries
       await expect(page.getByText('Urgent Delivery')).toBeVisible();
       await expect(page.getByText('Standard Delivery')).toBeVisible();
-      
+
       // Check job details
       await expect(page.getByText('123 Main St → 456 Oak Ave')).toBeVisible();
       await expect(page.getByText('789 Pine St → 321 Elm Ave')).toBeVisible();
     });
 
     test('should display job status badges with correct styling', async ({ page }) => {
+      await page.route('**/api/job', route => route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(recentJobsResponse)
+      }));
+      await page.reload();
+
       // Check status badges
-      const inProgressBadge = page.locator('text=InProgress').first();
+      const recentJobs = page.getByTestId('recent-jobs');
+      const inProgressBadge = recentJobs.getByText('InProgress', { exact: true });
       await expect(inProgressBadge).toBeVisible();
       await expect(inProgressBadge).toHaveClass(/bg-green-100.*text-green-800/);
 
-      const pendingBadge = page.locator('text=Pending').first();
+      const pendingBadge = recentJobs.getByText('Pending', { exact: true });
       await expect(pendingBadge).toBeVisible();
       await expect(pendingBadge).toHaveClass(/bg-yellow-100.*text-yellow-800/);
     });
 
-    // FIXME: Recent Jobs is hardcoded markup, not driven by the jobs API, so there is no empty state (6-Docs/todo/admin-dashboard-playwright-baseline.md).
-    test.fixme('should handle empty recent jobs list', async ({ page }) => {
-      // Mock empty jobs response
-      await page.route('**/api/jobs*', async route => {
+    test('should show a loading state in recent jobs while the jobs request is pending', async ({ page }) => {
+      let releaseJobs: () => void = () => {};
+      const jobsHeld = new Promise<void>(resolve => { releaseJobs = resolve; });
+      await page.route('**/api/job', async route => {
+        await jobsHeld;
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(recentJobsResponse)
+        });
+      });
+      await page.reload();
+
+      const recentJobs = page.getByTestId('recent-jobs');
+      await expect(recentJobs.getByTestId('recent-jobs-loading')).toBeVisible();
+      await expect(recentJobs.getByText('No recent jobs')).toHaveCount(0);
+
+      releaseJobs();
+      await expect(recentJobs.getByText('Urgent Delivery')).toBeVisible();
+      await expect(recentJobs.getByTestId('recent-jobs-loading')).toHaveCount(0);
+    });
+
+    test('should show an error state in recent jobs when the jobs request fails', async ({ page }) => {
+      await page.route('**/api/job', route => route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: 'Internal server error' })
+      }));
+      await page.reload();
+
+      const recentJobs = page.getByTestId('recent-jobs');
+      await expect(recentJobs.getByText('Error loading recent jobs')).toBeVisible();
+      await expect(recentJobs.getByText('No recent jobs')).toHaveCount(0);
+    });
+
+    test('should show an error state when the jobs response has an unexpected shape', async ({ page }) => {
+      await page.route('**/api/job', route => route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ unexpected: true })
+      }));
+      await page.reload();
+
+      await expect(page.getByTestId('recent-jobs').getByText('Error loading recent jobs')).toBeVisible();
+      await expect(page.getByText('Error loading statistics')).toBeVisible();
+    });
+
+    test('should handle empty recent jobs list', async ({ page }) => {
+      // Mock empty jobs response (the jobs endpoint is /api/job)
+      await page.route('**/api/job', async route => {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
@@ -330,22 +420,21 @@ test.describe('Dashboard Overview', () => {
       await expect(page.getByText('Generate Invoice')).toBeVisible();
     });
 
-    // FIXME: The Quick Actions buttons have no click handler or link, and /jobs does not read ?action= (6-Docs/todo/admin-dashboard-playwright-baseline.md).
-    test.fixme('should navigate to create job form', async ({ page }) => {
+    test('should navigate to create job form', async ({ page }) => {
       // Click create job button
       await page.click('text=Create New Job');
       await expect(page).toHaveURL('/jobs?action=create');
+      // The Jobs page opens its create form from the action
+      await expect(page.getByRole('heading', { name: 'Create New Job' })).toBeVisible();
     });
 
-    // FIXME: The Quick Actions buttons have no click handler or link, and /drivers does not read ?action= (6-Docs/todo/admin-dashboard-playwright-baseline.md).
-    test.fixme('should navigate to add driver form', async ({ page }) => {
+    test('should navigate to add driver form', async ({ page }) => {
       // Click add driver button
       await page.click('text=Add Driver');
       await expect(page).toHaveURL('/drivers?action=add');
     });
 
-    // FIXME: The Quick Actions buttons have no click handler or link, and /billing does not read ?action= (6-Docs/todo/admin-dashboard-playwright-baseline.md).
-    test.fixme('should navigate to invoice generation', async ({ page }) => {
+    test('should navigate to invoice generation', async ({ page }) => {
       // Click generate invoice button
       await page.click('text=Generate Invoice');
       await expect(page).toHaveURL('/billing?action=generate');
