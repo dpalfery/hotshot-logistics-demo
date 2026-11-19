@@ -5,13 +5,13 @@ doc-type: todo
 status: current
 component: Api
 owner: unassigned
-last-reviewed: 2026-11-14
+last-reviewed: 2026-11-19
 ---
 
 # Align C# contract model placement
 
 The C# standard requires `Contracts` to contain interfaces only and shared DTOs
-to live in `Contracts.Models`. The current `HotshotLogistics.Contracts` project
+to live in `HotshotLogistics.Domain.DTOs` (owner decision, 2026-11-19). The current `HotshotLogistics.Contracts` project
 contains nine classes alongside interfaces:
 
 - `Repositories/IInvoiceRepository.cs`: `InvoiceFilter`, `AgingReportEntry`, and
@@ -21,9 +21,8 @@ contains nine classes alongside interfaces:
   `PaymentProcessingResult`, `WebhookEventData`, `WebhookProcessingResult`, and
   `PaymentStatusUpdate`.
 
-There is no tracked `Contracts.Models` project, `HotshotLogistics.Contracts.csproj`
-currently references `HotshotLogistics.Domain.csproj`, and Domain also contains
-DTOs whose intended sharing and placement need review.
+These nine classes move to `HotshotLogistics.Domain.DTOs`. The DTOs already in
+`Domain/DTOs` are in the right place.
 
 ## Next action
 

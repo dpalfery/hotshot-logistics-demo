@@ -86,16 +86,16 @@ a property count does not make a type an Entity.
 
 | Kind | Where | Shape |
 |---|---|---|
-| Shared DTO | `HotshotLogistics.Contracts.Models` (target; see [contracts todo](../../todo/contracts-model-placement.md)) | Property bag, no domain invariant. Suffix `Dto`. |
+| Shared DTO | `HotshotLogistics.Domain/DTOs` (namespace `HotshotLogistics.Domain.DTOs`) | Property bag, no domain invariant. Suffix `Dto`. |
 | Use-case DTO | `HotshotLogistics.Application` | Same shape, same `Dto` suffix, not shared across layers. |
 | Entity | `HotshotLogistics.Domain/Entities` | Stable identity plus a business invariant or legal state transition. Controlled construction and mutation; no getter/setter-only padding. |
 | Value object | `HotshotLogistics.Domain/ValueObjects` | Immutable, equality by value. May carry domain behaviour; has no independent identity. |
 | Persistence row | `HotshotLogistics.Data` (internal) | Storage/schema projection. Mapped at the adapter boundary. Not a shared contract and not a Domain entity. |
 
-`HotshotLogistics.Contracts` contains interfaces only; `HotshotLogistics.Contracts.Models`
-is the approved target location for shared DTOs (tracked in the
-[contracts todo](../../todo/contracts-model-placement.md)). Any exception is an
-architecture decision with focused behaviour tests, not a convenience.
+`HotshotLogistics.Contracts` contains interfaces only. Shared DTOs live in
+`HotshotLogistics.Domain.DTOs` (owner decision, 2026-11-19); there is no separate contracts
+models project. Any exception is an architecture decision with focused behaviour tests, not a
+convenience.
 
 Server-side C# follows Clean Architecture: inner layers never depend on outer layers;
 business invariants belong in Domain; application services belong in
