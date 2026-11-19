@@ -366,7 +366,7 @@ jobs:
           EXIT_CODE=0
           scanned_count=0
           mkdir -p kyber-weave-sarif
-          read -r -a skill_dirs <<< "${SKILL_DIRS}"
+          read -r -a skill_dirs <<< "${SKILL_DIRS}" || true
           if [ "${#skill_dirs[@]}" -eq 0 ]; then
             echo "::error::SKILL_DIRS must list at least one directory."
             exit 1
