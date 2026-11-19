@@ -15,6 +15,10 @@ namespace HotshotLogistics.Api
     /// </summary>
     public class TestAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions>
     {
+        private const string s_developmentToken = "test-token";
+        private const string s_hubBearerToken = "Bearer " + s_developmentToken;
+        private static readonly PathString s_hubPath = new("/realtime");
+
         private readonly string _defaultRole;
 
         /// <summary>
@@ -37,16 +41,20 @@ namespace HotshotLogistics.Api
         /// <inheritdoc />
         protected override Task<AuthenticateResult> HandleAuthenticateAsync()
         {
-            // Require Authorization header and the 'Test' scheme for dev/testing
-            if (!Request.Headers.ContainsKey("Authorization"))
-            {
-                return Task.FromResult(AuthenticateResult.Fail("Missing Authorization Header"));
-            }
-
+            // Require the 'Test' scheme for dev/testing. The /realtime hub is the one place a browser cannot
+            // set the Authorization header (a WebSocket), so there the development token may also arrive as
+            // the access_token query value, or as the Bearer token SignalR sends on negotiate.
             string authHeader = Request.Headers["Authorization"].ToString();
-            if (!authHeader.StartsWith("Test", StringComparison.OrdinalIgnoreCase))
+            bool hubRequest = Request.Path.StartsWithSegments(s_hubPath);
+            bool testScheme = authHeader.StartsWith("Test", StringComparison.OrdinalIgnoreCase) ||
+                              (hubRequest && (authHeader.Equals(s_hubBearerToken, StringComparison.Ordinal) ||
+                                              (authHeader.Length == 0 &&
+                                               Request.Query["access_token"] == s_developmentToken)));
+            if (!testScheme)
             {
-                return Task.FromResult(AuthenticateResult.Fail("Invalid Authorization Scheme"));
+                return Task.FromResult(AuthenticateResult.Fail(authHeader.Length == 0
+                    ? "Missing Authorization Header"
+                    : "Invalid Authorization Scheme"));
             }
 
             // Allow dynamic role per request via X-Test-Role header; default to configured _defaultRole

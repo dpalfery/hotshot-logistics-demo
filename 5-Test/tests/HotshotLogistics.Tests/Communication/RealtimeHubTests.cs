@@ -1,6 +1,11 @@
+using System.Security.Claims;
+using FluentAssertions;
+using HotshotLogistics.Application.Authorization;
 using HotshotLogistics.Application.Hubs;
 using HotshotLogistics.Contracts.Hubs;
 using HotshotLogistics.Domain.Entities;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using Moq;
 
@@ -11,6 +16,7 @@ namespace HotshotLogistics.Tests.Communication
     /// </summary>
     public class RealtimeHubTests
     {
+        private readonly Mock<IAuthorizationService> _mockAuthorization;
         private readonly Mock<IConnectionManagerService> _mockConnectionManager;
         private readonly Mock<ILogger<RealtimeHub>> _mockLogger;
         private readonly Mock<ISignalRClientWrapper> _mockSignalRClient;
@@ -21,9 +27,11 @@ namespace HotshotLogistics.Tests.Communication
             _mockLogger = new Mock<ILogger<RealtimeHub>>();
             _mockSignalRClient = new Mock<ISignalRClientWrapper>();
             _mockConnectionManager = new Mock<IConnectionManagerService>();
+            _mockAuthorization = new Mock<IAuthorizationService>();
 
             _realtimeHub =
-                new RealtimeHub(_mockLogger.Object, _mockSignalRClient.Object, _mockConnectionManager.Object);
+                new RealtimeHub(_mockLogger.Object, _mockSignalRClient.Object, _mockConnectionManager.Object,
+                    _mockAuthorization.Object);
         }
 
         [Fact]
@@ -278,6 +286,74 @@ namespace HotshotLogistics.Tests.Communication
                 x => x.SendToGroupAsync($"driver-{driverId}", "DriverStatusChanged", driverId, status), Times.Once);
             _mockSignalRClient.Verify(x => x.SendToGroupAsync("admins", "DriverStatusChanged", driverId, status),
                 Times.Once);
+        }
+
+        [Fact]
+        public void Hub_RequiresAnAuthenticatedCaller()
+        {
+            typeof(RealtimeHub).GetCustomAttributes(typeof(AuthorizeAttribute), true)
+                .Should().ContainSingle("an anonymous connection must be refused before it reaches the hub");
+        }
+
+        [Fact]
+        public async Task OnConnectedAsync_WhenTheCallerSatisfiesManagerOrAdmin_JoinsTheAdminsGroup()
+        {
+            ClaimsPrincipal user = AuthenticatedUser("manager-1");
+            Mock<IGroupManager> groups = ConnectAs(user, "conn-1");
+            _mockAuthorization
+                .Setup(a => a.AuthorizeAsync(user, null, AuthorizationPolicies.ManagerOrAdmin))
+                .ReturnsAsync(AuthorizationResult.Success());
+
+            await _realtimeHub.OnConnectedAsync();
+
+            groups.Verify(g => g.AddToGroupAsync("conn-1", RealtimeGroups.Admins, It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+
+        [Fact]
+        public async Task OnConnectedAsync_WhenTheCallerIsOnlyAuthenticated_DoesNotJoinTheAdminsGroup()
+        {
+            ClaimsPrincipal user = AuthenticatedUser("driver-1");
+            Mock<IGroupManager> groups = ConnectAs(user, "conn-2");
+            _mockAuthorization
+                .Setup(a => a.AuthorizeAsync(user, null, AuthorizationPolicies.ManagerOrAdmin))
+                .ReturnsAsync(AuthorizationResult.Failed());
+
+            await _realtimeHub.OnConnectedAsync();
+
+            groups.Verify(g => g.AddToGroupAsync(It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task OnConnectedAsync_WhenTheCallerIsAnonymous_DoesNotJoinTheAdminsGroup()
+        {
+            ClaimsPrincipal anonymous = new(new ClaimsIdentity());
+            Mock<IGroupManager> groups = ConnectAs(anonymous, "conn-3");
+
+            await _realtimeHub.OnConnectedAsync();
+
+            groups.Verify(g => g.AddToGroupAsync(It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+            _mockAuthorization.Verify(a => a.AuthorizeAsync(It.IsAny<ClaimsPrincipal>(), It.IsAny<object?>(),
+                It.IsAny<string>()), Times.Never);
+        }
+
+        private static ClaimsPrincipal AuthenticatedUser(string id)
+        {
+            return new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, id)], "Test"));
+        }
+
+        private Mock<IGroupManager> ConnectAs(ClaimsPrincipal user, string connectionId)
+        {
+            Mock<HubCallerContext> context = new();
+            context.SetupGet(c => c.ConnectionId).Returns(connectionId);
+            context.SetupGet(c => c.User).Returns(user);
+            context.SetupGet(c => c.UserIdentifier).Returns(user.FindFirstValue(ClaimTypes.NameIdentifier));
+            Mock<IGroupManager> groups = new();
+            _realtimeHub.Context = context.Object;
+            _realtimeHub.Groups = groups.Object;
+            return groups;
         }
     }
 }
