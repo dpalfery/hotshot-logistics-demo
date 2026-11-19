@@ -15,7 +15,23 @@ document as `<data-access-layer-coding-standard>`. Language-level C# is in the p
 declared as **<csharp-coding-standard>**; SQL shape is in **<sql-coding-standard>**.
 Those three must not disagree. Where they would, this document yields to them.
 
-## Stack
+## Naming and layout
+
+### Placement
+
+| Kind | Where |
+|---|---|
+| Repository interface | `HotshotLogistics.Contracts` |
+| Repository implementation | `HotshotLogistics.Data` |
+| Persistence row | `HotshotLogistics.Data` (internal) |
+| FluentMigrator scripts | `HotshotLogistics.Data/Migrations` |
+
+Application and API code consumes `IRepository<T>`. It does not open connections or
+write SQL.
+
+## Coding standards
+
+### Stack
 
 - **Data access:** parameterized ADO.NET (`Microsoft.Data.SqlClient`). Dapper and Entity
   Framework are out of scope — no `QueryAsync`, no `DbContext`, no `DbSet`, no
@@ -31,7 +47,7 @@ Those three must not disagree. Where they would, this document yields to them.
   Implementations are internal to `HotshotLogistics.Data`. Persistence rows stay in
   `HotshotLogistics.Data` and are mapped at the adapter boundary.
 
-## Hard rules
+### Hard rules
 
 - Parameterized `SqlCommand` / `SqlParameter` only. String concatenation into SQL is an
   injection, including in a migration.
@@ -50,19 +66,21 @@ Those three must not disagree. Where they would, this document yields to them.
 - Structured logging on failures: operation, entity, id. Do not swallow database
   exceptions.
 
-## Placement
+## Testing
 
-| Kind | Where |
-|---|---|
-| Repository interface | `HotshotLogistics.Contracts` |
-| Repository implementation | `HotshotLogistics.Data` |
-| Persistence row | `HotshotLogistics.Data` (internal) |
-| FluentMigrator scripts | `HotshotLogistics.Data/Migrations` |
+## Commands
 
-Application and API code consumes `IRepository<T>`. It does not open connections or
-write SQL.
+```bash
+dotnet build -c Release
+dotnet test
+```
 
-## Migrations
+See the [DbSetup onboarding guide](../../dbsetup/onboarding.md) for provisioning and
+the [deployment pipeline documentation](../../devops/ci-cd-pipelines.md) for migrations.
+
+## Security and data handling
+
+### Migrations
 
 - Use versioned FluentMigrator migrations in the format
   `[Migration(yyyyMMddHHmmss)]`; add a migration before deploying code that depends on a
@@ -75,12 +93,4 @@ write SQL.
 - Provide a `Down()` path when the migration can be safely reversed; do not treat rollback
   as a substitute for the forward deployment sequence.
 
-## Commands
-
-```bash
-dotnet build -c Release
-dotnet test
-```
-
-See the [DbSetup onboarding guide](../../dbsetup/onboarding.md) for provisioning and
-the [deployment pipeline documentation](../../devops/ci-cd-pipelines.md) for migrations.
+## Done checklist

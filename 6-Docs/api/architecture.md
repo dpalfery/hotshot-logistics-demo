@@ -51,7 +51,7 @@ Authorization policies include `Admin`, `Manager`, `Driver`, `Customer`, and com
 ## Data models
 
 Request and response DTOs live in Domain. Persistence uses native ADO.NET. See the
-[data access layer coding standard](../standards/data-access-layer/README.md).
+[data access layer coding standard](../standards/data-access-layer/data-access-layer.standards.md).
 
 ## Error handling
 

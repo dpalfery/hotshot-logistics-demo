@@ -15,7 +15,7 @@ The Application project references Polly, and `BillingService` configures an
 timeout or circuit breaker. Outbound HTTP clients (`"MappingService"` in
 `ServiceCollectionExtensions.AddMappingServices()`, plus notification services)
 have no Polly retry, timeout, or circuit-breaker policies configured. The
-[C# coding standard](../standards/csharp/README.md#resources) scopes these
+[C# coding standard](../standards/csharp/csharp.standards.md#resources) scopes these
 policies to external HTTP/API calls; database retries require separate
 idempotency review.
 

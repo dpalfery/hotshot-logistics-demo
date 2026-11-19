@@ -10,7 +10,7 @@ last-reviewed: 2026-11-14
 
 # Verify test filter commands
 
-Superseded by `5-Test/run-task-tests.sh`, `.kyber-weave/kyber-weave.yml` (`review.task-gates`), and [Test coding standard](../../standards/test/README.md).
+Superseded by `5-Test/run-task-tests.sh`, `.kyber-weave/kyber-weave.yml` (`review.task-gates`), and [Test coding standard](../../standards/test/test.standards.md).
 
 The scripts rule documents `Category=Unit` and `Category=Integration` filters, but no matching test traits or canonical test-runner scripts were found in the repository.
 

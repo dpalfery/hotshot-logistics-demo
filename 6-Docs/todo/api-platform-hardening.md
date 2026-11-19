@@ -10,7 +10,7 @@ last-reviewed: 2026-11-14
 
 # Adopt sealed record HTTP DTOs
 
-The [C# coding standard](../standards/csharp/README.md#stack) targets `sealed record` request and response DTOs for controller actions. Currently, `0` `record` types exist across `0-Base/`–`4-Persistence/`.
+The [C# coding standard](../standards/csharp/csharp.standards.md#stack) targets `sealed record` request and response DTOs for controller actions. Currently, `0` `record` types exist across `0-Base/`–`4-Persistence/`.
 
 ## Next action
 

@@ -13,7 +13,9 @@ last-reviewed: 2026-11-14
 How tests work in this repository. Agents resolve this as `<test-coding-standard>`. C# in test
 files also follows `<csharp-coding-standard>`; dashboard code follows `<react-coding-standard>`.
 
-## Projects and the task command
+## Naming and layout
+
+### Projects and the task command
 
 | Project (`5-Test/` unless noted) | Kind | Needs SQL Server |
 |---|---|---|
@@ -35,38 +37,16 @@ The gates in `.kyber-weave/kyber-weave.yml` (`review.task-gates`) pass `{tests}`
 `review.test-map` (controller to its `*ControllerIntegrationTests`), else the `<Stem>Tests` convention.
 Dashboard: `bash 1-Presentation/admin-dashboard/scripts/task-e2e.sh <repo-relative changed files>` (chromium).
 
-## Fixtures and collections
+### Naming
 
-- `[Collection(DatabaseCollection.Name)]`: each test project has a `[CollectionDefinition]` class
-  `DatabaseCollection`; its classes run serially. Members: all controller classes and
-  the Job/Invoice/LocationTracking repository classes.
-- **Rule:** every class that reads or writes the shared database joins it.
-- Repository classes use `IClassFixture<DatabaseTestFixture>`; HTTP classes inherit
-  `IntegrationTestBase` (factory + fixture) and send `Authorization: Test` (`X-Test-Role` picks the role).
-- `[DatabaseFact]` (`Tests` project only) is skipped, not failed, when no connection string exists.
-  A skipped DB test is not a pass: run `7-Deployment/dev-env/dev-env-up.sh` first.
+Class `<Subject>Tests` or `<Controller>IntegrationTests`, file = class, namespace
+`HotshotLogistics.Tests.<Feature>`. Method `Method_Scenario_Expected`
+(`GetJobsAsync_WithFiltering_ReturnsCorrectResults`); architecture rules use snake case. Specs:
+`<kebab-area>.spec.ts`, tests titled `should ...`.
 
-## Database for integration tests
+## Coding standards
 
-- Engine: SQL Server 2022 in container `hotshot_sqlserver` (port 1433). Run
-  `7-Deployment/dev-env/dev-env-up.sh` (idempotent, lock-serialised, ~7-20 s); it creates database
-  `hotshot_logistics_test`, login `hotshot_app` and applies migrations.
-- Connection: user secret `ConnectionStrings:DefaultConnection` (shared by all worktrees) or env
-  `CONNECTIONSTRINGS__DEFAULTCONNECTION`. Never write it into the repository.
-- Schema: `4-Persistence/HotshotLogistics.Data/Migrations` (FluentMigrator). `IntegrationTests`'
-  fixture also runs `MigrateUp`; the `Tests` fixture only checks connectivity.
-
-## Seeded data
-
-Safe to read (do not modify or delete): customers `cust-001`..`cust-100` ("Seed Customer 001"), jobs
-`job-<customer>-<nnn>` (e.g. `job-cust-001-001`), assignments `ja-<jobId>`, invoices `inv-<jobId>`
-(`inv-job-cust-001-001`), ~200 drivers `seed.driverNNN@local.test` (identity ids: look up by email),
-plus `cust-1`, `cust-2`, `job-1`, `job-2` (`SeedInitialData`), `CUST-<name>-<nnnn>` (50), `JOB-<nnnnn>` (300),
-`job-assigned-seed-<nnn>`, ~250 `@drivers.logistics.com` drivers; no `LocationTracking`. Else create it.
-`CUST001`/`JOB001` in repository tests are **not** seeded (verified in the dev database); they are
-free-text ids, not references to rely on.
-
-## Test data hygiene
+### Test data hygiene
 
 - Unique ids per test: `test-{Guid.NewGuid():N}`, `test-job-...`, GUID in emails and licence numbers.
 - Register each created row with `TestRowCleanup` (one per project; controller classes inherit `Cleanup`
@@ -75,7 +55,7 @@ free-text ids, not references to rely on.
 - **Rule:** scope queries to rows the test created (unique customer/job id or tag); never assert absolute
   table counts or "first row", never change seed rows.
 
-## Copy these (one per layer)
+### Copy these (one per layer)
 
 | Layer | Class (file under `5-Test/tests/`) |
 |---|---|
@@ -89,21 +69,7 @@ free-text ids, not references to rely on.
 Builder: `CustomerBuilder` (`Utils/TestHelpers`); other tests build entities inline. Fakes are Moq mocks
 of interfaces; the database is never mocked.
 
-## Naming
-
-Class `<Subject>Tests` or `<Controller>IntegrationTests`, file = class, namespace
-`HotshotLogistics.Tests.<Feature>`. Method `Method_Scenario_Expected`
-(`GetJobsAsync_WithFiltering_ReturnsCorrectResults`); architecture rules use snake case. Specs:
-`<kebab-area>.spec.ts`, tests titled `should ...`.
-
-## Parallel runs must not share
-
-- Build output: use a per-task `--artifacts-path` (the gates do).
-- The database: one shared `hotshot_logistics_test`; unique ids and collections protect it.
-- Port 3100: set `PLAYWRIGHT_PORT` for a second dashboard run (`reuseExistingServer` is false).
-- The dev container: start it only through `dev-env-up.sh` (it takes the lock).
-
-## Frontend (Playwright)
+### Frontend (Playwright)
 
 Config `1-Presentation/admin-dashboard/playwright.config.ts`: specs in `tests/*.spec.ts`, `next dev` on
 port 3100 over http, locale en-US, UTC, three browsers (gates use chromium). Every API call is mocked with
@@ -114,7 +80,53 @@ port 3100 over http, locale en-US, UTC, three browsers (gates use chromium). Eve
 cd 1-Presentation/admin-dashboard && npx playwright test tests/billing-management.spec.ts --project=chromium
 ```
 
-## Known gaps
+## Testing
+
+### Fixtures and collections
+
+- `[Collection(DatabaseCollection.Name)]`: each test project has a `[CollectionDefinition]` class
+  `DatabaseCollection`; its classes run serially. Members: all controller classes and
+  the Job/Invoice/LocationTracking repository classes.
+- **Rule:** every class that reads or writes the shared database joins it.
+- Repository classes use `IClassFixture<DatabaseTestFixture>`; HTTP classes inherit
+  `IntegrationTestBase` (factory + fixture) and send `Authorization: Test` (`X-Test-Role` picks the role).
+- `[DatabaseFact]` (`Tests` project only) is skipped, not failed, when no connection string exists.
+  A skipped DB test is not a pass: run `7-Deployment/dev-env/dev-env-up.sh` first.
+
+### Database for integration tests
+
+- Engine: SQL Server 2022 in container `hotshot_sqlserver` (port 1433). Run
+  `7-Deployment/dev-env/dev-env-up.sh` (idempotent, lock-serialised, ~7-20 s); it creates database
+  `hotshot_logistics_test`, login `hotshot_app` and applies migrations.
+- Connection: user secret `ConnectionStrings:DefaultConnection` (shared by all worktrees) or env
+  `CONNECTIONSTRINGS__DEFAULTCONNECTION`. Never write it into the repository.
+- Schema: `4-Persistence/HotshotLogistics.Data/Migrations` (FluentMigrator). `IntegrationTests`'
+  fixture also runs `MigrateUp`; the `Tests` fixture only checks connectivity.
+
+## Commands
+
+### Parallel runs must not share
+
+- Build output: use a per-task `--artifacts-path` (the gates do).
+- The database: one shared `hotshot_logistics_test`; unique ids and collections protect it.
+- Port 3100: set `PLAYWRIGHT_PORT` for a second dashboard run (`reuseExistingServer` is false).
+- The dev container: start it only through `dev-env-up.sh` (it takes the lock).
+
+## Security and data handling
+
+### Seeded data
+
+Safe to read (do not modify or delete): customers `cust-001`..`cust-100` ("Seed Customer 001"), jobs
+`job-<customer>-<nnn>` (e.g. `job-cust-001-001`), assignments `ja-<jobId>`, invoices `inv-<jobId>`
+(`inv-job-cust-001-001`), ~200 drivers `seed.driverNNN@local.test` (identity ids: look up by email),
+plus `cust-1`, `cust-2`, `job-1`, `job-2` (`SeedInitialData`), `CUST-<name>-<nnnn>` (50), `JOB-<nnnnn>` (300),
+`job-assigned-seed-<nnn>`, ~250 `@drivers.logistics.com` drivers; no `LocationTracking`. Else create it.
+`CUST001`/`JOB001` in repository tests are **not** seeded (verified in the dev database); they are
+free-text ids, not references to rely on.
+
+## Done checklist
+
+### Known gaps
 
 - `Tests` and `IntegrationTests` each have their own `TestDatabaseHelper`/`DatabaseTestFixture`/
   `IntegrationTestBase`, with different behaviour. They run in separate processes, so their collections
