@@ -31,7 +31,7 @@ namespace HotshotLogistics.Data.Repositories
         {
             string tableName = FormatIdentifier(GetTableName());
             string primaryKeyColumn = FormatIdentifier(GetPrimaryKeyColumnName());
-            string commandText = $"SELECT * FROM {tableName} WHERE {primaryKeyColumn} = @Id";
+            string commandText = $"SELECT {GetColumnList()} FROM {tableName} WHERE {primaryKeyColumn} = @Id";
 
             await using SqlConnection connection = await ConnectionFactory.OpenConnectionAsync(cancellationToken);
 
@@ -51,7 +51,7 @@ namespace HotshotLogistics.Data.Repositories
         public async Task<IEnumerable<T>> GetAllAsync()
         {
             string tableName = FormatIdentifier(GetTableName());
-            string commandText = $"SELECT * FROM {tableName}";
+            string commandText = $"SELECT {GetColumnList()} FROM {tableName}";
 
             List<T> entities = new();
 
@@ -71,7 +71,7 @@ namespace HotshotLogistics.Data.Repositories
         /// <inheritdoc />
         public async Task<T> AddAsync(T entity)
         {
-            const string sqlTemplate = "INSERT INTO {0} ({1}) OUTPUT INSERTED.* VALUES ({2})";
+            const string sqlTemplate = "INSERT INTO {0} ({1}) OUTPUT {3} VALUES ({2})";
 
             string tableName = FormatIdentifier(GetTableName());
             SqlParameter[] parameters = GetInsertParameters(entity);
@@ -82,7 +82,8 @@ namespace HotshotLogistics.Data.Repositories
             await using SqlConnection connection = await ConnectionFactory.OpenConnectionAsync();
 
             await using SqlCommand command =
-                new(string.Format(CultureInfo.InvariantCulture, sqlTemplate, tableName, columnNames, valuePlaceholders),
+                new(string.Format(CultureInfo.InvariantCulture, sqlTemplate, tableName, columnNames, valuePlaceholders,
+                    GetOutputColumns()),
                     connection);
             command.Parameters.AddRange(parameters);
 
@@ -98,7 +99,7 @@ namespace HotshotLogistics.Data.Repositories
         /// <inheritdoc />
         public async Task<T> UpdateAsync(T entity)
         {
-            const string sqlTemplate = "UPDATE {0} SET {1} OUTPUT INSERTED.* WHERE {2} = @Id";
+            const string sqlTemplate = "UPDATE {0} SET {1} OUTPUT {3} WHERE {2} = @Id";
 
             string tableName = FormatIdentifier(GetTableName());
             SqlParameter[] parameters = GetUpdateParameters(entity);
@@ -111,7 +112,8 @@ namespace HotshotLogistics.Data.Repositories
             await using SqlConnection connection = await ConnectionFactory.OpenConnectionAsync();
 
             await using SqlCommand command =
-                new(string.Format(CultureInfo.InvariantCulture, sqlTemplate, tableName, setClause, primaryKeyColumn),
+                new(string.Format(CultureInfo.InvariantCulture, sqlTemplate, tableName, setClause, primaryKeyColumn,
+                    GetOutputColumns()),
                     connection);
             command.Parameters.AddRange(parameters);
 
@@ -165,6 +167,13 @@ namespace HotshotLogistics.Data.Repositories
         /// </summary>
         /// <returns>The table name.</returns>
         protected abstract string GetTableName();
+
+        /// <summary>
+        ///     Gets the comma-separated column names the entity mapper reads. Every query that returns entities
+        ///     lists these columns instead of selecting all of them.
+        /// </summary>
+        /// <returns>The column names.</returns>
+        protected abstract string GetColumnList();
 
         /// <summary>
         ///     Gets the primary key column name.
@@ -293,6 +302,12 @@ namespace HotshotLogistics.Data.Repositories
             }
 
             return $"[{identifier}]";
+        }
+
+        private string GetOutputColumns()
+        {
+            return string.Join(", ", GetColumnList().Split(',', StringSplitOptions.TrimEntries)
+                .Select(column => $"INSERTED.{FormatIdentifier(column)}"));
         }
     }
 }

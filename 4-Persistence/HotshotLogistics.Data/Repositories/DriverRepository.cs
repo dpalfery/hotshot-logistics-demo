@@ -28,7 +28,7 @@ namespace HotshotLogistics.Data.Repositories
         /// <inheritdoc />
         public async Task<IEnumerable<Driver>> GetDriversAsync(CancellationToken cancellationToken = default)
         {
-            const string sql = "SELECT * FROM Drivers WHERE IsActive = 1 ORDER BY LastName, FirstName";
+            const string sql = $"SELECT {EntityColumns.Driver} FROM Drivers WHERE IsActive = 1 ORDER BY LastName, FirstName";
             IEnumerable<Driver> drivers = await ExecuteQueryAsync(sql, null, cancellationToken);
             return drivers;
         }
@@ -36,7 +36,7 @@ namespace HotshotLogistics.Data.Repositories
         /// <inheritdoc />
         public async Task<Driver?> GetDriverByIdAsync(int id, CancellationToken cancellationToken = default)
         {
-            const string sql = "SELECT * FROM Drivers WHERE Id = @Id";
+            const string sql = $"SELECT {EntityColumns.Driver} FROM Drivers WHERE Id = @Id";
             SqlParameter[] parameters = [new("@Id", SqlDbType.Int) { Value = id }];
             IEnumerable<Driver> drivers = await ExecuteQueryAsync(sql, parameters, cancellationToken);
             return drivers.FirstOrDefault();
@@ -79,7 +79,7 @@ namespace HotshotLogistics.Data.Repositories
         /// <returns>A collection of active drivers.</returns>
         public async Task<IEnumerable<Driver>> GetActiveDriversAsync(CancellationToken cancellationToken = default)
         {
-            const string sql = "SELECT * FROM Drivers WHERE IsActive = 1 ORDER BY LastName, FirstName";
+            const string sql = $"SELECT {EntityColumns.Driver} FROM Drivers WHERE IsActive = 1 ORDER BY LastName, FirstName";
             IEnumerable<Driver> drivers = await ExecuteQueryAsync(sql, null, cancellationToken);
             return drivers;
         }
@@ -93,7 +93,7 @@ namespace HotshotLogistics.Data.Repositories
         public async Task<Driver?> GetDriverByLicenseNumberAsync(string licenseNumber,
             CancellationToken cancellationToken = default)
         {
-            const string sql = "SELECT * FROM Drivers WHERE LicenseNumber = @LicenseNumber";
+            const string sql = $"SELECT {EntityColumns.Driver} FROM Drivers WHERE LicenseNumber = @LicenseNumber";
             SqlParameter[] parameters =
                 [new("@LicenseNumber", SqlDbType.NVarChar) { Value = licenseNumber }];
             IEnumerable<Driver> drivers = await ExecuteQueryAsync(sql, parameters, cancellationToken);
@@ -110,9 +110,15 @@ namespace HotshotLogistics.Data.Repositories
             CancellationToken cancellationToken = default)
         {
             // Note: CurrentStatus is not stored in the database, returning all active drivers
-            const string sql = "SELECT * FROM Drivers WHERE IsActive = 1 ORDER BY LastName, FirstName";
+            const string sql = $"SELECT {EntityColumns.Driver} FROM Drivers WHERE IsActive = 1 ORDER BY LastName, FirstName";
             IEnumerable<Driver> drivers = await ExecuteQueryAsync(sql, null, cancellationToken);
             return drivers;
+        }
+
+        /// <inheritdoc />
+        protected override string GetColumnList()
+        {
+            return EntityColumns.Driver;
         }
 
         /// <inheritdoc />

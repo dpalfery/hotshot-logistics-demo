@@ -35,7 +35,7 @@ namespace HotshotLogistics.Data.Repositories
         /// <inheritdoc />
         public async Task<LocationTracking?> GetByIdAsync(long id)
         {
-            const string sql = "SELECT * FROM LocationTracking WHERE Id = @Id";
+            const string sql = $"SELECT {EntityColumns.LocationTracking} FROM LocationTracking WHERE Id = @Id";
             SqlParameter[] parameters = [new("@Id", id)];
             IEnumerable<LocationTracking> results = await ExecuteQueryAsync(sql, parameters);
             return results.FirstOrDefault();
@@ -44,8 +44,8 @@ namespace HotshotLogistics.Data.Repositories
         /// <inheritdoc />
         public async Task<IEnumerable<LocationTracking>> GetByJobIdAsync(string jobId)
         {
-            const string sql = @"
-                SELECT * FROM LocationTracking
+            const string sql = $@"
+                SELECT {EntityColumns.LocationTracking} FROM LocationTracking
                 WHERE JobId = @JobId
                 ORDER BY Timestamp ASC";
 
@@ -57,8 +57,8 @@ namespace HotshotLogistics.Data.Repositories
         /// <inheritdoc />
         public async Task<IEnumerable<LocationTracking>> GetByDriverIdAsync(int driverId)
         {
-            const string sql = @"
-                SELECT * FROM LocationTracking
+            const string sql = $@"
+                SELECT {EntityColumns.LocationTracking} FROM LocationTracking
                 WHERE DriverId = @DriverId
                 ORDER BY Timestamp DESC";
 
@@ -71,8 +71,8 @@ namespace HotshotLogistics.Data.Repositories
         public async Task<IEnumerable<LocationTracking>> GetByJobIdAndTimeRangeAsync(string jobId, DateTime startTime,
             DateTime endTime)
         {
-            const string sql = @"
-                SELECT * FROM LocationTracking
+            const string sql = $@"
+                SELECT {EntityColumns.LocationTracking} FROM LocationTracking
                 WHERE JobId = @JobId
                 AND Timestamp BETWEEN @StartTime AND @EndTime
                 ORDER BY Timestamp ASC";
@@ -92,8 +92,8 @@ namespace HotshotLogistics.Data.Repositories
         public async Task<IEnumerable<LocationTracking>> GetByDriverIdAndTimeRangeAsync(int driverId,
             DateTime startTime, DateTime endTime)
         {
-            const string sql = @"
-                SELECT * FROM LocationTracking
+            const string sql = $@"
+                SELECT {EntityColumns.LocationTracking} FROM LocationTracking
                 WHERE DriverId = @DriverId
                 AND Timestamp BETWEEN @StartTime AND @EndTime
                 ORDER BY Timestamp ASC";
@@ -187,7 +187,7 @@ namespace HotshotLogistics.Data.Repositories
             }
 
             string sql = $@"
-                SELECT * FROM LocationTracking
+                SELECT {EntityColumns.LocationTracking} FROM LocationTracking
                 {whereClause}
                 ORDER BY Timestamp DESC";
 
@@ -326,6 +326,12 @@ namespace HotshotLogistics.Data.Repositories
             }
 
             return insertedCount;
+        }
+
+        /// <inheritdoc />
+        protected override string GetColumnList()
+        {
+            return EntityColumns.LocationTracking;
         }
 
         /// <inheritdoc />

@@ -24,6 +24,7 @@ Add one document per todo and list it here, ordered by priority (`P1` high, `P2`
 | [Define external-call resilience policies](resilience-policies.md) | P2 | Open | Api | Narrow `BillingService` retry exceptions and add Polly timeouts/circuit breakers on outbound HTTP clients. |
 | [Define metrics and tracing](telemetry.md) | P2 | Open | Api | Configure OpenTelemetry metrics, distributed tracing, and Application Insights export. |
 | [Add API rate limiting](rate-limiting.md) | P2 | Open | Api | Define global and endpoint rate limits and configure `AddRateLimiter()` / `UseRateLimiter()`. |
+| [Add the missing Payments table migration](payments-table.md) | P2 | Open | Api | `PaymentRepository` targets a `Payments` table no migration creates; add the migration and real-database tests. |
 | [Converge repository contracts on IRepository<T> and cancellation](repository-contract-convergence.md) | P3 | Open | Api | Bring the five domain-specific repository contracts under `IRepository<T>` and add cancellation tokens to its remaining members. |
 | [Adopt sealed record HTTP DTOs](api-platform-hardening.md) | P3 | Open | Api | Migrate controller request/response DTOs to `sealed record` types. |
 | [Add frontend unit-test tooling](frontend-unit-test-tooling.md) | P3 | Open | admin-dashboard | Add Vitest and React Testing Library for frontend unit and component tests. |

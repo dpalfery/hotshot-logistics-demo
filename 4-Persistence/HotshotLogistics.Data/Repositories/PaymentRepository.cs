@@ -102,6 +102,12 @@ namespace HotshotLogistics.Data.Repositories
         }
 
         /// <inheritdoc />
+        protected override string GetColumnList()
+        {
+            return EntityColumns.Payment;
+        }
+
+        /// <inheritdoc />
         protected override string GetTableName()
         {
             return "Payments";

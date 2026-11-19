@@ -87,8 +87,8 @@ namespace HotshotLogistics.Data.Repositories
         /// <inheritdoc />
         public async Task<IEnumerable<Invoice>> GetByCustomerIdAsync(string customerId)
         {
-            const string sql = @"
-            SELECT * FROM Invoices
+            const string sql = $@"
+            SELECT {EntityColumns.Invoice} FROM Invoices
             WHERE CustomerId = @CustomerId
             ORDER BY InvoiceDate DESC";
 
@@ -99,8 +99,8 @@ namespace HotshotLogistics.Data.Repositories
         /// <inheritdoc />
         public async Task<IEnumerable<Invoice>> GetByJobIdAsync(string jobId)
         {
-            const string sql = @"
-            SELECT * FROM Invoices
+            const string sql = $@"
+            SELECT {EntityColumns.Invoice} FROM Invoices
             WHERE JobId = @JobId
             ORDER BY InvoiceDate DESC";
 
@@ -111,8 +111,8 @@ namespace HotshotLogistics.Data.Repositories
         /// <inheritdoc />
         public async Task<IEnumerable<Invoice>> GetByStatusAsync(InvoiceStatus status)
         {
-            const string sql = @"
-            SELECT * FROM Invoices
+            const string sql = $@"
+            SELECT {EntityColumns.Invoice} FROM Invoices
             WHERE Status = @Status
             ORDER BY InvoiceDate DESC";
 
@@ -123,8 +123,8 @@ namespace HotshotLogistics.Data.Repositories
         /// <inheritdoc />
         public async Task<IEnumerable<Invoice>> GetOverdueInvoicesAsync()
         {
-            const string sql = @"
-            SELECT * FROM Invoices
+            const string sql = $@"
+            SELECT {EntityColumns.Invoice} FROM Invoices
             WHERE Status NOT IN (@PaidStatus, @CancelledStatus)
             AND DueDate < @CurrentDate
             ORDER BY DueDate ASC";
@@ -142,8 +142,8 @@ namespace HotshotLogistics.Data.Repositories
         /// <inheritdoc />
         public async Task<IEnumerable<Invoice>> GetInvoicesDueWithinDaysAsync(int days)
         {
-            const string sql = @"
-            SELECT * FROM Invoices
+            const string sql = $@"
+            SELECT {EntityColumns.Invoice} FROM Invoices
             WHERE Status NOT IN (@PaidStatus, @CancelledStatus)
             AND DueDate BETWEEN @CurrentDate AND @FutureDate
             ORDER BY DueDate ASC";
@@ -162,8 +162,8 @@ namespace HotshotLogistics.Data.Repositories
         /// <inheritdoc />
         public async Task<IEnumerable<Invoice>> GetByDateRangeAsync(DateTime startDate, DateTime endDate)
         {
-            const string sql = @"
-            SELECT * FROM Invoices
+            const string sql = $@"
+            SELECT {EntityColumns.Invoice} FROM Invoices
             WHERE InvoiceDate BETWEEN @StartDate AND @EndDate
             ORDER BY InvoiceDate DESC";
 
@@ -261,7 +261,7 @@ namespace HotshotLogistics.Data.Repositories
             // Data query with pagination - create new parameter array
             int offset = (filter.PageNumber - 1) * filter.PageSize;
             string dataSql = $@"
-            SELECT i.* FROM Invoices i
+            SELECT {EntityColumns.InvoiceAliased} FROM Invoices i
             {joinClause}
             {whereClause}
             ORDER BY i.{sortBy} {sortDirection}
@@ -428,8 +428,8 @@ namespace HotshotLogistics.Data.Repositories
         /// <inheritdoc />
         public async Task<IEnumerable<Invoice>> SearchByInvoiceNumberAsync(string invoiceNumber)
         {
-            const string sql = @"
-            SELECT * FROM Invoices
+            const string sql = $@"
+            SELECT {EntityColumns.Invoice} FROM Invoices
             WHERE InvoiceNumber LIKE @InvoiceNumber
             ORDER BY InvoiceNumber";
 
@@ -679,6 +679,12 @@ namespace HotshotLogistics.Data.Repositories
             }
 
             return lineItems;
+        }
+
+        /// <inheritdoc />
+        protected override string GetColumnList()
+        {
+            return EntityColumns.Invoice;
         }
 
         /// <inheritdoc />

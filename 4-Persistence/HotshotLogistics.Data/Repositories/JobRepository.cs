@@ -92,7 +92,7 @@ namespace HotshotLogistics.Data.Repositories
 
             string countQuery = $"SELECT COUNT(*) FROM {GetTableName()}{whereClause}";
             string dataQuery = $@"
-                SELECT * FROM {GetTableName()}
+                SELECT {EntityColumns.Job} FROM {GetTableName()}
                 {whereClause}
                 {orderByClause}
                 OFFSET @Skip ROWS
@@ -139,7 +139,7 @@ namespace HotshotLogistics.Data.Repositories
         public async Task<IEnumerable<Job>> GetJobsByStatusAsync(JobStatus status,
             CancellationToken cancellationToken = default)
         {
-            string query = $"SELECT * FROM {GetTableName()} WHERE Status = @Status ORDER BY CreatedAt DESC";
+            string query = $"SELECT {EntityColumns.Job} FROM {GetTableName()} WHERE Status = @Status ORDER BY CreatedAt DESC";
             List<Job> jobs = new();
 
             await using SqlConnection connection = await ConnectionFactory.OpenConnectionAsync(cancellationToken);
@@ -161,7 +161,7 @@ namespace HotshotLogistics.Data.Repositories
             CancellationToken cancellationToken = default)
         {
             string query =
-                $"SELECT * FROM {GetTableName()} WHERE AssignedDriverId = @DriverId ORDER BY ScheduledPickupTime ASC";
+                $"SELECT {EntityColumns.Job} FROM {GetTableName()} WHERE AssignedDriverId = @DriverId ORDER BY ScheduledPickupTime ASC";
             List<Job> jobs = new();
 
             await using SqlConnection connection = await ConnectionFactory.OpenConnectionAsync(cancellationToken);
@@ -182,7 +182,7 @@ namespace HotshotLogistics.Data.Repositories
         public async Task<IEnumerable<Job>> GetJobsByCustomerAsync(string customerId,
             CancellationToken cancellationToken = default)
         {
-            string query = $"SELECT * FROM {GetTableName()} WHERE CustomerId = @CustomerId ORDER BY CreatedAt DESC";
+            string query = $"SELECT {EntityColumns.Job} FROM {GetTableName()} WHERE CustomerId = @CustomerId ORDER BY CreatedAt DESC";
             List<Job> jobs = new();
 
             await using SqlConnection connection = await ConnectionFactory.OpenConnectionAsync(cancellationToken);
@@ -203,7 +203,7 @@ namespace HotshotLogistics.Data.Repositories
         public async Task<IEnumerable<Job>> GetOverdueJobsAsync(CancellationToken cancellationToken = default)
         {
             string query = $@"
-                SELECT * FROM {GetTableName()}
+                SELECT {EntityColumns.Job} FROM {GetTableName()}
                 WHERE EstimatedDeliveryTime < @CurrentTime
                 AND Status NOT IN (@DeliveredStatus, @CancelledStatus)
                 ORDER BY EstimatedDeliveryTime ASC";
@@ -247,6 +247,12 @@ namespace HotshotLogistics.Data.Repositories
         }
 
         // Explicit interface implementations to bridge concrete/interface types
+
+        /// <inheritdoc />
+        protected override string GetColumnList()
+        {
+            return EntityColumns.Job;
+        }
 
         /// <inheritdoc />
         protected override string GetTableName()

@@ -24,7 +24,7 @@ namespace HotshotLogistics.Data.Repositories
         /// <inheritdoc />
         public async Task<Customer?> GetByTaxIdAsync(string taxId)
         {
-            const string sql = "SELECT * FROM Customers WHERE TaxId = @TaxId";
+            const string sql = $"SELECT {EntityColumns.Customer} FROM Customers WHERE TaxId = @TaxId";
 
             SqlParameter[] parameters = [new("@TaxId", SqlDbType.NVarChar) { Value = taxId }];
             IEnumerable<Customer> customers = await ExecuteQueryAsync(sql, parameters);
@@ -36,7 +36,7 @@ namespace HotshotLogistics.Data.Repositories
         public async Task<IEnumerable<Customer>> GetByCreditLimitRangeAsync(decimal minLimit, decimal maxLimit)
         {
             const string sql =
-                "SELECT * FROM Customers WHERE CreditLimit BETWEEN @MinLimit AND @MaxLimit AND IsActive = 1";
+                $"SELECT {EntityColumns.Customer} FROM Customers WHERE CreditLimit BETWEEN @MinLimit AND @MaxLimit AND IsActive = 1";
 
             SqlParameter[] parameters =
             [
@@ -50,7 +50,7 @@ namespace HotshotLogistics.Data.Repositories
         /// <inheritdoc />
         public async Task<IEnumerable<Customer>> GetActiveCustomersAsync()
         {
-            const string sql = "SELECT * FROM Customers WHERE IsActive = 1 ORDER BY CompanyName";
+            const string sql = $"SELECT {EntityColumns.Customer} FROM Customers WHERE IsActive = 1 ORDER BY CompanyName";
 
             return await ExecuteQueryAsync(sql);
         }
@@ -58,11 +58,12 @@ namespace HotshotLogistics.Data.Repositories
         /// <inheritdoc />
         public async Task<IEnumerable<Customer>> GetOverdueCustomersAsync()
         {
-            const string sql = @"
-            SELECT DISTINCT c.*
+            const string sql = $@"
+            SELECT {EntityColumns.CustomerAliased}
             FROM Customers c
-            INNER JOIN Invoices i ON c.Id = i.CustomerId
-            WHERE i.Status IN (4, 5) AND i.DueDate < @CurrentDate
+            WHERE EXISTS (
+                SELECT 1 FROM Invoices i
+                WHERE i.CustomerId = c.Id AND i.Status IN (4, 5) AND i.DueDate < @CurrentDate)
             ORDER BY c.CompanyName";
 
             SqlParameter[] parameters =
@@ -193,6 +194,12 @@ namespace HotshotLogistics.Data.Repositories
         async Task<bool> IRepository<Customer>.ExistsAsync(object id)
         {
             return await ExistsAsync(id);
+        }
+
+        /// <inheritdoc />
+        protected override string GetColumnList()
+        {
+            return EntityColumns.Customer;
         }
 
         /// <inheritdoc />
