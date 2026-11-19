@@ -65,6 +65,10 @@ namespace HotshotLogistics.Api.Controllers
         /// <param name="searchTerm">Search term for title or address.</param>
         /// <param name="hasAssignedDriver">Filter by driver assignment status.</param>
         /// <param name="isOverdue">Filter for overdue jobs.</param>
+        /// <param name="isActive">
+        ///     Filter for active jobs (every status except <c>Received</c>) when true, or for received jobs when
+        ///     false. Read <c>totalCount</c> of a one-item page to count them.
+        /// </param>
         /// <param name="pageNumber">Page number (1-based).</param>
         /// <param name="pageSize">Page size (max 100).</param>
         /// <param name="sortBy">Field to sort by.</param>
@@ -89,6 +93,7 @@ namespace HotshotLogistics.Api.Controllers
             [FromQuery] string? searchTerm = null,
             [FromQuery] bool? hasAssignedDriver = null,
             [FromQuery] bool? isOverdue = null,
+            [FromQuery] bool? isActive = null,
             [FromQuery] int pageNumber = 1,
             [FromQuery] int pageSize = 10,
             [FromQuery] string sortBy = "CreatedAt",
@@ -109,7 +114,8 @@ namespace HotshotLogistics.Api.Controllers
                 MaxAmount = maxAmount,
                 SearchTerm = searchTerm,
                 HasAssignedDriver = hasAssignedDriver,
-                IsOverdue = isOverdue
+                IsOverdue = isOverdue,
+                IsActive = isActive
             };
 
             PaginationParameters pagination = new()

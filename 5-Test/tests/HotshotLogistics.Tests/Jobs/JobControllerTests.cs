@@ -82,6 +82,34 @@ namespace HotshotLogistics.Tests.Jobs
         }
 
         /// <summary>
+        ///     Tests that GetJobs passes the active-jobs filter to the repository, so a client can count active jobs
+        ///     on the server.
+        /// </summary>
+        /// <returns>A task representing the asynchronous test.</returns>
+        [Fact]
+        public async Task GetJobs_WithIsActive_PassesTheActiveFilterToTheRepository()
+        {
+            // Arrange
+            JobFilterDto? captured = null;
+            _mockJobRepository.Setup(r => r.GetJobsAsync(
+                    It.IsAny<JobFilterDto>(),
+                    It.IsAny<PaginationParameters>(),
+                    It.IsAny<SortParameters>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback<JobFilterDto?, PaginationParameters?, SortParameters?, CancellationToken>(
+                    (filter, _, _, _) => captured = filter)
+                .ReturnsAsync(new PagedResult<Job> { Items = [], TotalCount = 7, PageNumber = 1, PageSize = 1 });
+
+            // Act
+            ActionResult<PagedResult<Job>> result = await _controller.GetJobs(isActive: true, pageSize: 1);
+
+            // Assert
+            result.Result.Should().BeOfType<OkObjectResult>();
+            captured.Should().NotBeNull();
+            captured.IsActive.Should().BeTrue();
+        }
+
+        /// <summary>
         ///     Tests that GetJobById returns the job when found.
         /// </summary>
         /// <returns>A task representing the asynchronous test.</returns>
