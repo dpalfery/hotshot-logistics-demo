@@ -1,12 +1,10 @@
 using System.Text;
 using HotshotLogistics.Contracts.Repositories;
 using HotshotLogistics.Core.Enums;
-using HotshotLogistics.Core.Repositories;
 using HotshotLogistics.Domain.DTOs;
 using HotshotLogistics.Domain.Entities;
 using HotshotLogistics.Domain.ValueObjects;
 using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.Configuration;
 
 namespace HotshotLogistics.Data.Repositories
 {
@@ -20,9 +18,9 @@ namespace HotshotLogistics.Data.Repositories
         /// <summary>
         ///     Initializes a new instance of the <see cref="InvoiceRepository" /> class.
         /// </summary>
-        /// <param name="configuration">The application configuration.</param>
-        public InvoiceRepository(IConfiguration configuration)
-            : base(configuration)
+        /// <param name="connectionFactory">The factory that opens database connections.</param>
+        public InvoiceRepository(ISqlConnectionFactory connectionFactory)
+            : base(connectionFactory)
         {
         }
 
@@ -333,8 +331,7 @@ namespace HotshotLogistics.Data.Repositories
 
             List<AgingReportEntry> entries = new();
 
-            await using SqlConnection connection = new(ConnectionString);
-            await connection.OpenAsync();
+            await using SqlConnection connection = await ConnectionFactory.OpenConnectionAsync();
 
             await using SqlCommand command = new(sql, connection);
             command.Parameters.AddRange(parameters);
@@ -397,8 +394,7 @@ namespace HotshotLogistics.Data.Repositories
                 new("@CurrentDate", DateTime.UtcNow.Date)
             ];
 
-            await using SqlConnection connection = new(ConnectionString);
-            await connection.OpenAsync();
+            await using SqlConnection connection = await ConnectionFactory.OpenConnectionAsync();
 
             await using SqlCommand command = new(sql, connection);
             command.Parameters.AddRange(parameters);
@@ -494,8 +490,7 @@ namespace HotshotLogistics.Data.Repositories
             WHERE j.Id = @JobId";
 
             JobData? jobData = null;
-            await using SqlConnection connection = new(ConnectionString);
-            await connection.OpenAsync();
+            await using SqlConnection connection = await ConnectionFactory.OpenConnectionAsync();
 
             await using SqlCommand jobCommand = new(jobSql, connection);
             jobCommand.Parameters.Add(new SqlParameter("@JobId", jobId));
@@ -587,8 +582,7 @@ namespace HotshotLogistics.Data.Repositories
             INSERT INTO InvoiceLineItems (InvoiceId, Description, Quantity, UnitPrice, TaxApplicable, SortOrder)
             VALUES (@InvoiceId, @Description, @Quantity, @UnitPrice, @TaxApplicable, @SortOrder)";
 
-            await using SqlConnection connection = new(ConnectionString);
-            await connection.OpenAsync();
+            await using SqlConnection connection = await ConnectionFactory.OpenConnectionAsync();
 
             foreach (InvoiceLineItem lineItem in lineItems)
             {
@@ -618,8 +612,7 @@ namespace HotshotLogistics.Data.Repositories
         {
             List<Invoice> entities = new();
 
-            await using SqlConnection connection = new(ConnectionString);
-            await connection.OpenAsync();
+            await using SqlConnection connection = await ConnectionFactory.OpenConnectionAsync();
 
             await using SqlCommand command = new(sql, connection);
             if (parameters != null)
@@ -654,8 +647,7 @@ namespace HotshotLogistics.Data.Repositories
 
             List<InvoiceLineItem> lineItems = new();
 
-            await using SqlConnection connection = new(ConnectionString);
-            await connection.OpenAsync();
+            await using SqlConnection connection = await ConnectionFactory.OpenConnectionAsync();
 
             await using SqlCommand command = new(sql, connection);
             command.Parameters.Add(new SqlParameter("@InvoiceId", invoiceId));

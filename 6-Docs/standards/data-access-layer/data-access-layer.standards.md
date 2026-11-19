@@ -37,9 +37,11 @@ write SQL.
   Framework are out of scope — no `QueryAsync`, no `DbContext`, no `DbSet`, no
   `SaveChangesAsync`, and no LINQ to Entities. Schema changes use FluentMigrator, not
   Entity Framework migrations.
-- **Connections:** The target is `ISqlConnectionFactory`, which creates and opens
-  connections; its introduction is tracked in the [connection-factory todo](../../todo/sql-connection-factory.md).
-  Never `new SqlConnection(...)` at a call site.
+- **Connections:** Repositories get an open connection from `ISqlConnectionFactory`
+  (`HotshotLogistics.Contracts`; implemented by the internal `SqlConnectionFactory` in
+  `HotshotLogistics.Data`). The caller owns the connection and disposes it with
+  `await using`. Never `new SqlConnection(...)` in a repository. Migration and
+  provisioning code (`MigrationRunner`, DbSetup) sits outside the factory.
 - **Migrations:** FluentMigrator, versioned `[Migration(yyyyMMddHHmmss)]`. Schema design
   is not authored here — it arrives as an approved table-definition contract.
 - **Abstraction:** The target is `IRepository<T>` in `HotshotLogistics.Contracts`; its adoption

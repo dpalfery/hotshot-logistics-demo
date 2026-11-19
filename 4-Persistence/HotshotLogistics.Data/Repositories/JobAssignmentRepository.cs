@@ -1,11 +1,9 @@
 using System.Data;
 using HotshotLogistics.Contracts.Repositories;
 using HotshotLogistics.Core.Enums;
-using HotshotLogistics.Core.Repositories;
 using HotshotLogistics.Domain.DTOs;
 using HotshotLogistics.Domain.Entities;
 using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.Configuration;
 
 namespace HotshotLogistics.Data.Repositories
 {
@@ -17,9 +15,9 @@ namespace HotshotLogistics.Data.Repositories
         /// <summary>
         ///     Initializes a new instance of the <see cref="JobAssignmentRepository" /> class.
         /// </summary>
-        /// <param name="configuration">The application configuration.</param>
-        public JobAssignmentRepository(IConfiguration configuration)
-            : base(configuration)
+        /// <param name="connectionFactory">The factory that opens database connections.</param>
+        public JobAssignmentRepository(ISqlConnectionFactory connectionFactory)
+            : base(connectionFactory)
         {
         }
 

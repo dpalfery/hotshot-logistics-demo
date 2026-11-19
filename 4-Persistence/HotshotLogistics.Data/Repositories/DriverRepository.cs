@@ -5,11 +5,9 @@
 using System.Data;
 using HotshotLogistics.Contracts.Repositories;
 using HotshotLogistics.Core.Enums;
-using HotshotLogistics.Core.Repositories;
 using HotshotLogistics.Domain.Entities;
 using HotshotLogistics.Domain.ValueObjects;
 using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.Configuration;
 
 namespace HotshotLogistics.Data.Repositories
 {
@@ -21,9 +19,9 @@ namespace HotshotLogistics.Data.Repositories
         /// <summary>
         ///     Initializes a new instance of the <see cref="DriverRepository" /> class.
         /// </summary>
-        /// <param name="configuration">The application configuration.</param>
-        public DriverRepository(IConfiguration configuration)
-            : base(configuration)
+        /// <param name="connectionFactory">The factory that opens database connections.</param>
+        public DriverRepository(ISqlConnectionFactory connectionFactory)
+            : base(connectionFactory)
         {
         }
 

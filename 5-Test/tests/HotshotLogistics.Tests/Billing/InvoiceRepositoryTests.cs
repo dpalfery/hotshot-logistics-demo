@@ -3,6 +3,7 @@
 // </copyright>
 
 using FluentAssertions;
+using HotshotLogistics.Data;
 using HotshotLogistics.Domain.Entities;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
@@ -47,7 +48,7 @@ namespace HotshotLogistics.Tests.Billing
                 });
 
             _configuration = configBuilder.Build();
-            _invoiceRepository = new InvoiceRepository(_configuration);
+            _invoiceRepository = new InvoiceRepository(new SqlConnectionFactory(_configuration));
         }
 
         /// <inheritdoc />

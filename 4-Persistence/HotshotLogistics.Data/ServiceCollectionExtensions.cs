@@ -26,6 +26,7 @@ namespace HotshotLogistics.Data
         /// <returns>The service collection for chaining.</returns>
         public static IServiceCollection AddHotshotRepositories(this IServiceCollection services)
         {
+            services.AddSingleton<ISqlConnectionFactory, SqlConnectionFactory>();
             services.AddScoped<ICustomerRepository, CustomerRepository>();
             services.AddScoped<IDriverRepository, DriverRepository>();
             services.AddScoped<IJobRepository, JobRepository>();

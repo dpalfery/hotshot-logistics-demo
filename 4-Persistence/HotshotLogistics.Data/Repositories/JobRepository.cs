@@ -5,12 +5,10 @@
 using System.Data;
 using HotshotLogistics.Contracts.Repositories;
 using HotshotLogistics.Core.Enums;
-using HotshotLogistics.Core.Repositories;
 using HotshotLogistics.Domain.DTOs;
 using HotshotLogistics.Domain.Entities;
 using HotshotLogistics.Domain.ValueObjects;
 using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.Configuration;
 
 namespace HotshotLogistics.Data.Repositories
 #pragma warning disable SA1202 // False positive - public members are correctly ordered before private members
@@ -23,9 +21,9 @@ namespace HotshotLogistics.Data.Repositories
         /// <summary>
         ///     Initializes a new instance of the <see cref="JobRepository" /> class.
         /// </summary>
-        /// <param name="configuration">The application configuration.</param>
-        public JobRepository(IConfiguration configuration)
-            : base(configuration)
+        /// <param name="connectionFactory">The factory that opens database connections.</param>
+        public JobRepository(ISqlConnectionFactory connectionFactory)
+            : base(connectionFactory)
         {
         }
 
@@ -109,8 +107,7 @@ namespace HotshotLogistics.Data.Repositories
             List<Job> jobs = new();
             int totalCount;
 
-            await using SqlConnection connection = new(ConnectionString);
-            await connection.OpenAsync(cancellationToken);
+            await using SqlConnection connection = await ConnectionFactory.OpenConnectionAsync(cancellationToken);
 
             // Get total count
             await using (SqlCommand countCommand = new(countQuery, connection))
@@ -157,8 +154,7 @@ namespace HotshotLogistics.Data.Repositories
             string query = $"SELECT * FROM {GetTableName()} WHERE Status = @Status ORDER BY CreatedAt DESC";
             List<Job> jobs = new();
 
-            await using SqlConnection connection = new(ConnectionString);
-            await connection.OpenAsync(cancellationToken);
+            await using SqlConnection connection = await ConnectionFactory.OpenConnectionAsync(cancellationToken);
 
             await using SqlCommand command = new(query, connection);
             command.Parameters.AddWithValue("@Status", (int)status);
@@ -180,8 +176,7 @@ namespace HotshotLogistics.Data.Repositories
                 $"SELECT * FROM {GetTableName()} WHERE AssignedDriverId = @DriverId ORDER BY ScheduledPickupTime ASC";
             List<Job> jobs = new();
 
-            await using SqlConnection connection = new(ConnectionString);
-            await connection.OpenAsync(cancellationToken);
+            await using SqlConnection connection = await ConnectionFactory.OpenConnectionAsync(cancellationToken);
 
             await using SqlCommand command = new(query, connection);
             command.Parameters.AddWithValue("@DriverId", driverId);
@@ -202,8 +197,7 @@ namespace HotshotLogistics.Data.Repositories
             string query = $"SELECT * FROM {GetTableName()} WHERE CustomerId = @CustomerId ORDER BY CreatedAt DESC";
             List<Job> jobs = new();
 
-            await using SqlConnection connection = new(ConnectionString);
-            await connection.OpenAsync(cancellationToken);
+            await using SqlConnection connection = await ConnectionFactory.OpenConnectionAsync(cancellationToken);
 
             await using SqlCommand command = new(query, connection);
             command.Parameters.AddWithValue("@CustomerId", customerId);
@@ -227,8 +221,7 @@ namespace HotshotLogistics.Data.Repositories
                 ORDER BY EstimatedDeliveryTime ASC";
             List<Job> jobs = new();
 
-            await using SqlConnection connection = new(ConnectionString);
-            await connection.OpenAsync(cancellationToken);
+            await using SqlConnection connection = await ConnectionFactory.OpenConnectionAsync(cancellationToken);
 
             await using SqlCommand command = new(query, connection);
             command.Parameters.AddWithValue("@CurrentTime", DateTime.UtcNow);
@@ -251,8 +244,7 @@ namespace HotshotLogistics.Data.Repositories
             (string whereClause, IReadOnlyList<SqlParameter> parameters) = BuildWhereClause(filter);
             string query = $"SELECT COUNT(*) FROM {GetTableName()}{whereClause}";
 
-            await using SqlConnection connection = new(ConnectionString);
-            await connection.OpenAsync(cancellationToken);
+            await using SqlConnection connection = await ConnectionFactory.OpenConnectionAsync(cancellationToken);
 
             await using SqlCommand command = new(query, connection);
             AddParametersToCommand(command, parameters);

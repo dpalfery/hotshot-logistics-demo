@@ -4,10 +4,8 @@
 
 using System.Text;
 using HotshotLogistics.Contracts.Repositories;
-using HotshotLogistics.Core.Repositories;
 using HotshotLogistics.Domain.Entities;
 using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.Configuration;
 
 namespace HotshotLogistics.Data.Repositories
 #pragma warning disable SA1202 // False positive - public members are correctly ordered before protected members
@@ -20,9 +18,9 @@ namespace HotshotLogistics.Data.Repositories
         /// <summary>
         ///     Initializes a new instance of the <see cref="LocationTrackingRepository" /> class.
         /// </summary>
-        /// <param name="configuration">The application configuration.</param>
-        public LocationTrackingRepository(IConfiguration configuration)
-            : base(configuration)
+        /// <param name="connectionFactory">The factory that opens database connections.</param>
+        public LocationTrackingRepository(ISqlConnectionFactory connectionFactory)
+            : base(connectionFactory)
         {
         }
 
@@ -302,8 +300,7 @@ namespace HotshotLogistics.Data.Repositories
 
             int insertedCount = 0;
 
-            await using SqlConnection connection = new(ConnectionString);
-            await connection.OpenAsync();
+            await using SqlConnection connection = await ConnectionFactory.OpenConnectionAsync();
 
             await using SqlTransaction transaction = connection.BeginTransaction();
             try
