@@ -24,6 +24,7 @@ namespace HotshotLogistics.Application.Services
         private readonly ILogger<JobService> _logger;
         private readonly IMappingService _mappingService;
         private readonly INotificationService _notificationService;
+        private readonly IRealtimeService _realtimeService;
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="JobService" /> class.
@@ -33,6 +34,7 @@ namespace HotshotLogistics.Application.Services
         /// <param name="driverRepository">The driver repository.</param>
         /// <param name="notificationService">The notification service.</param>
         /// <param name="mappingService">The mapping service.</param>
+        /// <param name="realtimeService">The realtime service that tells the dashboard a job's status changed.</param>
         /// <param name="logger">The _logger.</param>
         public JobService(
             IJobRepository jobRepository,
@@ -40,6 +42,7 @@ namespace HotshotLogistics.Application.Services
             IDriverRepository driverRepository,
             INotificationService notificationService,
             IMappingService mappingService,
+            IRealtimeService realtimeService,
             ILogger<JobService> logger)
         {
             _jobRepository = jobRepository ?? throw new ArgumentNullException(nameof(jobRepository));
@@ -47,6 +50,7 @@ namespace HotshotLogistics.Application.Services
             _driverRepository = driverRepository ?? throw new ArgumentNullException(nameof(driverRepository));
             _notificationService = notificationService ?? throw new ArgumentNullException(nameof(notificationService));
             _mappingService = mappingService ?? throw new ArgumentNullException(nameof(mappingService));
+            _realtimeService = realtimeService ?? throw new ArgumentNullException(nameof(realtimeService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
@@ -106,6 +110,8 @@ namespace HotshotLogistics.Application.Services
                 _logger.LogWarning(ex, "Failed to send job creation notification for job {JobId}", job.Id);
             }
 
+            await BroadcastStatusAsync(createdJob.Id, createdJob.Status);
+
             _logger.LogInformation("Job created successfully with ID: {JobId}", createdJob.Id);
             return createdJob;
         }
@@ -153,8 +159,14 @@ namespace HotshotLogistics.Application.Services
                 throw new ValidationException("Job validation failed");
             }
 
+            JobStatus previousStatus = existingJob.Status;
             jobDetails.UpdatedAt = DateTime.UtcNow;
             Job? updatedJob = await _jobRepository.UpdateJobAsync(id, jobDetails, cancellationToken);
+
+            if (updatedJob != null && updatedJob.Status != previousStatus)
+            {
+                await BroadcastStatusAsync(updatedJob.Id, updatedJob.Status);
+            }
 
             _logger.LogInformation("Job updated successfully with ID: {JobId}", id);
             return updatedJob;
@@ -225,6 +237,8 @@ namespace HotshotLogistics.Application.Services
                 throw new InvalidOperationException($"Failed to update job {jobId}");
             }
 
+            await BroadcastStatusAsync(updatedJob.Id, updatedJob.Status);
+
             // Send notification to driver
             try
             {
@@ -278,6 +292,8 @@ namespace HotshotLogistics.Application.Services
             {
                 throw new InvalidOperationException($"Failed to update job {jobId}");
             }
+
+            await BroadcastStatusAsync(updatedJob.Id, updatedJob.Status);
 
             // Send notifications for status changes
             try
@@ -676,6 +692,24 @@ namespace HotshotLogistics.Application.Services
                 }
 
                 return eta;
+            }
+        }
+
+        /// <summary>
+        ///     Tells the admin dashboard a job's status changed. The change is already saved, so a hub failure
+        ///     is logged and does not fail the request.
+        /// </summary>
+        /// <param name="jobId">The job whose status changed.</param>
+        /// <param name="status">The job's new status.</param>
+        private async Task BroadcastStatusAsync(string jobId, JobStatus status)
+        {
+            try
+            {
+                await _realtimeService.BroadcastJobStatusUpdate(jobId, status);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to broadcast the status of job {JobId}", jobId);
             }
         }
 

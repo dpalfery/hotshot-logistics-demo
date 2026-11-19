@@ -31,6 +31,7 @@ namespace HotshotLogistics.Application
                 sp.GetRequiredService<IDriverRepository>(),
                 sp.GetRequiredService<INotificationService>(),
                 sp.GetRequiredService<IMappingServiceFactory>().CreateMappingService(),
+                sp.GetRequiredService<IRealtimeService>(),
                 sp.GetRequiredService<ILogger<JobService>>()));
             services.AddScoped<IJobAssignmentService, JobAssignmentService>();
             services.AddScoped<IRealtimeService, RealtimeService>();

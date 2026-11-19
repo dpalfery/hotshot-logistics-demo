@@ -1,3 +1,4 @@
+using HotshotLogistics.Application.Hubs;
 using HotshotLogistics.Contracts.Hubs;
 using HotshotLogistics.Contracts.Services;
 using HotshotLogistics.Core.Enums;
@@ -133,13 +134,14 @@ namespace HotshotLogistics.Application.Services
         }
 
         /// <summary>
-        ///     Broadcast job status update to all clients tracking the job
+        ///     Broadcast job status update to the admin dashboard and to the clients tracking the job
         /// </summary>
         public async Task BroadcastJobStatusUpdate(string jobId, JobStatus status)
         {
             try
             {
-                await signalRClient.SendToGroupAsync($"job-{jobId}", "JobStatusUpdated", jobId, status);
+                await signalRClient.SendToGroupAsync(RealtimeGroups.Admins, "JobStatusUpdated", jobId, status);
+                await signalRClient.SendToGroupAsync(RealtimeGroups.Job(jobId), "JobStatusUpdated", jobId, status);
 
                 logger.LogInformation("Job status update broadcast for job {JobId}: {Status}", jobId, status);
             }
@@ -161,7 +163,7 @@ namespace HotshotLogistics.Application.Services
                 await signalRClient.SendToGroupAsync($"driver-{driverId}", "DriverStatusChanged", driverId, status);
 
                 // Also notify admin clients
-                await signalRClient.SendToGroupAsync("admins", "DriverStatusChanged", driverId, status);
+                await signalRClient.SendToGroupAsync(RealtimeGroups.Admins, "DriverStatusChanged", driverId, status);
 
                 logger.LogInformation("Driver status update broadcast for driver {DriverId}: {Status}", driverId,
                     status);

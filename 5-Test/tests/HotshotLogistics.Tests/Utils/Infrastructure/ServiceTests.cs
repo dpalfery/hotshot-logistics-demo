@@ -167,7 +167,8 @@ namespace HotshotLogistics.Tests.Utils.Infrastructure
             repoMock.Setup(r => r.GetJobsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(expected);
 
             JobService service = new(repoMock.Object, customerRepoMock.Object, driverRepoMock.Object,
-                notificationServiceMock.Object, mappingServiceMock.Object, loggerMock.Object);
+                notificationServiceMock.Object, mappingServiceMock.Object, Mock.Of<IRealtimeService>(),
+                loggerMock.Object);
 
             IEnumerable<Job> result = await service.GetJobsAsync(CancellationToken.None);
 
@@ -187,7 +188,8 @@ namespace HotshotLogistics.Tests.Utils.Infrastructure
             Mock<ILogger<JobService>> loggerMock = new();
             repoMock.Setup(r => r.GetJobByIdAsync("1", It.IsAny<CancellationToken>())).ReturnsAsync(job);
             JobService service = new(repoMock.Object, customerRepoMock.Object, driverRepoMock.Object,
-                notificationServiceMock.Object, mappingServiceMock.Object, loggerMock.Object);
+                notificationServiceMock.Object, mappingServiceMock.Object, Mock.Of<IRealtimeService>(),
+                loggerMock.Object);
 
             Job? result = await service.GetJobByIdAsync("1");
 
@@ -264,7 +266,8 @@ namespace HotshotLogistics.Tests.Utils.Infrastructure
                 .ReturnsAsync(customer);
 
             JobService service = new(repoMock.Object, customerRepoMock.Object, driverRepoMock.Object,
-                notificationServiceMock.Object, mappingServiceMock.Object, loggerMock.Object);
+                notificationServiceMock.Object, mappingServiceMock.Object, Mock.Of<IRealtimeService>(),
+                loggerMock.Object);
 
             Job result = await service.CreateJobAsync(job);
 
@@ -329,7 +332,8 @@ namespace HotshotLogistics.Tests.Utils.Infrastructure
             repoMock.Setup(r => r.GetJobByIdAsync("1", It.IsAny<CancellationToken>())).ReturnsAsync(job);
             repoMock.Setup(r => r.UpdateJobAsync("1", job, It.IsAny<CancellationToken>())).ReturnsAsync(job);
             JobService service = new(repoMock.Object, customerRepoMock.Object, driverRepoMock.Object,
-                notificationServiceMock.Object, mappingServiceMock.Object, loggerMock.Object);
+                notificationServiceMock.Object, mappingServiceMock.Object, Mock.Of<IRealtimeService>(),
+                loggerMock.Object);
 
             Job? result = await service.UpdateJobAsync("1", job);
 
@@ -350,7 +354,8 @@ namespace HotshotLogistics.Tests.Utils.Infrastructure
             repoMock.Setup(r => r.GetJobByIdAsync("1", It.IsAny<CancellationToken>())).ReturnsAsync(job);
             repoMock.Setup(r => r.DeleteJobAsync("1", It.IsAny<CancellationToken>())).ReturnsAsync(true);
             JobService service = new(repoMock.Object, customerRepoMock.Object, driverRepoMock.Object,
-                notificationServiceMock.Object, mappingServiceMock.Object, loggerMock.Object);
+                notificationServiceMock.Object, mappingServiceMock.Object, Mock.Of<IRealtimeService>(),
+                loggerMock.Object);
 
             bool result = await service.DeleteJobAsync("1", It.IsAny<CancellationToken>());
 
