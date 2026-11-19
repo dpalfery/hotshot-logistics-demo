@@ -1,5 +1,12 @@
 import { HubConnectionBuilder, HubConnection, LogLevel } from '@microsoft/signalr';
 import { LocationUpdate, NotificationMessage } from '@/types';
+import { apiService } from './api';
+import {
+  DRIVER_STATUS_CHANGED_EVENT,
+  JOB_STATUS_UPDATED_EVENT,
+  JOIN_JOB_TRACKING_METHOD,
+  LEAVE_JOB_TRACKING_METHOD,
+} from './signalr-events';
 
 const SIGNALR_URL = resolveSignalRUrl();
 
@@ -12,7 +19,7 @@ function resolveSignalRUrl(): string {
   return `${configured.replace(/\/$/, '')}/realtime`;
 }
 
-class SignalRService {
+export class SignalRService {
   private connection: HubConnection | null = null;
   private isConnected = false;
 
@@ -21,28 +28,42 @@ class SignalRService {
       return;
     }
 
-    this.connection = new HubConnectionBuilder()
-      .withUrl(SIGNALR_URL)
+    const connection = new HubConnectionBuilder()
+      // The hub refuses anonymous connections. The client sends this token as the Authorization header on
+      // negotiate and as the access_token query value on the WebSocket, which cannot set headers.
+      .withUrl(SIGNALR_URL, { accessTokenFactory: async () => (await apiService.getAuthToken()) ?? '' })
       .withAutomaticReconnect()
       .configureLogging(LogLevel.Information)
       .build();
+    this.connection = connection;
 
     try {
-      await this.connection.start();
-      this.isConnected = true;
-      console.log('SignalR connected');
+      await connection.start();
     } catch (error) {
-      console.error('SignalR connection failed:', error);
+      // A connection that disconnect() replaced or removed while it was starting is not a failure
+      if (this.connection === connection) {
+        this.connection = null;
+      }
       throw error;
+    }
+
+    if (this.connection === connection) {
+      this.isConnected = true;
     }
   }
 
   async disconnect(): Promise<void> {
-    if (this.connection) {
-      await this.connection.stop();
-      this.isConnected = false;
-      this.connection = null;
+    const connection = this.connection;
+    if (!connection) {
+      return;
     }
+
+    // Drop the reference before awaiting, so a connect() that follows straight away (React
+    // StrictMode mounts, unmounts and mounts again) builds a new connection instead of
+    // returning early and then losing it when this stop completes.
+    this.connection = null;
+    this.isConnected = false;
+    await connection.stop();
   }
 
   // Location tracking methods
@@ -58,16 +79,16 @@ class SignalRService {
     }
   }
 
-  // Job status updates
-  onJobStatusUpdate(callback: (jobId: string, status: string) => void): void {
+  // Job status updates; the server sends the job id and the new status as its number
+  onJobStatusUpdated(callback: (jobId: string, status: number) => void): void {
     if (this.connection) {
-      this.connection.on('JobStatusUpdate', callback);
+      this.connection.on(JOB_STATUS_UPDATED_EVENT, callback);
     }
   }
 
-  offJobStatusUpdate(callback: (jobId: string, status: string) => void): void {
+  offJobStatusUpdated(callback: (jobId: string, status: number) => void): void {
     if (this.connection) {
-      this.connection.off('JobStatusUpdate', callback);
+      this.connection.off(JOB_STATUS_UPDATED_EVENT, callback);
     }
   }
 
@@ -84,36 +105,29 @@ class SignalRService {
     }
   }
 
-  // Driver availability updates
-  onDriverStatusUpdate(callback: (driverId: number, isAvailable: boolean) => void): void {
+  // Driver status changes; the server sends the driver id and the new status as its number
+  onDriverStatusChanged(callback: (driverId: number, status: number) => void): void {
     if (this.connection) {
-      this.connection.on('DriverStatusUpdate', callback);
+      this.connection.on(DRIVER_STATUS_CHANGED_EVENT, callback);
     }
   }
 
-  offDriverStatusUpdate(callback: (driverId: number, isAvailable: boolean) => void): void {
+  offDriverStatusChanged(callback: (driverId: number, status: number) => void): void {
     if (this.connection) {
-      this.connection.off('DriverStatusUpdate', callback);
+      this.connection.off(DRIVER_STATUS_CHANGED_EVENT, callback);
     }
   }
 
-  // Send location update (for testing or manual updates)
-  async sendLocationUpdate(update: LocationUpdate): Promise<void> {
+  // Join/Leave the group of one job, to receive that job's events
+  async joinJobTracking(jobId: string): Promise<void> {
     if (this.connection && this.isConnected) {
-      await this.connection.invoke('SendLocationUpdate', update);
+      await this.connection.invoke(JOIN_JOB_TRACKING_METHOD, jobId);
     }
   }
 
-  // Join/Leave groups for specific job tracking
-  async joinJobGroup(jobId: string): Promise<void> {
+  async leaveJobTracking(jobId: string): Promise<void> {
     if (this.connection && this.isConnected) {
-      await this.connection.invoke('JoinJobGroup', jobId);
-    }
-  }
-
-  async leaveJobGroup(jobId: string): Promise<void> {
-    if (this.connection && this.isConnected) {
-      await this.connection.invoke('LeaveJobGroup', jobId);
+      await this.connection.invoke(LEAVE_JOB_TRACKING_METHOD, jobId);
     }
   }
 

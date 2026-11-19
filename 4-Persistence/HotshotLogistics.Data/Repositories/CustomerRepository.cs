@@ -1,11 +1,9 @@
 using System.Data;
 using HotshotLogistics.Contracts.Repositories;
 using HotshotLogistics.Core.Enums;
-using HotshotLogistics.Core.Repositories;
 using HotshotLogistics.Domain.Entities;
 using HotshotLogistics.Domain.ValueObjects;
 using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.Configuration;
 
 namespace HotshotLogistics.Data.Repositories
 {
@@ -17,16 +15,16 @@ namespace HotshotLogistics.Data.Repositories
         /// <summary>
         ///     Initializes a new instance of the <see cref="CustomerRepository" /> class.
         /// </summary>
-        /// <param name="configuration">The application configuration.</param>
-        public CustomerRepository(IConfiguration configuration)
-            : base(configuration)
+        /// <param name="connectionFactory">The factory that opens database connections.</param>
+        public CustomerRepository(ISqlConnectionFactory connectionFactory)
+            : base(connectionFactory)
         {
         }
 
         /// <inheritdoc />
         public async Task<Customer?> GetByTaxIdAsync(string taxId)
         {
-            const string sql = "SELECT * FROM Customers WHERE TaxId = @TaxId";
+            const string sql = $"SELECT {EntityColumns.Customer} FROM Customers WHERE TaxId = @TaxId";
 
             SqlParameter[] parameters = [new("@TaxId", SqlDbType.NVarChar) { Value = taxId }];
             IEnumerable<Customer> customers = await ExecuteQueryAsync(sql, parameters);
@@ -38,7 +36,7 @@ namespace HotshotLogistics.Data.Repositories
         public async Task<IEnumerable<Customer>> GetByCreditLimitRangeAsync(decimal minLimit, decimal maxLimit)
         {
             const string sql =
-                "SELECT * FROM Customers WHERE CreditLimit BETWEEN @MinLimit AND @MaxLimit AND IsActive = 1";
+                $"SELECT {EntityColumns.Customer} FROM Customers WHERE CreditLimit BETWEEN @MinLimit AND @MaxLimit AND IsActive = 1";
 
             SqlParameter[] parameters =
             [
@@ -52,7 +50,7 @@ namespace HotshotLogistics.Data.Repositories
         /// <inheritdoc />
         public async Task<IEnumerable<Customer>> GetActiveCustomersAsync()
         {
-            const string sql = "SELECT * FROM Customers WHERE IsActive = 1 ORDER BY CompanyName";
+            const string sql = $"SELECT {EntityColumns.Customer} FROM Customers WHERE IsActive = 1 ORDER BY CompanyName";
 
             return await ExecuteQueryAsync(sql);
         }
@@ -60,11 +58,12 @@ namespace HotshotLogistics.Data.Repositories
         /// <inheritdoc />
         public async Task<IEnumerable<Customer>> GetOverdueCustomersAsync()
         {
-            const string sql = @"
-            SELECT DISTINCT c.*
+            const string sql = $@"
+            SELECT {EntityColumns.CustomerAliased}
             FROM Customers c
-            INNER JOIN Invoices i ON c.Id = i.CustomerId
-            WHERE i.Status IN (4, 5) AND i.DueDate < @CurrentDate
+            WHERE EXISTS (
+                SELECT 1 FROM Invoices i
+                WHERE i.CustomerId = c.Id AND i.Status IN (4, 5) AND i.DueDate < @CurrentDate)
             ORDER BY c.CompanyName";
 
             SqlParameter[] parameters =
@@ -164,37 +163,24 @@ namespace HotshotLogistics.Data.Repositories
             return rowsAffected > 0;
         }
 
-        // Explicit interface implementations to bridge concrete/interface types
-        async Task<Customer?> ICustomerRepository.GetByIdAsync(object id, CancellationToken cancellationToken)
-        {
-            return await GetByIdAsync(id, cancellationToken);
-        }
-
-        async Task<IEnumerable<Customer>> ICustomerRepository.GetAllAsync()
-        {
-            return await GetAllAsync();
-        }
-
-        async Task<Customer> ICustomerRepository.AddAsync(Customer entity)
+        /// <inheritdoc />
+        public override async Task<Customer> AddAsync(Customer entity, CancellationToken cancellationToken = default)
         {
             Customer customer = entity ?? throw new ArgumentException("Entity must be Customer", nameof(entity));
-            return await AddAsync(customer);
+            return await base.AddAsync(customer, cancellationToken);
         }
 
-        async Task<Customer> ICustomerRepository.UpdateAsync(Customer entity)
+        /// <inheritdoc />
+        public override async Task<Customer> UpdateAsync(Customer entity, CancellationToken cancellationToken = default)
         {
             Customer customer = entity ?? throw new ArgumentException("Entity must be Customer", nameof(entity));
-            return await UpdateAsync(customer);
+            return await base.UpdateAsync(customer, cancellationToken);
         }
 
-        async Task<bool> ICustomerRepository.DeleteAsync(object id)
+        /// <inheritdoc />
+        protected override string GetColumnList()
         {
-            return await DeleteAsync(id);
-        }
-
-        async Task<bool> ICustomerRepository.ExistsAsync(object id)
-        {
-            return await ExistsAsync(id);
+            return EntityColumns.Customer;
         }
 
         /// <inheritdoc />

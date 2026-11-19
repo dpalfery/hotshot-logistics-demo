@@ -1,8 +1,102 @@
 import { msalInstance } from '@/lib/providers';
 import { loginRequest } from '@/config/auth';
-import { Job, Driver, Invoice, Customer, PagedResult, JobFilter, InvoiceFilter, PaginationParameters, InvoiceSummaryMetrics, InvoiceAgingBuckets } from '@/types';
+import { Job, JobStatus, Driver, Invoice, Customer, PagedResult, JobFilter, InvoiceFilter, PaginationParameters, InvoiceSummaryMetrics, InvoiceAgingBuckets } from '@/types';
 
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL || '/api').trim();
+
+/**
+ * Response-shape checks at the service boundary: a response that fails one is an error the
+ * calling view shows, never data a component has to guess about.
+ */
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function unexpectedResponse(endpoint: string): Error {
+  return new Error(`Unexpected response shape from ${endpoint}`);
+}
+
+// The API sends JobStatus as its number, in the order of the server enum
+const JOB_STATUS_BY_NUMBER: readonly JobStatus[] = [
+  JobStatus.Pending,
+  JobStatus.Assigned,
+  JobStatus.EnRoute,
+  JobStatus.Received
+];
+
+/** Reads a status from its number, a numeric string, or its name. Anything else is not a status. */
+function toJobStatus(value: unknown): JobStatus | undefined {
+  if (typeof value === 'number' && Number.isInteger(value)) {
+    return value >= 0 && value < JOB_STATUS_BY_NUMBER.length ? JOB_STATUS_BY_NUMBER[value] : undefined;
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (/^\d+$/.test(trimmed)) {
+      const index = Number(trimmed);
+      return index >= 0 && index < JOB_STATUS_BY_NUMBER.length ? JOB_STATUS_BY_NUMBER[index] : undefined;
+    }
+
+    return (Object.values(JobStatus) as string[]).includes(trimmed) ? (trimmed as JobStatus) : undefined;
+  }
+
+  return undefined;
+}
+
+function parseJobsPage(data: unknown): PagedResult<Job> {
+  if (!isRecord(data) || !Array.isArray(data.items) || typeof data.totalCount !== 'number') {
+    throw unexpectedResponse('/job');
+  }
+
+  const items = data.items.flatMap(item => {
+    if (!isRecord(item) || typeof item.id !== 'string') {
+      throw unexpectedResponse('/job');
+    }
+
+    const status = toJobStatus(item.status);
+    if (status === undefined) {
+      return [];
+    }
+
+    // amount is rendered with toFixed; a missing value must be the error state, not a crash in the view.
+    if (typeof item.amount !== 'number' || !Number.isFinite(item.amount)) {
+      throw unexpectedResponse('/job');
+    }
+
+    return [{ ...item, status }];
+  });
+
+  if (data.items.length > 0 && items.length === 0) {
+    throw unexpectedResponse('/job');
+  }
+
+  return { ...data, items } as unknown as PagedResult<Job>;
+}
+
+function parseDrivers(data: unknown): Driver[] {
+  if (
+    !Array.isArray(data) ||
+    !data.every(item => isRecord(item) && typeof item.id === 'number' && typeof item.isActive === 'boolean')
+  ) {
+    throw unexpectedResponse('/drivers');
+  }
+  return data as Driver[];
+}
+
+function parseOverdueInvoices(data: unknown): PagedResult<Invoice> {
+  const items = Array.isArray(data) ? data : isRecord(data) ? data.items : undefined;
+  if (!Array.isArray(items) || !items.every(isRecord)) {
+    throw unexpectedResponse('/billing/invoices/overdue');
+  }
+  const totalCount = isRecord(data) && typeof data.totalCount === 'number' ? data.totalCount : items.length;
+  return {
+    items: items as unknown as Invoice[],
+    totalCount,
+    pageNumber: 1,
+    pageSize: items.length || 10,
+    totalPages: 1
+  };
+}
 
 class ApiService {
   private async request<T>(
@@ -14,15 +108,6 @@ class ApiService {
     const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
     const url = `${baseUrl}${normalizedEndpoint}${query ? `?${query}` : ''}`;
 
-    const isTestMode = typeof window !== 'undefined' && (window as typeof window & { __BYPASS_AUTH__?: boolean }).__BYPASS_AUTH__ === true;
-    // Test mode uses the configured base URL like every other mode, so Playwright mocks match /api/...
-    const finalUrl = url;
-
-    console.log('=== API REQUEST DEBUG ===');
-    console.log('Making request to:', finalUrl);
-    console.log('Base URL from env:', API_BASE_URL);
-    console.log('Is test mode:', isTestMode);
-
     const config: RequestInit = {
       headers: {
         'Content-Type': 'application/json',
@@ -33,43 +118,37 @@ class ApiService {
 
     // Add authentication token if available
     const token = await this.getAuthToken();
-    console.log('Auth token obtained:', token ? 'Yes' : 'No');
     if (token) {
       // Use Test scheme for test token, Bearer for real tokens
       const scheme = token === 'test-token' ? 'Test' : 'Bearer';
-      console.log('Using auth scheme:', scheme);
       config.headers = {
         ...config.headers,
         Authorization: `${scheme} ${token}`,
       };
     }
 
-    try {
-      const response = await fetch(finalUrl, config);
-      console.log('Response status:', response.status);
-      console.log('Response ok:', response.ok);
-
-      if (!response.ok) {
-        const error = await response.text();
-        console.error('API Error response:', error);
-        throw new Error(`API Error: ${response.status} ${error}`);
-      }
-
-      const data = await response.json();
-      console.log('Response data length/type:', Array.isArray(data) ? data.length : typeof data);
-      console.log('=== END API REQUEST DEBUG ===');
-      return data;
-    } catch (error) {
-      console.error('Fetch error:', error);
-      console.log('=== END API REQUEST DEBUG (ERROR) ===');
-      throw error;
+    const response = await fetch(url, config);
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`API Error: ${response.status} ${error}`);
     }
+
+    if (response.status === 204 || response.status === 205) {
+      return undefined as T;
+    }
+
+    const body = await response.text();
+    if (body.trim().length === 0) {
+      return undefined as T;
+    }
+
+    return JSON.parse(body) as T;
   }
 
-  private async getAuthToken(): Promise<string | null> {
+  /** The token the API accepts for the signed-in user, or null when nobody is signed in. */
+  async getAuthToken(): Promise<string | null> {
     // Always use test authentication in development
     if (process.env.NODE_ENV === 'development') {
-      console.log('Development mode: using test authentication');
       return 'test-token';
     }
 
@@ -126,11 +205,16 @@ class ApiService {
     }
 
     const query = params.toString();
-    if (query) {
-      return this.request<PagedResult<Job>>('/job', {}, query);
-    } else {
-      return this.request<PagedResult<Job>>('/job');
-    }
+    return parseJobsPage(await this.request<unknown>('/job', {}, query || undefined));
+  }
+
+  /**
+   * Counts the active jobs across every page. The API reports the total of a filtered query in
+   * `totalCount`, so a one-item page is enough.
+   */
+  async getActiveJobCount(): Promise<number> {
+    const page = await this.getJobs({ isActive: true }, { pageNumber: 1, pageSize: 1 });
+    return page.totalCount;
   }
 
   async getJobById(id: string): Promise<Job> {
@@ -173,7 +257,7 @@ class ApiService {
 
   // Driver API methods
   async getDrivers(): Promise<Driver[]> {
-    return this.request<Driver[]>('/drivers');
+    return parseDrivers(await this.request<unknown>('/drivers'));
   }
 
   async getDriverById(id: number): Promise<Driver> {
@@ -205,29 +289,7 @@ class ApiService {
     _filter?: InvoiceFilter,
     _pagination?: PaginationParameters
   ): Promise<PagedResult<Invoice>> {
-    const response: unknown = await this.request<unknown>('/billing/invoices/overdue');
-    const responseRecord =
-      typeof response === 'object' && response !== null
-        ? (response as { items?: unknown; totalCount?: unknown })
-        : undefined;
-    const items = Array.isArray(response)
-      ? (response as Invoice[])
-      : Array.isArray(responseRecord?.items)
-        ? (responseRecord?.items as Invoice[])
-        : [];
-    const totalCount = Array.isArray(response)
-      ? response.length
-      : typeof responseRecord?.totalCount === 'number'
-        ? responseRecord.totalCount
-        : items.length;
-
-    return {
-      items,
-      totalCount,
-      pageNumber: 1,
-      pageSize: items.length || 10,
-      totalPages: 1
-    };
+    return parseOverdueInvoices(await this.request<unknown>('/billing/invoices/overdue'));
   }
 
   async getInvoiceById(id: string): Promise<Invoice> {

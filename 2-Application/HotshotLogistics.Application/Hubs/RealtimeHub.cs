@@ -1,20 +1,25 @@
+using System.Security.Claims;
+using HotshotLogistics.Application.Authorization;
 using HotshotLogistics.Contracts.Hubs;
 using HotshotLogistics.Contracts.Services;
 using HotshotLogistics.Core.Enums;
 using HotshotLogistics.Domain.DTOs;
 using HotshotLogistics.Domain.Entities;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 
 namespace HotshotLogistics.Application.Hubs
 {
     /// <summary>
-    ///     SignalR hub for real-time communication with clients
+    ///     SignalR hub for real-time communication with clients. Only authenticated callers may connect.
     /// </summary>
+    [Authorize]
     public class RealtimeHub(
         ILogger<RealtimeHub> logger,
         ISignalRClientWrapper signalRClient,
-        IConnectionManagerService connectionManager)
+        IConnectionManagerService connectionManager,
+        IAuthorizationService authorization)
         : Hub<IRealtimeHubClient>
     {
         /// <summary>
@@ -27,7 +32,33 @@ namespace HotshotLogistics.Application.Hubs
             logger.LogInformation("Client connected: User {UserId}, Connection {ConnectionId}", userId,
                 Context.ConnectionId);
 
+            await JoinAdminsGroupWhenAuthorizedAsync();
+
             await base.OnConnectedAsync();
+        }
+
+        /// <summary>
+        ///     Adds the connection to the admin dashboard audience when the caller is a manager or admin.
+        ///     Done on connect, so a reconnect (a new connection) is added again without any client call.
+        /// </summary>
+        private async Task JoinAdminsGroupWhenAuthorizedAsync()
+        {
+            ClaimsPrincipal? user = Context.User;
+            if (user?.Identity?.IsAuthenticated != true)
+            {
+                return;
+            }
+
+            AuthorizationResult result =
+                await authorization.AuthorizeAsync(user, null, AuthorizationPolicies.ManagerOrAdmin);
+            if (!result.Succeeded)
+            {
+                return;
+            }
+
+            await Groups.AddToGroupAsync(Context.ConnectionId, RealtimeGroups.Admins);
+            logger.LogInformation("Connection {ConnectionId} joined the admin dashboard audience",
+                Context.ConnectionId);
         }
 
         /// <summary>
@@ -50,7 +81,7 @@ namespace HotshotLogistics.Application.Hubs
         {
             try
             {
-                await signalRClient.SendToGroupAsync($"job-{jobId}", "JobStatusUpdated", jobId, status);
+                await signalRClient.SendToGroupAsync(RealtimeGroups.Job(jobId), "JobStatusUpdated", jobId, status);
                 logger.LogInformation("Job status update sent for job {JobId}: {Status}", jobId, status);
             }
             catch (Exception ex)
@@ -66,7 +97,7 @@ namespace HotshotLogistics.Application.Hubs
         {
             try
             {
-                await signalRClient.SendToGroupAsync($"job-{jobId}", "LocationUpdated", jobId, location);
+                await signalRClient.SendToGroupAsync(RealtimeGroups.Job(jobId), "LocationUpdated", jobId, location);
                 logger.LogDebug("Location update sent for job {JobId}", jobId);
             }
             catch (Exception ex)
@@ -84,7 +115,7 @@ namespace HotshotLogistics.Application.Hubs
             {
                 await signalRClient.SendToGroupAsync($"driver-{driverId}", "DriverStatusChanged", driverId, status);
                 // Also notify admin clients
-                await signalRClient.SendToGroupAsync("admins", "DriverStatusChanged", driverId, status);
+                await signalRClient.SendToGroupAsync(RealtimeGroups.Admins, "DriverStatusChanged", driverId, status);
                 logger.LogInformation("Driver status update sent for driver {DriverId}: {Status}", driverId, status);
             }
             catch (Exception ex)
@@ -140,7 +171,7 @@ namespace HotshotLogistics.Application.Hubs
         {
             try
             {
-                await Groups.AddToGroupAsync(Context.ConnectionId, $"job-{jobId}");
+                await Groups.AddToGroupAsync(Context.ConnectionId, RealtimeGroups.Job(jobId));
                 logger.LogInformation("Connection {ConnectionId} joined job tracking for {JobId}",
                     Context.ConnectionId, jobId);
             }
@@ -157,7 +188,7 @@ namespace HotshotLogistics.Application.Hubs
         {
             try
             {
-                await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"job-{jobId}");
+                await Groups.RemoveFromGroupAsync(Context.ConnectionId, RealtimeGroups.Job(jobId));
                 logger.LogInformation("Connection {ConnectionId} left job tracking for {JobId}",
                     Context.ConnectionId, jobId);
             }

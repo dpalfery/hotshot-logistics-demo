@@ -15,22 +15,18 @@ namespace HotshotLogistics.Api.Controllers
     [ApiController]
     [Route("api/[controller]")]
     [Authorize]
-    public class UserProfileController : ControllerBase
+    public sealed class UserProfileController : ApiControllerBase
     {
-        private readonly ILogger<UserProfileController> _logger;
         private readonly IUserProfileService _userProfileService;
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="UserProfileController" /> class.
         /// </summary>
         /// <param name="userProfileService">The user profile service.</param>
-        /// <param name="logger">The _logger.</param>
         public UserProfileController(
-            IUserProfileService userProfileService,
-            ILogger<UserProfileController> logger)
+            IUserProfileService userProfileService)
         {
             _userProfileService = userProfileService ?? throw new ArgumentNullException(nameof(userProfileService));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         /// <summary>
@@ -43,17 +39,8 @@ namespace HotshotLogistics.Api.Controllers
         public async Task<ActionResult<UserProfile>> GetCurrentUserProfile(
             CancellationToken cancellationToken = default)
         {
-            try
-            {
-                UserProfile profile = await _userProfileService.GetCurrentUserProfileAsync(cancellationToken);
-                return Ok(profile);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "An error occurred while retrieving current user profile");
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    "An error occurred while processing your request.");
-            }
+            UserProfile profile = await _userProfileService.GetCurrentUserProfileAsync(cancellationToken);
+            return Ok(profile);
         }
 
         /// <summary>
@@ -69,22 +56,13 @@ namespace HotshotLogistics.Api.Controllers
             [FromBody] UserProfile? profile,
             CancellationToken cancellationToken = default)
         {
-            try
+            if (profile == null)
             {
-                if (profile == null)
-                {
-                    return BadRequest("Profile data is required");
-                }
+                return BadRequestProblem("Profile data is required");
+            }
 
-                await _userProfileService.UpdateCurrentUserProfileAsync(profile, cancellationToken);
-                return NoContent();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "An error occurred while updating user profile");
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    "An error occurred while processing your request.");
-            }
+            await _userProfileService.UpdateCurrentUserProfileAsync(profile, cancellationToken);
+            return NoContent();
         }
 
         /// <summary>
@@ -96,26 +74,17 @@ namespace HotshotLogistics.Api.Controllers
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         public async Task<IActionResult> SyncUserProfile(CancellationToken cancellationToken = default)
         {
-            try
-            {
-                // Get the current user ID from claims
-                string? userId = User.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value
-                                 ?? User.FindFirst("oid")?.Value;
+            // Get the current user ID from claims
+            string? userId = User.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value
+                             ?? User.FindFirst("oid")?.Value;
 
-                if (string.IsNullOrEmpty(userId))
-                {
-                    return BadRequest("Unable to identify current user");
-                }
-
-                await _userProfileService.SyncUserProfileAsync(userId, cancellationToken);
-                return NoContent();
-            }
-            catch (Exception ex)
+            if (string.IsNullOrEmpty(userId))
             {
-                _logger.LogError(ex, "An error occurred while synchronizing user profile");
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    "An error occurred while processing your request.");
+                return BadRequestProblem("Unable to identify current user");
             }
+
+            await _userProfileService.SyncUserProfileAsync(userId, cancellationToken);
+            return NoContent();
         }
     }
 }

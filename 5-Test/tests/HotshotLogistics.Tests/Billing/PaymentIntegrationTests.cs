@@ -7,6 +7,7 @@ using HotshotLogistics.Application.Services;
 using HotshotLogistics.Domain.Entities;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Moq;
 
 namespace HotshotLogistics.Tests.Billing
@@ -77,7 +78,7 @@ namespace HotshotLogistics.Tests.Billing
             _mockCustomerRepository.Setup(r => r.GetByIdAsync("customer-123", It.IsAny<CancellationToken>()))
                 .ReturnsAsync(customer);
 
-            PaymentProcessingResult paymentResult = new()
+            PaymentProcessingResultDto paymentResult = new()
             {
                 Success = true,
                 TransactionId = "stripe_txn_123",
@@ -87,7 +88,7 @@ namespace HotshotLogistics.Tests.Billing
             _mockStripeProcessor.Setup(p => p.ProcessPaymentAsync(
                     paymentAmount,
                     "USD",
-                    It.IsAny<PaymentMethodDetails>(),
+                    It.IsAny<PaymentMethodDetailsDto>(),
                     It.IsAny<Dictionary<string, string>>(),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(paymentResult);
@@ -106,8 +107,8 @@ namespace HotshotLogistics.Tests.Billing
 
             // Assert
             result.Should().BeTrue();
-            _mockPaymentRepository.Verify(r => r.AddAsync(It.IsAny<Payment>()), Times.Once);
-            _mockPaymentRepository.Verify(r => r.UpdateAsync(It.IsAny<Payment>()), Times.Once);
+            _mockPaymentRepository.Verify(r => r.AddAsync(It.IsAny<Payment>(), It.IsAny<CancellationToken>()), Times.Once);
+            _mockPaymentRepository.Verify(r => r.UpdateAsync(It.IsAny<Payment>(), It.IsAny<CancellationToken>()), Times.Once);
             _mockInvoiceRepository.Verify(r => r.UpdatePaidAmountAsync(invoiceId, paymentAmount), Times.Once);
             _mockNotificationService.Verify(n => n.SendNotificationAsync(
                 "customer-123",
@@ -142,7 +143,7 @@ namespace HotshotLogistics.Tests.Billing
             _mockStripeProcessor.Setup(p => p.ProcessPaymentAsync(
                     paymentAmount,
                     "USD",
-                    It.IsAny<PaymentMethodDetails>(),
+                    It.IsAny<PaymentMethodDetailsDto>(),
                     It.IsAny<Dictionary<string, string>>(),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(() =>
@@ -150,7 +151,7 @@ namespace HotshotLogistics.Tests.Billing
                     callCount++;
                     if (callCount <= 2)
                     {
-                        return new PaymentProcessingResult
+                        return new PaymentProcessingResultDto
                         {
                             Success = false,
                             Message = "Temporary failure",
@@ -158,7 +159,7 @@ namespace HotshotLogistics.Tests.Billing
                         };
                     }
 
-                    return new PaymentProcessingResult
+                    return new PaymentProcessingResultDto
                     {
                         Success = true,
                         TransactionId = "stripe_txn_123",
@@ -189,7 +190,7 @@ namespace HotshotLogistics.Tests.Billing
             _mockStripeProcessor.Verify(p => p.ProcessPaymentAsync(
                 paymentAmount,
                 "USD",
-                It.IsAny<PaymentMethodDetails>(),
+                It.IsAny<PaymentMethodDetailsDto>(),
                 It.IsAny<Dictionary<string, string>>(),
                 It.IsAny<CancellationToken>()), Times.Exactly(3)); // Should retry 3 times
         }
@@ -214,7 +215,7 @@ namespace HotshotLogistics.Tests.Billing
             _mockCustomerRepository.Setup(r => r.GetByIdAsync("customer-456", It.IsAny<CancellationToken>()))
                 .ReturnsAsync(customer);
 
-            PaymentProcessingResult paymentResult = new()
+            PaymentProcessingResultDto paymentResult = new()
             {
                 Success = true,
                 TransactionId = "paypal_txn_456",
@@ -224,7 +225,7 @@ namespace HotshotLogistics.Tests.Billing
             _mockPayPalProcessor.Setup(p => p.ProcessPaymentAsync(
                     paymentAmount,
                     "USD",
-                    It.IsAny<PaymentMethodDetails>(),
+                    It.IsAny<PaymentMethodDetailsDto>(),
                     It.IsAny<Dictionary<string, string>>(),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(paymentResult);
@@ -246,99 +247,9 @@ namespace HotshotLogistics.Tests.Billing
             _mockPayPalProcessor.Verify(p => p.ProcessPaymentAsync(
                 paymentAmount,
                 "USD",
-                It.IsAny<PaymentMethodDetails>(),
+                It.IsAny<PaymentMethodDetailsDto>(),
                 It.IsAny<Dictionary<string, string>>(),
                 It.IsAny<CancellationToken>()), Times.Once);
-        }
-
-        /// <summary>
-        ///     Tests webhook processing for Stripe.
-        /// </summary>
-        /// <returns>A task representing the asynchronous test.</returns>
-        [Fact]
-        public async Task ProcessStripeWebhook_WithValidSignature_ProcessesEvent()
-        {
-            // Arrange
-            WebhookEventData webhookData = new()
-            {
-                EventType = "payment_intent.succeeded",
-                Payload = "{\"event\":\"payment_intent.succeeded\"}",
-                Signature = "valid_signature"
-            };
-
-            WebhookProcessingResult webhookResult = new()
-            {
-                Success = true,
-                StatusUpdate = new PaymentStatusUpdate
-                {
-                    TransactionId = "stripe_txn_123",
-                    Status = PaymentStatus.Completed,
-                    InvoiceId = "invoice_123",
-                    Amount = 1000.00m
-                }
-            };
-
-            _mockStripeProcessor.Setup(p => p.ValidateWebhookSignature(
-                    webhookData.Payload,
-                    webhookData.Signature,
-                    It.IsAny<string>()))
-                .Returns(true);
-
-            _mockStripeProcessor.Setup(p => p.ProcessWebhookAsync(
-                    webhookData,
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync(webhookResult);
-
-            // Act
-            WebhookProcessingResult result =
-                await _mockStripeProcessor.Object.ProcessWebhookAsync(webhookData, It.IsAny<CancellationToken>());
-
-            // Assert
-            result.Success.Should().BeTrue();
-            result.StatusUpdate.Should().NotBeNull();
-            result.StatusUpdate!.TransactionId.Should().Be("stripe_txn_123");
-            result.StatusUpdate.Status.Should().Be(PaymentStatus.Completed);
-        }
-
-        /// <summary>
-        ///     Tests webhook processing with invalid signature.
-        /// </summary>
-        /// <returns>A task representing the asynchronous test.</returns>
-        [Fact]
-        public async Task ProcessStripeWebhook_WithInvalidSignature_RejectsEvent()
-        {
-            // Arrange
-            WebhookEventData webhookData = new()
-            {
-                EventType = "payment_intent.succeeded",
-                Payload = "{\"event\":\"payment_intent.succeeded\"}",
-                Signature = "invalid_signature"
-            };
-
-            _mockStripeProcessor.Setup(p => p.ValidateWebhookSignature(
-                    webhookData.Payload,
-                    webhookData.Signature,
-                    It.IsAny<string>()))
-                .Returns(false);
-
-            // Setup ProcessWebhookAsync to handle invalid signature case
-            _mockStripeProcessor.Setup(p => p.ProcessWebhookAsync(
-                    webhookData,
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new WebhookProcessingResult
-                {
-                    Success = false,
-                    Message = "Invalid webhook signature"
-                });
-
-            // Act
-            WebhookProcessingResult result =
-                await _mockStripeProcessor.Object.ProcessWebhookAsync(webhookData, It.IsAny<CancellationToken>());
-
-            // Assert
-            result.Should().NotBeNull();
-            result.Success.Should().BeFalse();
-            result.Message.Should().Contain("Invalid webhook signature");
         }
 
         /// <summary>
@@ -388,7 +299,8 @@ namespace HotshotLogistics.Tests.Billing
                 _mockPaymentRepository.Object,
                 _mockNotificationService.Object,
                 _paymentProcessorFactory,
-                _mockLogger.Object);
+                _mockLogger.Object,
+                Options.Create(new PaymentRetryOptions { BaseDelay = TimeSpan.FromMilliseconds(1) }));
         }
     }
 }

@@ -25,7 +25,7 @@ namespace HotshotLogistics.Tests.Communication
         }
 
         [Fact]
-        public async Task BroadcastJobStatusUpdate_ShouldSendToJobGroup()
+        public async Task BroadcastJobStatusUpdate_ShouldSendToAdminsAndTheJobGroupOnceEach()
         {
             // Arrange
             string jobId = "job-123";
@@ -35,8 +35,13 @@ namespace HotshotLogistics.Tests.Communication
             await _realtimeService.BroadcastJobStatusUpdate(jobId, status);
 
             // Assert
+            _mockSignalRClient.Verify(x => x.SendToGroupAsync("admins", "JobStatusUpdated", jobId, status),
+                Times.Once);
             _mockSignalRClient.Verify(x => x.SendToGroupAsync($"job-{jobId}", "JobStatusUpdated", jobId, status),
                 Times.Once);
+            _mockSignalRClient.Verify(
+                x => x.SendToGroupAsync(It.IsAny<string>(), "JobStatusUpdated", It.IsAny<object[]>()),
+                Times.Exactly(2));
 
             // Verify logging
             _mockLogger.Verify(

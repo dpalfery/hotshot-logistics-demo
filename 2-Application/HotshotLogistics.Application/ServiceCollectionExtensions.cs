@@ -31,6 +31,7 @@ namespace HotshotLogistics.Application
                 sp.GetRequiredService<IDriverRepository>(),
                 sp.GetRequiredService<INotificationService>(),
                 sp.GetRequiredService<IMappingServiceFactory>().CreateMappingService(),
+                sp.GetRequiredService<IRealtimeService>(),
                 sp.GetRequiredService<ILogger<JobService>>()));
             services.AddScoped<IJobAssignmentService, JobAssignmentService>();
             services.AddScoped<IRealtimeService, RealtimeService>();
@@ -44,9 +45,14 @@ namespace HotshotLogistics.Application
             services.AddScoped<ITrackingService, TrackingService>();
 
             /* Register payment processors */
+            services.AddSingleton<IPayPalCertificateProvider, PayPalCertificateProvider>();
             services.AddScoped<StripePaymentProcessor>();
             services.AddScoped<PayPalPaymentProcessor>();
             services.AddScoped<IPaymentProcessorFactory, PaymentProcessorFactory>();
+
+            // The ICommunicationService implementations are registered by the persistence layer's
+            // AddCommunicationServices(); the factory that selects among them lives here.
+            services.AddTransient<ICommunicationServiceFactory, CommunicationServiceFactory>();
 
             // Do not also register IMappingService as a factory callback. MappingServiceFactory
             // enumerates GetServices<IMappingService>(), and a callback here would recurse.

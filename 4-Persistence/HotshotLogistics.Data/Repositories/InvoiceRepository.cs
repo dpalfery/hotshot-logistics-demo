@@ -1,12 +1,10 @@
 using System.Text;
 using HotshotLogistics.Contracts.Repositories;
 using HotshotLogistics.Core.Enums;
-using HotshotLogistics.Core.Repositories;
 using HotshotLogistics.Domain.DTOs;
 using HotshotLogistics.Domain.Entities;
 using HotshotLogistics.Domain.ValueObjects;
 using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.Configuration;
 
 namespace HotshotLogistics.Data.Repositories
 {
@@ -20,39 +18,32 @@ namespace HotshotLogistics.Data.Repositories
         /// <summary>
         ///     Initializes a new instance of the <see cref="InvoiceRepository" /> class.
         /// </summary>
-        /// <param name="configuration">The application configuration.</param>
-        public InvoiceRepository(IConfiguration configuration)
-            : base(configuration)
+        /// <param name="connectionFactory">The factory that opens database connections.</param>
+        public InvoiceRepository(ISqlConnectionFactory connectionFactory)
+            : base(connectionFactory)
         {
         }
 
         /// <inheritdoc />
-        public async Task<Invoice?> GetByIdAsync(string id, CancellationToken cancellationToken = default)
+        public override async Task<Invoice?> GetByIdAsync(object id, CancellationToken cancellationToken = default)
         {
             Invoice? invoice = await base.GetByIdAsync(id, cancellationToken);
             if (invoice != null)
             {
                 // Load line items
-                invoice.LineItems = await LoadLineItemsAsync(id);
+                invoice.LineItems = await LoadLineItemsAsync(invoice.Id, cancellationToken);
             }
 
             return invoice;
         }
 
         /// <inheritdoc />
-        public new async Task<IEnumerable<Invoice>> GetAllAsync()
-        {
-            IEnumerable<Invoice> invoices = await base.GetAllAsync();
-            return invoices;
-        }
-
-        /// <inheritdoc />
-        public new async Task<Invoice> AddAsync(Invoice invoice)
+        public override async Task<Invoice> AddAsync(Invoice invoice, CancellationToken cancellationToken = default)
         {
             ArgumentNullException.ThrowIfNull(invoice);
 
             // Save the invoice first
-            Invoice savedInvoice = await base.AddAsync(invoice);
+            Invoice savedInvoice = await base.AddAsync(invoice, cancellationToken);
 
             // Save line items if any exist
             if (invoice.LineItems.Any())
@@ -61,36 +52,24 @@ namespace HotshotLogistics.Data.Repositories
             }
 
             // Load the saved invoice with line items
-            Invoice? invoiceWithLineItems = await GetByIdAsync(savedInvoice.Id);
+            Invoice? invoiceWithLineItems = await GetByIdAsync(savedInvoice.Id, cancellationToken);
 
             return invoiceWithLineItems ?? savedInvoice;
         }
 
         /// <inheritdoc />
-        public new async Task<Invoice> UpdateAsync(Invoice invoice)
+        public override async Task<Invoice> UpdateAsync(Invoice invoice, CancellationToken cancellationToken = default)
         {
             ArgumentNullException.ThrowIfNull(invoice);
 
-            return await base.UpdateAsync(invoice);
-        }
-
-        /// <inheritdoc />
-        public async Task<bool> DeleteAsync(string id)
-        {
-            return await base.DeleteAsync(id);
-        }
-
-        /// <inheritdoc />
-        public async Task<bool> ExistsAsync(string id)
-        {
-            return await base.ExistsAsync(id);
+            return await base.UpdateAsync(invoice, cancellationToken);
         }
 
         /// <inheritdoc />
         public async Task<IEnumerable<Invoice>> GetByCustomerIdAsync(string customerId)
         {
-            const string sql = @"
-            SELECT * FROM Invoices
+            const string sql = $@"
+            SELECT {EntityColumns.Invoice} FROM Invoices
             WHERE CustomerId = @CustomerId
             ORDER BY InvoiceDate DESC";
 
@@ -101,8 +80,8 @@ namespace HotshotLogistics.Data.Repositories
         /// <inheritdoc />
         public async Task<IEnumerable<Invoice>> GetByJobIdAsync(string jobId)
         {
-            const string sql = @"
-            SELECT * FROM Invoices
+            const string sql = $@"
+            SELECT {EntityColumns.Invoice} FROM Invoices
             WHERE JobId = @JobId
             ORDER BY InvoiceDate DESC";
 
@@ -113,8 +92,8 @@ namespace HotshotLogistics.Data.Repositories
         /// <inheritdoc />
         public async Task<IEnumerable<Invoice>> GetByStatusAsync(InvoiceStatus status)
         {
-            const string sql = @"
-            SELECT * FROM Invoices
+            const string sql = $@"
+            SELECT {EntityColumns.Invoice} FROM Invoices
             WHERE Status = @Status
             ORDER BY InvoiceDate DESC";
 
@@ -125,8 +104,8 @@ namespace HotshotLogistics.Data.Repositories
         /// <inheritdoc />
         public async Task<IEnumerable<Invoice>> GetOverdueInvoicesAsync()
         {
-            const string sql = @"
-            SELECT * FROM Invoices
+            const string sql = $@"
+            SELECT {EntityColumns.Invoice} FROM Invoices
             WHERE Status NOT IN (@PaidStatus, @CancelledStatus)
             AND DueDate < @CurrentDate
             ORDER BY DueDate ASC";
@@ -144,8 +123,8 @@ namespace HotshotLogistics.Data.Repositories
         /// <inheritdoc />
         public async Task<IEnumerable<Invoice>> GetInvoicesDueWithinDaysAsync(int days)
         {
-            const string sql = @"
-            SELECT * FROM Invoices
+            const string sql = $@"
+            SELECT {EntityColumns.Invoice} FROM Invoices
             WHERE Status NOT IN (@PaidStatus, @CancelledStatus)
             AND DueDate BETWEEN @CurrentDate AND @FutureDate
             ORDER BY DueDate ASC";
@@ -164,8 +143,8 @@ namespace HotshotLogistics.Data.Repositories
         /// <inheritdoc />
         public async Task<IEnumerable<Invoice>> GetByDateRangeAsync(DateTime startDate, DateTime endDate)
         {
-            const string sql = @"
-            SELECT * FROM Invoices
+            const string sql = $@"
+            SELECT {EntityColumns.Invoice} FROM Invoices
             WHERE InvoiceDate BETWEEN @StartDate AND @EndDate
             ORDER BY InvoiceDate DESC";
 
@@ -179,7 +158,7 @@ namespace HotshotLogistics.Data.Repositories
         }
 
         /// <inheritdoc />
-        public async Task<PagedResult<Invoice>> GetPagedAsync(InvoiceFilter filter)
+        public async Task<PagedResult<Invoice>> GetPagedAsync(InvoiceFilterDto filter)
         {
             StringBuilder whereClause = new();
             List<SqlParameter> parameters = new();
@@ -263,7 +242,7 @@ namespace HotshotLogistics.Data.Repositories
             // Data query with pagination - create new parameter array
             int offset = (filter.PageNumber - 1) * filter.PageSize;
             string dataSql = $@"
-            SELECT i.* FROM Invoices i
+            SELECT {EntityColumns.InvoiceAliased} FROM Invoices i
             {joinClause}
             {whereClause}
             ORDER BY i.{sortBy} {sortDirection}
@@ -293,28 +272,37 @@ namespace HotshotLogistics.Data.Repositories
         /// <inheritdoc />
         public async Task<string> GetNextInvoiceNumberAsync()
         {
-            // Only sequential INV000001-style numbers. Seeded values such as INV-12345 and INV{ticks}
-            // must not participate, or MAX()+D6 produces the wrong length and can overflow.
+            // One UPDATE both advances and reads the counter, so concurrent callers each get a distinct
+            // number. The counter row is created by the CreateInvoiceNumberCounter migration.
             const string sql = @"
-            SELECT ISNULL(MAX(CAST(SUBSTRING(InvoiceNumber, 4, 6) AS INT)), 0) + 1
-            FROM Invoices
-            WHERE LEN(InvoiceNumber) = 9
-              AND InvoiceNumber LIKE 'INV[0-9][0-9][0-9][0-9][0-9][0-9]'";
+            UPDATE InvoiceNumberCounters
+            SET LastNumber = LastNumber + 1
+            OUTPUT INSERTED.LastNumber
+            WHERE Name = @Name";
 
-            int nextNumber = await ExecuteScalarAsync<int>(sql);
-            return $"INV{nextNumber:D6}";
+            SqlParameter[] parameters = [new("@Name", "Invoice")];
+
+            int? nextNumber = await ExecuteScalarAsync<int?>(sql, parameters);
+            if (nextNumber is null)
+            {
+                throw new InvalidOperationException(
+                    "The invoice number counter row is missing. Apply the CreateInvoiceNumberCounter migration.");
+            }
+
+            return $"INV{nextNumber.Value:D6}";
         }
 
         /// <inheritdoc />
-        public async Task<IEnumerable<AgingReportEntry>> GetAgingReportAsync()
+        public async Task<IEnumerable<AgingReportEntryDto>> GetAgingReportAsync()
         {
             const string sql = @"
             SELECT
                 i.CustomerId,
                 c.CompanyName as CustomerName,
                 SUM(CASE WHEN DATEDIFF(day, i.DueDate, GETUTCDATE()) <= 0 THEN i.TotalAmount - i.PaidAmount ELSE 0 END) as [Current],
-                SUM(CASE WHEN DATEDIFF(day, i.DueDate, GETUTCDATE()) BETWEEN 1 AND 30 THEN i.TotalAmount - i.PaidAmount ELSE 0 END) as Days31To60,
-                SUM(CASE WHEN DATEDIFF(day, i.DueDate, GETUTCDATE()) BETWEEN 31 AND 90 THEN i.TotalAmount - i.PaidAmount ELSE 0 END) as Days61To90,
+                SUM(CASE WHEN DATEDIFF(day, i.DueDate, GETUTCDATE()) BETWEEN 1 AND 30 THEN i.TotalAmount - i.PaidAmount ELSE 0 END) as Days1To30,
+                SUM(CASE WHEN DATEDIFF(day, i.DueDate, GETUTCDATE()) BETWEEN 31 AND 60 THEN i.TotalAmount - i.PaidAmount ELSE 0 END) as Days31To60,
+                SUM(CASE WHEN DATEDIFF(day, i.DueDate, GETUTCDATE()) BETWEEN 61 AND 90 THEN i.TotalAmount - i.PaidAmount ELSE 0 END) as Days61To90,
                 SUM(CASE WHEN DATEDIFF(day, i.DueDate, GETUTCDATE()) > 90 THEN i.TotalAmount - i.PaidAmount ELSE 0 END) as Over90Days,
                 SUM(i.TotalAmount - i.PaidAmount) as TotalBalance
             FROM Invoices i
@@ -331,10 +319,9 @@ namespace HotshotLogistics.Data.Repositories
                 new("@CancelledStatus", (int)InvoiceStatus.Cancelled)
             ];
 
-            List<AgingReportEntry> entries = new();
+            List<AgingReportEntryDto> entries = new();
 
-            await using SqlConnection connection = new(ConnectionString);
-            await connection.OpenAsync();
+            await using SqlConnection connection = await ConnectionFactory.OpenConnectionAsync();
 
             await using SqlCommand command = new(sql, connection);
             command.Parameters.AddRange(parameters);
@@ -342,11 +329,12 @@ namespace HotshotLogistics.Data.Repositories
             await using SqlDataReader reader = await command.ExecuteReaderAsync();
             while (await reader.ReadAsync())
             {
-                entries.Add(new AgingReportEntry
+                entries.Add(new AgingReportEntryDto
                 {
                     CustomerId = reader.GetString(reader.GetOrdinal("CustomerId")),
                     CustomerName = reader.GetString(reader.GetOrdinal("CustomerName")),
                     Current = reader.GetDecimal(reader.GetOrdinal("Current")),
+                    Days1To30 = reader.GetDecimal(reader.GetOrdinal("Days1To30")),
                     Days31To60 = reader.GetDecimal(reader.GetOrdinal("Days31To60")),
                     Days61To90 = reader.GetDecimal(reader.GetOrdinal("Days61To90")),
                     Over90Days = reader.GetDecimal(reader.GetOrdinal("Over90Days")),
@@ -377,7 +365,7 @@ namespace HotshotLogistics.Data.Repositories
         }
 
         /// <inheritdoc />
-        public async Task<InvoiceSummary> GetInvoiceSummaryAsync()
+        public async Task<InvoiceSummaryDto> GetInvoiceSummaryAsync()
         {
             const string sql = @"
             SELECT
@@ -397,8 +385,7 @@ namespace HotshotLogistics.Data.Repositories
                 new("@CurrentDate", DateTime.UtcNow.Date)
             ];
 
-            await using SqlConnection connection = new(ConnectionString);
-            await connection.OpenAsync();
+            await using SqlConnection connection = await ConnectionFactory.OpenConnectionAsync();
 
             await using SqlCommand command = new(sql, connection);
             command.Parameters.AddRange(parameters);
@@ -406,7 +393,7 @@ namespace HotshotLogistics.Data.Repositories
             await using SqlDataReader reader = await command.ExecuteReaderAsync();
             if (await reader.ReadAsync())
             {
-                return new InvoiceSummary
+                return new InvoiceSummaryDto
                 {
                     TotalInvoices = reader.GetInt32(reader.GetOrdinal("TotalInvoices")),
                     TotalAmount = reader.GetDecimal(reader.GetOrdinal("TotalAmount")),
@@ -418,14 +405,14 @@ namespace HotshotLogistics.Data.Repositories
                 };
             }
 
-            return new InvoiceSummary();
+            return new InvoiceSummaryDto();
         }
 
         /// <inheritdoc />
         public async Task<IEnumerable<Invoice>> SearchByInvoiceNumberAsync(string invoiceNumber)
         {
-            const string sql = @"
-            SELECT * FROM Invoices
+            const string sql = $@"
+            SELECT {EntityColumns.Invoice} FROM Invoices
             WHERE InvoiceNumber LIKE @InvoiceNumber
             ORDER BY InvoiceNumber";
 
@@ -494,8 +481,7 @@ namespace HotshotLogistics.Data.Repositories
             WHERE j.Id = @JobId";
 
             JobData? jobData = null;
-            await using SqlConnection connection = new(ConnectionString);
-            await connection.OpenAsync();
+            await using SqlConnection connection = await ConnectionFactory.OpenConnectionAsync();
 
             await using SqlCommand jobCommand = new(jobSql, connection);
             jobCommand.Parameters.Add(new SqlParameter("@JobId", jobId));
@@ -587,8 +573,7 @@ namespace HotshotLogistics.Data.Repositories
             INSERT INTO InvoiceLineItems (InvoiceId, Description, Quantity, UnitPrice, TaxApplicable, SortOrder)
             VALUES (@InvoiceId, @Description, @Quantity, @UnitPrice, @TaxApplicable, @SortOrder)";
 
-            await using SqlConnection connection = new(ConnectionString);
-            await connection.OpenAsync();
+            await using SqlConnection connection = await ConnectionFactory.OpenConnectionAsync();
 
             foreach (InvoiceLineItem lineItem in lineItems)
             {
@@ -613,13 +598,14 @@ namespace HotshotLogistics.Data.Repositories
         /// </summary>
         /// <param name="sql">The SQL query.</param>
         /// <param name="parameters">The query parameters.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>A list of entities.</returns>
-        private new async Task<IEnumerable<Invoice>> ExecuteQueryAsync(string sql, SqlParameter[]? parameters = null)
+        private new async Task<IEnumerable<Invoice>> ExecuteQueryAsync(string sql, SqlParameter[]? parameters = null,
+            CancellationToken cancellationToken = default)
         {
             List<Invoice> entities = new();
 
-            await using SqlConnection connection = new(ConnectionString);
-            await connection.OpenAsync();
+            await using SqlConnection connection = await ConnectionFactory.OpenConnectionAsync(cancellationToken);
 
             await using SqlCommand command = new(sql, connection);
             if (parameters != null)
@@ -627,12 +613,12 @@ namespace HotshotLogistics.Data.Repositories
                 command.Parameters.AddRange(parameters);
             }
 
-            await using SqlDataReader reader = await command.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
+            await using SqlDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
             {
                 Invoice invoice = MapReaderToEntity(reader);
                 // Load line items for each invoice
-                invoice.LineItems = await LoadLineItemsAsync(invoice.Id);
+                invoice.LineItems = await LoadLineItemsAsync(invoice.Id, cancellationToken);
                 entities.Add(invoice);
             }
 
@@ -643,8 +629,10 @@ namespace HotshotLogistics.Data.Repositories
         ///     Loads line items for an invoice.
         /// </summary>
         /// <param name="invoiceId">The invoice ID.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>A task representing the asynchronous operation that returns the line items.</returns>
-        private async Task<List<InvoiceLineItem>> LoadLineItemsAsync(string invoiceId)
+        private async Task<List<InvoiceLineItem>> LoadLineItemsAsync(string invoiceId,
+            CancellationToken cancellationToken = default)
         {
             const string sql = @"
             SELECT Id, Description, Quantity, UnitPrice, TaxApplicable, SortOrder
@@ -654,14 +642,13 @@ namespace HotshotLogistics.Data.Repositories
 
             List<InvoiceLineItem> lineItems = new();
 
-            await using SqlConnection connection = new(ConnectionString);
-            await connection.OpenAsync();
+            await using SqlConnection connection = await ConnectionFactory.OpenConnectionAsync(cancellationToken);
 
             await using SqlCommand command = new(sql, connection);
             command.Parameters.Add(new SqlParameter("@InvoiceId", invoiceId));
 
-            await using SqlDataReader reader = await command.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
+            await using SqlDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
             {
                 lineItems.Add(new InvoiceLineItem
                 {
@@ -675,6 +662,12 @@ namespace HotshotLogistics.Data.Repositories
             }
 
             return lineItems;
+        }
+
+        /// <inheritdoc />
+        protected override string GetColumnList()
+        {
+            return EntityColumns.Invoice;
         }
 
         /// <inheritdoc />

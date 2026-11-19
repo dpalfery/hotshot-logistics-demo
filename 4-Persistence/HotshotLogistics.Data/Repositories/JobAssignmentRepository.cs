@@ -1,11 +1,10 @@
 using System.Data;
+using System.Globalization;
 using HotshotLogistics.Contracts.Repositories;
 using HotshotLogistics.Core.Enums;
-using HotshotLogistics.Core.Repositories;
 using HotshotLogistics.Domain.DTOs;
 using HotshotLogistics.Domain.Entities;
 using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.Configuration;
 
 namespace HotshotLogistics.Data.Repositories
 {
@@ -17,106 +16,81 @@ namespace HotshotLogistics.Data.Repositories
         /// <summary>
         ///     Initializes a new instance of the <see cref="JobAssignmentRepository" /> class.
         /// </summary>
-        /// <param name="configuration">The application configuration.</param>
-        public JobAssignmentRepository(IConfiguration configuration)
-            : base(configuration)
+        /// <param name="connectionFactory">The factory that opens database connections.</param>
+        public JobAssignmentRepository(ISqlConnectionFactory connectionFactory)
+            : base(connectionFactory)
         {
         }
 
         /// <inheritdoc />
-        public async Task<JobAssignmentDto?> GetByIdAsync(string id, CancellationToken cancellationToken = default)
+        public override async Task<JobAssignmentDto?> GetByIdAsync(object id,
+            CancellationToken cancellationToken = default)
         {
-            const string sql = @"
-            SELECT ja.*, d.FirstName as DriverFirstName, d.LastName as DriverLastName, d.Email as DriverEmail,
-                   d.PhoneNumber as DriverPhoneNumber, d.LicenseNumber as DriverLicenseNumber, d.LicenseExpiryDate as DriverLicenseExpiryDate,
-                   j.Title as JobTitle, j.PickupAddress as JobPickupAddress, j.DeliveryAddress as JobDeliveryAddress,
-                   j.Status as JobStatus, j.Priority as JobPriority, j.TotalAmount as JobAmount,
-                   j.EstimatedDeliveryTime as JobEstimatedDeliveryTime, j.CreatedAt as JobCreatedAt, j.UpdatedAt as JobUpdatedAt
-            FROM JobAssignments ja
-            LEFT JOIN Drivers d ON ja.DriverId = d.Id
-            LEFT JOIN Jobs j ON ja.JobId = j.Id
+            const string sql = $@"
+            {EntityColumns.JobAssignmentJoined}
             WHERE ja.Id = @Id";
 
-            SqlParameter[] parameters = [new("@Id", SqlDbType.NVarChar) { Value = id }];
-            IEnumerable<JobAssignmentDto> assignments = await ExecuteQueryAsync(sql, parameters);
+            ArgumentNullException.ThrowIfNull(id);
+            string? assignmentId = id as string ?? Convert.ToString(id, CultureInfo.InvariantCulture);
+            if (string.IsNullOrWhiteSpace(assignmentId))
+            {
+                throw new ArgumentException("Assignment id is required.", nameof(id));
+            }
+
+            SqlParameter[] parameters =
+                [new("@Id", SqlDbType.NVarChar) { Value = assignmentId }];
+            IEnumerable<JobAssignmentDto> assignments = await ExecuteQueryAsync(sql, parameters, cancellationToken);
             return assignments.FirstOrDefault();
         }
 
         /// <inheritdoc />
-        public async Task<IEnumerable<JobAssignmentDto>> GetAllAsync(CancellationToken cancellationToken = default)
+        public override async Task<IEnumerable<JobAssignmentDto>> GetAllAsync(
+            CancellationToken cancellationToken = default)
         {
-            const string sql = @"
-            SELECT ja.*, d.FirstName as DriverFirstName, d.LastName as DriverLastName, d.Email as DriverEmail,
-                   d.PhoneNumber as DriverPhoneNumber, d.LicenseNumber as DriverLicenseNumber, d.LicenseExpiryDate as DriverLicenseExpiryDate,
-                   j.Title as JobTitle, j.PickupAddress as JobPickupAddress, j.DeliveryAddress as JobDeliveryAddress,
-                   j.Status as JobStatus, j.Priority as JobPriority, j.TotalAmount as JobAmount,
-                   j.EstimatedDeliveryTime as JobEstimatedDeliveryTime, j.CreatedAt as JobCreatedAt, j.UpdatedAt as JobUpdatedAt
-            FROM JobAssignments ja
-            LEFT JOIN Drivers d ON ja.DriverId = d.Id
-            LEFT JOIN Jobs j ON ja.JobId = j.Id
+            const string sql = $@"
+            {EntityColumns.JobAssignmentJoined}
             ORDER BY ja.AssignedAt DESC";
 
-            return await ExecuteQueryAsync(sql);
+            return await ExecuteQueryAsync(sql, null, cancellationToken);
         }
 
         /// <inheritdoc />
         public async Task<IEnumerable<JobAssignmentDto>> GetByDriverIdAsync(int driverId,
             CancellationToken cancellationToken = default)
         {
-            const string sql = @"
-            SELECT ja.*, d.FirstName as DriverFirstName, d.LastName as DriverLastName, d.Email as DriverEmail,
-                   d.PhoneNumber as DriverPhoneNumber, d.LicenseNumber as DriverLicenseNumber, d.LicenseExpiryDate as DriverLicenseExpiryDate,
-                   j.Title as JobTitle, j.PickupAddress as JobPickupAddress, j.DeliveryAddress as JobDeliveryAddress,
-                   j.Status as JobStatus, j.Priority as JobPriority, j.TotalAmount as JobAmount,
-                   j.EstimatedDeliveryTime as JobEstimatedDeliveryTime, j.CreatedAt as JobCreatedAt, j.UpdatedAt as JobUpdatedAt
-            FROM JobAssignments ja
-            LEFT JOIN Drivers d ON ja.DriverId = d.Id
-            LEFT JOIN Jobs j ON ja.JobId = j.Id
+            const string sql = $@"
+            {EntityColumns.JobAssignmentJoined}
             WHERE ja.DriverId = @DriverId
             ORDER BY ja.AssignedAt DESC";
 
             SqlParameter[] parameters = [new("@DriverId", SqlDbType.Int) { Value = driverId }];
-            return await ExecuteQueryAsync(sql, parameters);
+            return await ExecuteQueryAsync(sql, parameters, cancellationToken);
         }
 
         /// <inheritdoc />
         public async Task<IEnumerable<JobAssignmentDto>> GetByJobIdAsync(string jobId,
             CancellationToken cancellationToken = default)
         {
-            const string sql = @"
-            SELECT ja.*, d.FirstName as DriverFirstName, d.LastName as DriverLastName, d.Email as DriverEmail,
-                   d.PhoneNumber as DriverPhoneNumber, d.LicenseNumber as DriverLicenseNumber, d.LicenseExpiryDate as DriverLicenseExpiryDate,
-                   j.Title as JobTitle, j.PickupAddress as JobPickupAddress, j.DeliveryAddress as JobDeliveryAddress,
-                   j.Status as JobStatus, j.Priority as JobPriority, j.TotalAmount as JobAmount,
-                   j.EstimatedDeliveryTime as JobEstimatedDeliveryTime, j.CreatedAt as JobCreatedAt, j.UpdatedAt as JobUpdatedAt
-            FROM JobAssignments ja
-            LEFT JOIN Drivers d ON ja.DriverId = d.Id
-            LEFT JOIN Jobs j ON ja.JobId = j.Id
+            const string sql = $@"
+            {EntityColumns.JobAssignmentJoined}
             WHERE ja.JobId = @JobId
             ORDER BY ja.AssignedAt DESC";
 
             SqlParameter[] parameters = [new("@JobId", SqlDbType.NVarChar) { Value = jobId }];
-            return await ExecuteQueryAsync(sql, parameters);
+            return await ExecuteQueryAsync(sql, parameters, cancellationToken);
         }
 
         /// <inheritdoc />
         public async Task<IEnumerable<JobAssignmentDto>> GetActiveAssignmentsAsync(
             CancellationToken cancellationToken = default)
         {
-            const string sql = @"
-            SELECT ja.*, d.FirstName as DriverFirstName, d.LastName as DriverLastName, d.Email as DriverEmail,
-                   d.PhoneNumber as DriverPhoneNumber, d.LicenseNumber as DriverLicenseNumber, d.LicenseExpiryDate as DriverLicenseExpiryDate,
-                   j.Title as JobTitle, j.PickupAddress as JobPickupAddress, j.DeliveryAddress as JobDeliveryAddress,
-                   j.Status as JobStatus, j.Priority as JobPriority, j.TotalAmount as JobAmount,
-                   j.EstimatedDeliveryTime as JobEstimatedDeliveryTime, j.CreatedAt as JobCreatedAt, j.UpdatedAt as JobUpdatedAt
-            FROM JobAssignments ja
-            LEFT JOIN Drivers d ON ja.DriverId = d.Id
-            LEFT JOIN Jobs j ON ja.JobId = j.Id
+            const string sql = $@"
+            {EntityColumns.JobAssignmentJoined}
             WHERE ja.Status = @Status
             ORDER BY ja.AssignedAt DESC";
 
             SqlParameter[] parameters = [new("@Status", SqlDbType.Int) { Value = (int)JobAssignmentStatus.Active }];
-            return await ExecuteQueryAsync(sql, parameters);
+            return await ExecuteQueryAsync(sql, parameters, cancellationToken);
         }
 
         /// <inheritdoc />
@@ -128,12 +102,24 @@ namespace HotshotLogistics.Data.Repositories
                 throw new ArgumentNullException(nameof(jobAssignment));
             }
 
-            jobAssignment.Id = Guid.NewGuid().ToString();
-            return await AddAsync(jobAssignment);
+            return await AddAsync(jobAssignment, cancellationToken);
         }
 
         /// <inheritdoc />
-        public async Task<JobAssignmentDto> UpdateAsync(JobAssignmentDto jobAssignment,
+        public override async Task<JobAssignmentDto> AddAsync(JobAssignmentDto jobAssignment,
+            CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(jobAssignment);
+            if (string.IsNullOrWhiteSpace(jobAssignment.Id))
+            {
+                jobAssignment.Id = Guid.NewGuid().ToString();
+            }
+
+            return await base.AddAsync(jobAssignment, cancellationToken);
+        }
+
+        /// <inheritdoc />
+        public override async Task<JobAssignmentDto> UpdateAsync(JobAssignmentDto jobAssignment,
             CancellationToken cancellationToken = default)
         {
             if (jobAssignment == null)
@@ -141,13 +127,13 @@ namespace HotshotLogistics.Data.Repositories
                 throw new ArgumentNullException(nameof(jobAssignment));
             }
 
-            return await base.UpdateAsync(jobAssignment);
+            return await base.UpdateAsync(jobAssignment, cancellationToken);
         }
 
         /// <inheritdoc />
-        public async Task<bool> DeleteAsync(string id, CancellationToken cancellationToken = default)
+        protected override string GetColumnList()
         {
-            return await base.DeleteAsync(id);
+            return EntityColumns.JobAssignment;
         }
 
         /// <inheritdoc />

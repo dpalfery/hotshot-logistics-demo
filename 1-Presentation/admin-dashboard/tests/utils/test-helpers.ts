@@ -8,7 +8,7 @@ import { Page, expect } from '@playwright/test';
 export interface MockJob {
   id: string;
   title: string;
-  status: 'Pending' | 'Assigned' | 'InProgress' | 'Completed' | 'Cancelled';
+  status: 'Pending' | 'Assigned' | 'EnRoute' | 'Received';
   pickupAddress: string;
   dropoffAddress: string;
   assignedDriverId?: number | null;
@@ -180,24 +180,6 @@ export class ApiMocker {
           items: customers,
           totalCount: customers.length
         })
-      });
-    });
-  }
-
-  async mockDashboardStatsApi(stats: Record<string, unknown> = {}) {
-    const defaultStats = {
-      totalJobs: 0,
-      activeDrivers: 0,
-      revenue: 0,
-      pendingJobs: 0,
-      ...stats
-    };
-
-    await this.page.route('**/api/dashboard/stats', async route => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify(defaultStats)
       });
     });
   }
@@ -589,7 +571,6 @@ export class TestHelpers {
     // across browsers. Tests should call `page.route(...)` or
     // `this.apiMocker.mockInvoicesApi(...)` explicitly when they need invoice data.
     await this.apiMocker.mockCustomersApi([]);
-    await this.apiMocker.mockDashboardStatsApi();
     await this.apiMocker.mockInvoiceSummaryApi();
     await this.apiMocker.mockInvoiceAgingApi();
   }

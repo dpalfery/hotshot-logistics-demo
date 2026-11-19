@@ -13,7 +13,22 @@ last-reviewed: 2026-11-14
 How CI workflows are written in this repository. Agents and skills resolve this document as
 `<github-actions-coding-standard>`, so it outranks the defaults a portable agent shipped with.
 
-## Supply chain
+## Naming and layout
+
+### Structure
+
+- One workflow per concern — validate, release, publish — rather than one file with a matrix
+  of conditionals.
+- Shared sequences become reusable workflows or composite actions. A block copied into three
+  workflows will be fixed in one of them.
+- `concurrency` with `cancel-in-progress` on pull-request workflows, so a force-push does not
+  leave two runs racing.
+- Independent jobs run in parallel; a `needs:` that is not a real dependency is wall-clock
+  time spent for nothing.
+
+## Coding standards
+
+### Supply chain
 
 - **Third-party actions use version tags or full commit SHAs.** Existing branch references
   require a documented exception and a migration plan.
@@ -25,31 +40,19 @@ How CI workflows are written in this repository. Agents and skills resolve this 
 - `pull_request_target` and `workflow_run` run with the base repository's secrets. Do not
   check out and execute fork code in them.
 
-## Secrets
-
-Secrets come from the secrets store, are passed by `env:`, and are never echoed, written to an
-artifact, or included in a step summary. A workflow that needs to print a secret to debug it
-needs a different debugging approach.
-
-Prefer OIDC federation to a long-lived cloud credential stored as a secret.
-
-## Structure
-
-- One workflow per concern — validate, release, publish — rather than one file with a matrix
-  of conditionals.
-- Shared sequences become reusable workflows or composite actions. A block copied into three
-  workflows will be fixed in one of them.
-- `concurrency` with `cancel-in-progress` on pull-request workflows, so a force-push does not
-  leave two runs racing.
-- Independent jobs run in parallel; a `needs:` that is not a real dependency is wall-clock
-  time spent for nothing.
-
-## Speed
+### Speed
 
 Cache dependencies with a key that includes the lockfile hash. A cache that never invalidates
 is worse than none — it hides a broken restore behind a stale hit.
 
-## Gates
+### Determinism
+
+Floating runner images and tool versions are allowed. Document version constraints where
+compatibility requires them, and account for updates that can change CI without a repository edit.
+
+## Testing
+
+### Gates
 
 The checks that must pass are required in branch protection, not merely present in the file. A
 gate that can be skipped by merging anyway is documentation, not a gate.
@@ -57,7 +60,16 @@ gate that can be skipped by merging anyway is documentation, not a gate.
 Failing steps fail the job: no `continue-on-error` to make a red workflow green, and no
 disabled test without a linked issue and a date.
 
-## Determinism
+## Commands
 
-Floating runner images and tool versions are allowed. Document version constraints where
-compatibility requires them, and account for updates that can change CI without a repository edit.
+## Security and data handling
+
+### Secrets
+
+Secrets come from the secrets store, are passed by `env:`, and are never echoed, written to an
+artifact, or included in a step summary. A workflow that needs to print a secret to debug it
+needs a different debugging approach.
+
+Prefer OIDC federation to a long-lived cloud credential stored as a secret.
+
+## Done checklist

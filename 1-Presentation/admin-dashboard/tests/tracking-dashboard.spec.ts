@@ -1,20 +1,5 @@
 import { test, expect } from '@playwright/test';
-import type { LocationUpdate, NotificationMessage } from '@/types';
-
-// Extend Window interface for test mocks
-declare global {
-  interface Window {
-    mockSignalRService?: {
-      connect: () => Promise<void>;
-      disconnect: () => void;
-      onLocationUpdate: (callback: (update: LocationUpdate) => void) => void;
-      onNotification: (callback: (notification: NotificationMessage) => void) => void;
-    };
-    mockLocationUpdateCallback?: (update: LocationUpdate) => void;
-    mockNotificationCallback?: (notification: NotificationMessage) => void;
-    disconnectCalled?: boolean;
-  }
-}
+import { mockSignalR } from './utils/signalr-mock';
 
 test.describe('Tracking Dashboard', () => {
   test.beforeEach(async ({ page }) => {
@@ -54,9 +39,10 @@ test.describe('Tracking Dashboard', () => {
               {
                 id: 'job-1',
                 title: 'Active Delivery 1',
-                status: 'InProgress',
+                status: 'EnRoute',
                 pickupAddress: '123 Main St',
                 dropoffAddress: '456 Oak Ave',
+                amount: 100,
                 assignedDriverId: 1,
                 scheduledPickupTime: '2024-12-01T10:00:00Z'
               },
@@ -66,6 +52,7 @@ test.describe('Tracking Dashboard', () => {
                 status: 'Assigned',
                 pickupAddress: '789 Pine St',
                 dropoffAddress: '321 Elm Ave',
+                amount: 200,
                 assignedDriverId: 2,
                 scheduledPickupTime: '2024-12-01T14:00:00Z'
               },
@@ -75,6 +62,7 @@ test.describe('Tracking Dashboard', () => {
                 status: 'Pending',
                 pickupAddress: '555 Cedar Rd',
                 dropoffAddress: '777 Birch Ln',
+                amount: 300,
                 assignedDriverId: null,
                 scheduledPickupTime: '2024-12-01T16:00:00Z'
               }
@@ -89,7 +77,7 @@ test.describe('Tracking Dashboard', () => {
       // Check active jobs section
       await expect(page.getByRole('heading', { name: 'Active Jobs' })).toBeVisible();
       
-      // Should show only InProgress and Assigned jobs, not Pending
+      // Should show only EnRoute and Assigned jobs, not Pending
       await expect(page.getByText('Active Delivery 1')).toBeVisible();
       await expect(page.getByText('Assigned Delivery 2')).toBeVisible();
       await expect(page.getByText('Pending Delivery 3')).not.toBeVisible();
@@ -114,9 +102,10 @@ test.describe('Tracking Dashboard', () => {
               {
                 id: 'job-1',
                 title: 'In Progress Job',
-                status: 'InProgress',
+                status: 'EnRoute',
                 pickupAddress: '123 Main St',
                 dropoffAddress: '456 Oak Ave',
+                amount: 100,
                 assignedDriverId: 1,
                 scheduledPickupTime: '2024-12-01T10:00:00Z'
               },
@@ -126,6 +115,7 @@ test.describe('Tracking Dashboard', () => {
                 status: 'Assigned',
                 pickupAddress: '789 Pine St',
                 dropoffAddress: '321 Elm Ave',
+                amount: 200,
                 assignedDriverId: 2,
                 scheduledPickupTime: '2024-12-01T14:00:00Z'
               }
@@ -138,9 +128,9 @@ test.describe('Tracking Dashboard', () => {
       await page.reload();
 
       // Check status styling
-      const inProgressStatus = page.getByText('InProgress', { exact: true });
-      await expect(inProgressStatus).toBeVisible();
-      await expect(inProgressStatus).toHaveClass(/bg-green-100.*text-green-800/);
+      const enRouteStatus = page.getByText('EnRoute', { exact: true });
+      await expect(enRouteStatus).toBeVisible();
+      await expect(enRouteStatus).toHaveClass(/bg-green-100.*text-green-800/);
 
       const assignedStatus = page.getByText('Assigned', { exact: true });
       await expect(assignedStatus).toBeVisible();
@@ -188,39 +178,19 @@ test.describe('Tracking Dashboard', () => {
       await expect(page.getByText('No recent notifications')).toBeVisible();
     });
 
-    // FIXME: the app never reads window.mockSignalRService (TrackingDashboard always uses the real SignalR client), so there is no seam to inject updates; needs a test seam or a WebSocket-level mock (6-Docs/todo/admin-dashboard-playwright-baseline.md).
-    test.fixme('should connect to SignalR and handle real-time updates', async ({ page }) => {
-      // Mock SignalR connection
-      await page.addInitScript(() => {
-        // Mock SignalR service
-        window.mockSignalRService = {
-          connect: () => Promise.resolve(),
-          disconnect: () => {},
-          onLocationUpdate: (callback: (update: LocationUpdate) => void) => {
-            window.mockLocationUpdateCallback = callback;
-          },
-          onNotification: (callback: (notification: NotificationMessage) => void) => {
-            window.mockNotificationCallback = callback;
-          }
-        };
-      });
+    // The SignalR server is mocked at the network level (negotiate request and WebSocket), so the app runs its real client
 
+    test('should connect to SignalR and handle real-time updates', async ({ page }) => {
+      const signalR = await mockSignalR(page);
       await page.reload();
+      await expect.poll(() => signalR.openConnections()).toBe(1);
 
       // Simulate location update
-      await page.evaluate(() => {
-        if (window.mockLocationUpdateCallback) {
-          window.mockLocationUpdateCallback({
-            jobId: 'job-123',
-            driverId: 1,
-            location: {
-              latitude: 40.7128,
-              longitude: -74.0060,
-              address: 'Test address'
-            },
-            timestamp: new Date().toISOString()
-          });
-        }
+      signalR.invoke('LocationUpdate', {
+        jobId: 'job-123',
+        driverId: 1,
+        location: { latitude: 40.7128, longitude: -74.0060, address: 'Test address' },
+        timestamp: new Date().toISOString()
       });
 
       // Check if location update appears
@@ -228,187 +198,128 @@ test.describe('Tracking Dashboard', () => {
       await expect(page.getByText('40.7128, -74.0060')).toBeVisible();
 
       // Simulate notification
-      await page.evaluate(() => {
-        if (window.mockNotificationCallback) {
-          window.mockNotificationCallback({
-            id: 'notification-1',
-            type: 'status',
-            title: 'Job Update',
-            message: 'Job has been completed',
-            timestamp: new Date().toISOString(),
-            read: false
-          });
-        }
+      signalR.invoke('Notification', {
+        id: 'notification-1',
+        type: 'status',
+        title: 'Job Update',
+        message: 'Job has been completed',
+        timestamp: new Date().toISOString(),
+        read: false
       });
 
       // Check if notification appears
       await expect(page.getByText('Job Update')).toBeVisible();
       await expect(page.getByText('Job has been completed')).toBeVisible();
-      await expect(page.getByText('New')).toBeVisible();
+      await expect(page.getByText('New', { exact: true })).toBeVisible();
     });
 
-    // FIXME: the app never reads window.mockSignalRService (TrackingDashboard always uses the real SignalR client), so there is no seam to inject updates; needs a test seam or a WebSocket-level mock (6-Docs/todo/admin-dashboard-playwright-baseline.md).
-    test.fixme('should display location updates with proper formatting', async ({ page }) => {
-      // Mock location updates
-      await page.addInitScript(() => {
-        window.mockSignalRService = {
-          connect: () => Promise.resolve(),
-          disconnect: () => {},
-          onLocationUpdate: (callback: (update: LocationUpdate) => void) => {
-            // Simulate multiple location updates
-            setTimeout(() => {
-              callback({
-                jobId: 'job-001',
-                driverId: 1,
-                location: { latitude: 40.7128, longitude: -74.0060, address: 'Test address' },
-                timestamp: '2024-12-01T10:30:00Z'
-              });
-            }, 100);
-            
-            setTimeout(() => {
-              callback({
-                jobId: 'job-002',
-                driverId: 2,
-                location: { latitude: 34.0522, longitude: -118.2437, address: 'Test address' },
-                timestamp: '2024-12-01T10:35:00Z'
-              });
-            }, 200);
-          },
-          onNotification: (_callback: (notification: NotificationMessage) => void) => {}
-        };
-      });
-
+    test('should display location updates with proper formatting', async ({ page }) => {
+      const signalR = await mockSignalR(page);
       await page.reload();
+      await expect.poll(() => signalR.openConnections()).toBe(1);
+
+      signalR.invoke('LocationUpdate', {
+        jobId: 'job-001',
+        driverId: 1,
+        location: { latitude: 40.7128, longitude: -74.0060, address: 'Test address' },
+        timestamp: '2024-12-01T10:30:00Z'
+      });
+      signalR.invoke('LocationUpdate', {
+        jobId: 'job-002',
+        driverId: 2,
+        location: { latitude: 34.0522, longitude: -118.2437, address: 'Test address' },
+        timestamp: '2024-12-01T10:35:00Z'
+      });
 
       // Wait for location updates to appear
       await expect(page.getByText('Job #job-001 - Driver #1')).toBeVisible();
       await expect(page.getByText('Job #job-002 - Driver #2')).toBeVisible();
-      
+
       // Check coordinate formatting (4 decimal places)
       await expect(page.getByText('40.7128, -74.0060')).toBeVisible();
       await expect(page.getByText('34.0522, -118.2437')).toBeVisible();
-      
-      // Check timestamp formatting
-      await expect(page.getByText(/\d{1,2}:\d{2}:\d{2} [AP]M/)).toBeVisible();
+
+      // Check timestamp formatting (the config pins the en-US locale and UTC)
+      await expect(page.getByText('10:30:00 AM')).toBeVisible();
+      await expect(page.getByText('10:35:00 AM')).toBeVisible();
     });
 
-    // FIXME: the app never reads window.mockSignalRService (TrackingDashboard always uses the real SignalR client), so there is no seam to inject updates; needs a test seam or a WebSocket-level mock (6-Docs/todo/admin-dashboard-playwright-baseline.md).
-    test.fixme('should display notifications with read/unread status', async ({ page }) => {
-      // Mock notifications
-      await page.addInitScript(() => {
-        window.mockSignalRService = {
-          connect: () => Promise.resolve(),
-          disconnect: () => {},
-          onLocationUpdate: (_callback: (update: LocationUpdate) => void) => {},
-          onNotification: (callback: (notification: NotificationMessage) => void) => {
-            // Simulate multiple notifications
-            setTimeout(() => {
-              callback({
-                id: 'notification-1',
-                type: 'assignment',
-                title: 'New Job Assigned',
-                message: 'Job #123 has been assigned to Driver #1',
-                timestamp: '2024-12-01T10:30:00Z',
-                read: false
-              });
-            }, 100);
-            
-            setTimeout(() => {
-              callback({
-                id: 'notification-2',
-                type: 'status',
-                title: 'Delivery Completed',
-                message: 'Job #122 has been completed successfully',
-                timestamp: '2024-12-01T10:25:00Z',
-                read: true
-              });
-            }, 200);
-          }
-        };
-      });
-
+    test('should display notifications with read/unread status', async ({ page }) => {
+      const signalR = await mockSignalR(page);
       await page.reload();
+      await expect.poll(() => signalR.openConnections()).toBe(1);
+
+      signalR.invoke('Notification', {
+        id: 'notification-1',
+        type: 'assignment',
+        title: 'New Job Assigned',
+        message: 'Job #123 has been assigned to Driver #1',
+        timestamp: '2024-12-01T10:30:00Z',
+        read: false
+      });
+      signalR.invoke('Notification', {
+        id: 'notification-2',
+        type: 'status',
+        title: 'Delivery Completed',
+        message: 'Job #122 has been completed successfully',
+        timestamp: '2024-12-01T10:25:00Z',
+        read: true
+      });
 
       // Wait for notifications to appear
       await expect(page.getByText('New Job Assigned')).toBeVisible();
       await expect(page.getByText('Delivery Completed')).toBeVisible();
-      
+
       // Check notification messages
       await expect(page.getByText('Job #123 has been assigned to Driver #1')).toBeVisible();
       await expect(page.getByText('Job #122 has been completed successfully')).toBeVisible();
-      
-      // Check read/unread status styling
-      const newStatus = page.locator('text=New').first();
+
+      // Check read/unread status styling (exact: the notification title "New Job Assigned" also contains "New")
+      const newStatus = page.getByText('New', { exact: true });
       await expect(newStatus).toBeVisible();
       await expect(newStatus).toHaveClass(/bg-blue-100.*text-blue-800/);
-      
-      const readStatus = page.locator('text=Read').first();
+
+      const readStatus = page.getByText('Read', { exact: true });
       await expect(readStatus).toBeVisible();
       await expect(readStatus).toHaveClass(/bg-gray-100.*text-gray-800/);
     });
 
-    // FIXME: the app never reads window.mockSignalRService (TrackingDashboard always uses the real SignalR client), so there is no seam to inject updates; needs a test seam or a WebSocket-level mock (6-Docs/todo/admin-dashboard-playwright-baseline.md).
-    test.fixme('should limit location updates and notifications to last 10 items', async ({ page }) => {
-      // Mock many location updates
-      await page.addInitScript(() => {
-        window.mockSignalRService = {
-          connect: () => Promise.resolve(),
-          disconnect: () => {},
-          onLocationUpdate: (callback: (update: LocationUpdate) => void) => {
-            // Simulate 15 location updates
-            for (let i = 1; i <= 15; i++) {
-              setTimeout(() => {
-                callback({
-                  jobId: `job-${i.toString().padStart(3, '0')}`,
-                  driverId: i,
-                  location: { latitude: 40.7128 + i * 0.001, longitude: -74.0060 + i * 0.001, address: 'Test address' },
-                  timestamp: new Date(Date.now() + i * 1000).toISOString()
-                });
-              }, i * 50);
-            }
-          },
-          onNotification: (callback: (notification: NotificationMessage) => void) => {
-            // Simulate 15 notifications
-            for (let i = 1; i <= 15; i++) {
-              setTimeout(() => {
-                callback({
-                  id: `notification-${i}`,
-                  type: 'notification',
-                  title: `Notification ${i}`,
-                  message: `Message ${i}`,
-                  timestamp: new Date(Date.now() + i * 1000).toISOString(),
-                  read: false
-                });
-              }, i * 50);
-            }
-          }
-        };
-      });
-
+    test('should limit location updates and notifications to last 10 items', async ({ page }) => {
+      const signalR = await mockSignalR(page);
       await page.reload();
+      await expect.poll(() => signalR.openConnections()).toBe(1);
 
-      // Wait for updates to complete
-      await page.waitForTimeout(1000);
-
-      // Check that only the last 10 location updates are shown
-      const locationUpdates = page.locator('[data-testid="location-update"]');
-      if (await locationUpdates.first().isVisible()) {
-        await expect(locationUpdates).toHaveCount(10);
+      // Simulate 15 location updates and 15 notifications
+      for (let i = 1; i <= 15; i++) {
+        signalR.invoke('LocationUpdate', {
+          jobId: `job-${i.toString().padStart(3, '0')}`,
+          driverId: i,
+          location: { latitude: 40.7128 + i * 0.001, longitude: -74.0060 + i * 0.001, address: 'Test address' },
+          timestamp: new Date(Date.now() + i * 1000).toISOString()
+        });
+        signalR.invoke('Notification', {
+          id: `notification-${i}`,
+          type: 'notification',
+          title: `Notification ${i}`,
+          message: `Message ${i}`,
+          timestamp: new Date(Date.now() + i * 1000).toISOString(),
+          read: false
+        });
       }
 
-      // Check that only the last 10 notifications are shown
-      const notifications = page.locator('[data-testid="notification"]');
-      if (await notifications.first().isVisible()) {
-        await expect(notifications).toHaveCount(10);
-      }
-
-      // Verify the most recent items are shown (job-015, job-014, etc.)
+      // The most recent item is shown, so every update has been processed
       await expect(page.getByText('Job #job-015')).toBeVisible();
-      await expect(page.getByText('Notification 15')).toBeVisible();
-      
-      // Verify older items are not shown (job-001, job-002, etc.)
+      await expect(page.getByText('Notification 15', { exact: true })).toBeVisible();
+
+      // Only the last 10 of each are kept
+      await expect(page.locator('[data-testid="location-update"]')).toHaveCount(10);
+      await expect(page.locator('[data-testid="notification"]')).toHaveCount(10);
+
+      // Older items are not shown (exact: "Notification 1" is also a prefix of "Notification 10" to "15")
       await expect(page.getByText('Job #job-001')).not.toBeVisible();
-      await expect(page.getByText('Notification 1')).not.toBeVisible();
+      await expect(page.getByText('Notification 1', { exact: true })).not.toBeVisible();
+      await expect(page.getByText('Job #job-005 - Driver #5')).toHaveCount(0);
+      await expect(page.getByText('Job #job-006 - Driver #6')).toBeVisible();
     });
 
     test('should handle SignalR connection errors gracefully', async ({ page }) => {
@@ -425,42 +336,40 @@ test.describe('Tracking Dashboard', () => {
 
       await page.reload();
 
-      // Wait for connection attempt
-      await page.waitForTimeout(500);
-
-      // Check that error is logged
-      expect(consoleErrors.some(error => error.includes('Failed to connect to SignalR'))).toBe(true);
+      // The error is logged once the connection attempt has failed
+      await expect.poll(() => consoleErrors.some(error => error.includes('Failed to connect to SignalR'))).toBe(true);
       
       // Verify page still displays correctly despite connection failure
       await expect(page.getByText('Real-Time Tracking')).toBeVisible();
       await expect(page.getByText('No recent location updates')).toBeVisible();
       await expect(page.getByText('No recent notifications')).toBeVisible();
+      // The failure is shown to the user, not only logged
+      await expect(page.getByText('Live updates are unavailable')).toBeVisible();
     });
 
-    // FIXME: the app never reads window.mockSignalRService (TrackingDashboard always uses the real SignalR client), so there is no seam to inject updates; needs a test seam or a WebSocket-level mock (6-Docs/todo/admin-dashboard-playwright-baseline.md).
-    test.fixme('should disconnect SignalR when component unmounts', async ({ page }) => {
-      let disconnectCalled = false;
-      
-      // Mock SignalR service with disconnect tracking
-      await page.addInitScript(() => {
-        window.mockSignalRService = {
-          connect: () => Promise.resolve(),
-          disconnect: () => {
-            window.disconnectCalled = true;
-          },
-          onLocationUpdate: (_callback: (update: LocationUpdate) => void) => {},
-          onNotification: (_callback: (notification: NotificationMessage) => void) => {}
-        };
-      });
-
+    test('should show an error state for active jobs when the jobs request fails', async ({ page }) => {
+      await page.route('**/api/job', route => route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: 'Internal server error' })
+      }));
       await page.reload();
 
-      // Navigate away from the page
-      await page.goto('/jobs');
+      await expect(page.getByText('Error loading active jobs')).toBeVisible();
+      await expect(page.getByText('No active jobs')).toHaveCount(0);
+    });
 
-      // Check if disconnect was called
-      disconnectCalled = await page.evaluate(() => window.disconnectCalled || false);
-      expect(disconnectCalled).toBe(true);
+    test('should disconnect SignalR when component unmounts', async ({ page }) => {
+      const signalR = await mockSignalR(page);
+      await page.reload();
+      await expect.poll(() => signalR.openConnections()).toBe(1);
+
+      // Navigate away client-side, so the page stays alive and only the component unmounts
+      await page.click('nav a[href="/jobs"]:visible');
+      await expect(page).toHaveURL('/jobs');
+
+      // The connection was closed by the app
+      await expect.poll(() => signalR.openConnections()).toBe(0);
     });
 
     test('should display grid layout correctly on different screen sizes', async ({ page }) => {
@@ -481,54 +390,33 @@ test.describe('Tracking Dashboard', () => {
     });
 
     test('should handle scrolling in location updates and notifications', async ({ page }) => {
-      // Mock many updates to test scrolling
-      await page.addInitScript(() => {
-        window.mockSignalRService = {
-          connect: () => Promise.resolve(),
-          disconnect: () => {},
-          onLocationUpdate: (callback: (update: LocationUpdate) => void) => {
-            for (let i = 1; i <= 20; i++) {
-              setTimeout(() => {
-                callback({
-                  jobId: `job-${i.toString().padStart(3, '0')}`,
-                  driverId: i,
-                  location: { latitude: 40.7128, longitude: -74.0060, address: 'Test address' },
-                  timestamp: new Date().toISOString()
-                });
-              }, i * 10);
-            }
-          },
-          onNotification: (callback: (notification: NotificationMessage) => void) => {
-            for (let i = 1; i <= 20; i++) {
-              setTimeout(() => {
-                callback({
-                  id: `notification-${i}`,
-                  type: 'notification',
-                  title: `Notification ${i}`,
-                  message: `Message ${i}`,
-                  timestamp: new Date().toISOString(),
-                  read: false
-                });
-              }, i * 10);
-            }
-          }
-        };
-      });
-
+      const signalR = await mockSignalR(page);
       await page.reload();
-      await page.waitForTimeout(500);
+      await expect.poll(() => signalR.openConnections()).toBe(1);
 
-      // Check that containers have max height and overflow scroll
-      const locationContainer = page.locator('.max-h-64.overflow-y-auto').first();
-      const notificationContainer = page.locator('.max-h-64.overflow-y-auto').last();
-
-      if (await locationContainer.isVisible()) {
-        await expect(locationContainer).toHaveClass(/max-h-64.*overflow-y-auto/);
+      for (let i = 1; i <= 20; i++) {
+        signalR.invoke('LocationUpdate', {
+          jobId: `job-${i.toString().padStart(3, '0')}`,
+          driverId: i,
+          location: { latitude: 40.7128, longitude: -74.0060, address: 'Test address' },
+          timestamp: new Date().toISOString()
+        });
+        signalR.invoke('Notification', {
+          id: `notification-${i}`,
+          type: 'notification',
+          title: `Notification ${i}`,
+          message: `Message ${i}`,
+          timestamp: new Date().toISOString(),
+          read: false
+        });
       }
+      await expect(page.getByText('Job #job-020')).toBeVisible();
 
-      if (await notificationContainer.isVisible()) {
-        await expect(notificationContainer).toHaveClass(/max-h-64.*overflow-y-auto/);
-      }
+      // Both lists have a maximum height and scroll
+      const containers = page.locator('.max-h-64.overflow-y-auto');
+      await expect(containers).toHaveCount(2);
+      await expect(containers.first()).toHaveClass(/max-h-64.*overflow-y-auto/);
+      await expect(containers.last()).toHaveClass(/max-h-64.*overflow-y-auto/);
     });
   });
 });

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiService } from '@/services/api';
 import { Job, JobStatus } from '@/types';
@@ -9,7 +10,9 @@ import { JobForm } from './JobForm';
 import { AssignDriverModal } from './AssignDriverModal';
 
 export function JobsManagement() {
-  const [showCreateForm, setShowCreateForm] = useState(false);
+  // Opened from a Quick Action (/jobs?action=create): the form is shown from the first render
+  const searchParams = useSearchParams();
+  const [showCreateForm, setShowCreateForm] = useState(() => searchParams.get('action') === 'create');
   const [editingJob, setEditingJob] = useState<Job | null>(null);
   const [assigningJob, setAssigningJob] = useState<Job | null>(null);
   const queryClient = useQueryClient();
@@ -72,12 +75,10 @@ export function JobsManagement() {
         return 'bg-yellow-100 text-yellow-800';
       case JobStatus.Assigned:
         return 'bg-blue-100 text-blue-800';
-      case JobStatus.InProgress:
+      case JobStatus.EnRoute:
         return 'bg-green-100 text-green-800';
-      case JobStatus.Completed:
+      case JobStatus.Received:
         return 'bg-gray-100 text-gray-800';
-      case JobStatus.Cancelled:
-        return 'bg-red-100 text-red-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }

@@ -15,23 +15,48 @@ document as `<data-access-layer-coding-standard>`. Language-level C# is in the p
 declared as **<csharp-coding-standard>**; SQL shape is in **<sql-coding-standard>**.
 Those three must not disagree. Where they would, this document yields to them.
 
-## Stack
+## Naming and layout
+
+### Placement
+
+| Kind | Where |
+|---|---|
+| Repository interface | `HotshotLogistics.Contracts` |
+| Repository implementation | `HotshotLogistics.Data` |
+| Persistence row | `HotshotLogistics.Data` (internal) |
+| FluentMigrator scripts | `HotshotLogistics.Data/Migrations` |
+
+Application and API code consumes `IRepository<T>`. It does not open connections or
+write SQL.
+
+## Coding standards
+
+### Stack
 
 - **Data access:** parameterized ADO.NET (`Microsoft.Data.SqlClient`). Dapper and Entity
   Framework are out of scope — no `QueryAsync`, no `DbContext`, no `DbSet`, no
   `SaveChangesAsync`, and no LINQ to Entities. Schema changes use FluentMigrator, not
   Entity Framework migrations.
-- **Connections:** The target is `ISqlConnectionFactory`, which creates and opens
-  connections; its introduction is tracked in the [connection-factory todo](../../todo/sql-connection-factory.md).
-  Never `new SqlConnection(...)` at a call site.
+- **Connections:** Repositories get an open connection from `ISqlConnectionFactory`
+  (`HotshotLogistics.Contracts`; implemented by the internal `SqlConnectionFactory` in
+  `HotshotLogistics.Data`). The caller owns the connection and disposes it with
+  `await using`. Never `new SqlConnection(...)` in a repository. Migration and
+  provisioning code (`MigrationRunner`, DbSetup) sits outside the factory.
 - **Migrations:** FluentMigrator, versioned `[Migration(yyyyMMddHHmmss)]`. Schema design
   is not authored here — it arrives as an approved table-definition contract.
-- **Abstraction:** The target is `IRepository<T>` in `HotshotLogistics.Contracts`; its adoption
-  is tracked in the [generic-repository todo](../../todo/generic-repository-migration.md).
-  Implementations are internal to `HotshotLogistics.Data`. Persistence rows stay in
-  `HotshotLogistics.Data` and are mapped at the adapter boundary.
+- **Abstraction:** `IRepository<T>` in `HotshotLogistics.Contracts` is the generic contract
+  (get by id, get all, add, update, delete, exists); every member takes a `CancellationToken`.
+  Every repository contract (`ICustomerRepository`, `IDriverRepository`, `IInvoiceRepository`,
+  `IJobAssignmentRepository`, `IJobRepository`, `ILocationTrackingRepository`,
+  `IPaymentRepository`) extends it and adds only the members that are not identity operations.
+  A repository whose get, add or update does more than the base (an invoice's line items, a
+  job assignment's joined query, a stamped `CreatedAt`) overrides the base member, so the
+  generic contract and the repository's own callers reach one implementation. Every
+  implementation derives from the internal `BaseRepository<T>`, which implements
+  `IRepository<T>`. Implementations are internal to `HotshotLogistics.Data`. Persistence rows
+  stay in `HotshotLogistics.Data` and are mapped at the adapter boundary.
 
-## Hard rules
+### Hard rules
 
 - Parameterized `SqlCommand` / `SqlParameter` only. String concatenation into SQL is an
   injection, including in a migration.
@@ -50,19 +75,21 @@ Those three must not disagree. Where they would, this document yields to them.
 - Structured logging on failures: operation, entity, id. Do not swallow database
   exceptions.
 
-## Placement
+## Testing
 
-| Kind | Where |
-|---|---|
-| Repository interface | `HotshotLogistics.Contracts` |
-| Repository implementation | `HotshotLogistics.Data` |
-| Persistence row | `HotshotLogistics.Data` (internal) |
-| FluentMigrator scripts | `HotshotLogistics.Data/Migrations` |
+## Commands
 
-Application and API code consumes `IRepository<T>`. It does not open connections or
-write SQL.
+```bash
+dotnet build -c Release
+dotnet test
+```
 
-## Migrations
+See the [DbSetup onboarding guide](../../dbsetup/onboarding.md) for provisioning and
+the [deployment pipeline documentation](../../devops/ci-cd-pipelines.md) for migrations.
+
+## Security and data handling
+
+### Migrations
 
 - Use versioned FluentMigrator migrations in the format
   `[Migration(yyyyMMddHHmmss)]`; add a migration before deploying code that depends on a
@@ -75,12 +102,4 @@ write SQL.
 - Provide a `Down()` path when the migration can be safely reversed; do not treat rollback
   as a substitute for the forward deployment sequence.
 
-## Commands
-
-```bash
-dotnet build -c Release
-dotnet test
-```
-
-See the [DbSetup onboarding guide](../../dbsetup/onboarding.md) for provisioning and
-the [deployment pipeline documentation](../../devops/ci-cd-pipelines.md) for migrations.
+## Done checklist

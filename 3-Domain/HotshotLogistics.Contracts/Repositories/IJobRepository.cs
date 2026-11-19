@@ -5,7 +5,7 @@ using HotshotLogistics.Domain.ValueObjects;
 
 namespace HotshotLogistics.Contracts.Repositories
 {
-    public interface IJobRepository
+    public interface IJobRepository : IRepository<Job>
     {
         /// <summary>
         ///     Gets all jobs.

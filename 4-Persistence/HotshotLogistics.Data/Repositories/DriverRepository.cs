@@ -5,11 +5,9 @@
 using System.Data;
 using HotshotLogistics.Contracts.Repositories;
 using HotshotLogistics.Core.Enums;
-using HotshotLogistics.Core.Repositories;
 using HotshotLogistics.Domain.Entities;
 using HotshotLogistics.Domain.ValueObjects;
 using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.Configuration;
 
 namespace HotshotLogistics.Data.Repositories
 {
@@ -21,43 +19,57 @@ namespace HotshotLogistics.Data.Repositories
         /// <summary>
         ///     Initializes a new instance of the <see cref="DriverRepository" /> class.
         /// </summary>
-        /// <param name="configuration">The application configuration.</param>
-        public DriverRepository(IConfiguration configuration)
-            : base(configuration)
+        /// <param name="connectionFactory">The factory that opens database connections.</param>
+        public DriverRepository(ISqlConnectionFactory connectionFactory)
+            : base(connectionFactory)
         {
         }
 
         /// <inheritdoc />
         public async Task<IEnumerable<Driver>> GetDriversAsync(CancellationToken cancellationToken = default)
         {
-            const string sql = "SELECT * FROM Drivers WHERE IsActive = 1 ORDER BY LastName, FirstName";
-            IEnumerable<Driver> drivers = await ExecuteQueryAsync(sql);
+            const string sql = $"SELECT {EntityColumns.Driver} FROM Drivers WHERE IsActive = 1 ORDER BY LastName, FirstName";
+            IEnumerable<Driver> drivers = await ExecuteQueryAsync(sql, null, cancellationToken);
             return drivers;
         }
 
         /// <inheritdoc />
         public async Task<Driver?> GetDriverByIdAsync(int id, CancellationToken cancellationToken = default)
         {
-            const string sql = "SELECT * FROM Drivers WHERE Id = @Id";
+            const string sql = $"SELECT {EntityColumns.Driver} FROM Drivers WHERE Id = @Id";
             SqlParameter[] parameters = [new("@Id", SqlDbType.Int) { Value = id }];
-            IEnumerable<Driver> drivers = await ExecuteQueryAsync(sql, parameters);
+            IEnumerable<Driver> drivers = await ExecuteQueryAsync(sql, parameters, cancellationToken);
             return drivers.FirstOrDefault();
         }
 
         /// <inheritdoc />
         public async Task<Driver> CreateDriverAsync(Driver driver, CancellationToken cancellationToken = default)
         {
-            Driver domainDriver = driver;
-            domainDriver.CreatedAt = DateTime.UtcNow;
-            return await AddAsync(domainDriver);
+            return await AddAsync(driver, cancellationToken);
+        }
+
+        /// <inheritdoc />
+        public override async Task<Driver> AddAsync(Driver driver, CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(driver);
+
+            driver.CreatedAt = DateTime.UtcNow;
+            return await base.AddAsync(driver, cancellationToken);
         }
 
         /// <inheritdoc />
         public async Task<Driver> UpdateDriverAsync(Driver driver, CancellationToken cancellationToken = default)
         {
-            Driver domainDriver = driver;
-            domainDriver.UpdatedAt = DateTime.UtcNow;
-            return await UpdateAsync(domainDriver);
+            return await UpdateAsync(driver, cancellationToken);
+        }
+
+        /// <inheritdoc />
+        public override async Task<Driver> UpdateAsync(Driver driver, CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(driver);
+
+            driver.UpdatedAt = DateTime.UtcNow;
+            return await base.UpdateAsync(driver, cancellationToken);
         }
 
         /// <inheritdoc />
@@ -70,7 +82,7 @@ namespace HotshotLogistics.Data.Repositories
                 new("@Id", SqlDbType.Int) { Value = id },
                 new("@UpdatedAt", SqlDbType.DateTime2) { Value = DateTime.UtcNow }
             ];
-            int rowsAffected = await ExecuteNonQueryAsync(sql, parameters);
+            int rowsAffected = await ExecuteNonQueryAsync(sql, parameters, cancellationToken);
             return rowsAffected > 0;
         }
 
@@ -81,8 +93,8 @@ namespace HotshotLogistics.Data.Repositories
         /// <returns>A collection of active drivers.</returns>
         public async Task<IEnumerable<Driver>> GetActiveDriversAsync(CancellationToken cancellationToken = default)
         {
-            const string sql = "SELECT * FROM Drivers WHERE IsActive = 1 ORDER BY LastName, FirstName";
-            IEnumerable<Driver> drivers = await ExecuteQueryAsync(sql);
+            const string sql = $"SELECT {EntityColumns.Driver} FROM Drivers WHERE IsActive = 1 ORDER BY LastName, FirstName";
+            IEnumerable<Driver> drivers = await ExecuteQueryAsync(sql, null, cancellationToken);
             return drivers;
         }
 
@@ -95,10 +107,10 @@ namespace HotshotLogistics.Data.Repositories
         public async Task<Driver?> GetDriverByLicenseNumberAsync(string licenseNumber,
             CancellationToken cancellationToken = default)
         {
-            const string sql = "SELECT * FROM Drivers WHERE LicenseNumber = @LicenseNumber";
+            const string sql = $"SELECT {EntityColumns.Driver} FROM Drivers WHERE LicenseNumber = @LicenseNumber";
             SqlParameter[] parameters =
                 [new("@LicenseNumber", SqlDbType.NVarChar) { Value = licenseNumber }];
-            IEnumerable<Driver> drivers = await ExecuteQueryAsync(sql, parameters);
+            IEnumerable<Driver> drivers = await ExecuteQueryAsync(sql, parameters, cancellationToken);
             return drivers.FirstOrDefault();
         }
 
@@ -112,9 +124,15 @@ namespace HotshotLogistics.Data.Repositories
             CancellationToken cancellationToken = default)
         {
             // Note: CurrentStatus is not stored in the database, returning all active drivers
-            const string sql = "SELECT * FROM Drivers WHERE IsActive = 1 ORDER BY LastName, FirstName";
-            IEnumerable<Driver> drivers = await ExecuteQueryAsync(sql);
+            const string sql = $"SELECT {EntityColumns.Driver} FROM Drivers WHERE IsActive = 1 ORDER BY LastName, FirstName";
+            IEnumerable<Driver> drivers = await ExecuteQueryAsync(sql, null, cancellationToken);
             return drivers;
+        }
+
+        /// <inheritdoc />
+        protected override string GetColumnList()
+        {
+            return EntityColumns.Driver;
         }
 
         /// <inheritdoc />

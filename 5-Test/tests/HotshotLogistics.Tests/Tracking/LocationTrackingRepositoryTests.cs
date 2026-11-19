@@ -3,6 +3,7 @@
 // </copyright>
 
 using FluentAssertions;
+using HotshotLogistics.Data;
 using HotshotLogistics.Domain.Entities;
 using Microsoft.Extensions.Configuration;
 
@@ -43,7 +44,7 @@ namespace HotshotLogistics.Tests.Tracking
                 });
 
             IConfiguration configuration = configBuilder.Build();
-            _locationTrackingRepository = new LocationTrackingRepository(configuration);
+            _locationTrackingRepository = new LocationTrackingRepository(new SqlConnectionFactory(configuration));
         }
 
         /// <inheritdoc />

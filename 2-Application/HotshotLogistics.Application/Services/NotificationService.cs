@@ -5,6 +5,7 @@
 using System.Text.Json;
 using HotshotLogistics.Contracts.Services;
 using HotshotLogistics.Core.Enums;
+using HotshotLogistics.Domain.DTOs;
 using HotshotLogistics.Domain.Entities;
 using HotshotLogistics.Domain.ValueObjects;
 using Microsoft.Extensions.Caching.Distributed;
@@ -147,7 +148,7 @@ namespace HotshotLogistics.Application.Services
             _logger.LogInformation("Sending {NotificationType} notification to user {UserId}", notificationType,
                 userId);
 
-            NotificationPreferences? preferences = await GetNotificationPreferencesAsync(userId, cancellationToken);
+            NotificationPreferencesDto? preferences = await GetNotificationPreferencesAsync(userId, cancellationToken);
             if (preferences == null)
             {
                 _logger.LogWarning("No notification preferences found for user {UserId}", userId);
@@ -203,7 +204,7 @@ namespace HotshotLogistics.Application.Services
         }
 
         /// <inheritdoc />
-        public async Task<NotificationPreferences?> GetNotificationPreferencesAsync(string userId,
+        public async Task<NotificationPreferencesDto?> GetNotificationPreferencesAsync(string userId,
             CancellationToken cancellationToken = default)
         {
             string cacheKey = $"notification_preferences:{userId}";
@@ -213,7 +214,7 @@ namespace HotshotLogistics.Application.Services
             {
                 try
                 {
-                    return JsonSerializer.Deserialize<NotificationPreferences>(preferencesJson);
+                    return JsonSerializer.Deserialize<NotificationPreferencesDto>(preferencesJson);
                 }
                 catch (JsonException ex)
                 {
@@ -223,7 +224,7 @@ namespace HotshotLogistics.Application.Services
 
             // In real implementation, get from database
             // For demo purposes, return default preferences
-            NotificationPreferences defaultPreferences = new()
+            NotificationPreferencesDto defaultPreferences = new()
             {
                 UserId = userId,
                 SmsEnabled = true,
@@ -242,7 +243,7 @@ namespace HotshotLogistics.Application.Services
         }
 
         /// <inheritdoc />
-        public async Task<bool> UpdateNotificationPreferencesAsync(string userId, NotificationPreferences preferences,
+        public async Task<bool> UpdateNotificationPreferencesAsync(string userId, NotificationPreferencesDto preferences,
             CancellationToken cancellationToken = default)
         {
             if (preferences == null)
@@ -373,7 +374,7 @@ namespace HotshotLogistics.Application.Services
         {
             _logger.LogInformation("Sending urgent notification to user {UserId}", userId);
 
-            NotificationPreferences? preferences = await GetNotificationPreferencesAsync(userId, cancellationToken);
+            NotificationPreferencesDto? preferences = await GetNotificationPreferencesAsync(userId, cancellationToken);
             if (preferences == null)
             {
                 _logger.LogWarning("No notification preferences found for user {UserId}", userId);
@@ -428,7 +429,7 @@ namespace HotshotLogistics.Application.Services
         /// </summary>
         /// <param name="preferences">The notification preferences to validate.</param>
         /// <returns>True if preferences are valid, false otherwise.</returns>
-        public bool ValidateNotificationPreferences(NotificationPreferences? preferences)
+        public bool ValidateNotificationPreferences(NotificationPreferencesDto? preferences)
         {
             if (preferences == null)
             {

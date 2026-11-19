@@ -326,10 +326,59 @@ namespace HotshotLogistics.IntegrationTests
         }
 
         /// <summary>
+        ///     Tests that the active filter counts every job that has not been received, across all pages: a page of one
+        ///     job still reports the total, so a client can read an exact count from <c>totalCount</c>.
+        /// </summary>
+        /// <returns>A task representing the asynchronous test.</returns>
+        [Fact]
+        public async Task GetJobs_WithIsActive_CountsTheJobsNotYetReceived()
+        {
+            // Arrange: three jobs that only this test owns, found through a tag in their titles
+            string tag = $"a{Guid.NewGuid().ToString("N")[..10]}";
+            await CreateOwnJobAsync(tag);
+            Job enRoute = await CreateOwnJobAsync(tag);
+            Job delivered = await CreateOwnJobAsync(tag);
+            await SetStatusAsync(enRoute.Id, JobStatus.EnRoute);
+            await SetStatusAsync(delivered.Id, JobStatus.Received);
+
+            // Act
+            PagedResult<Job> active = await GetPageAsync($"searchTerm={tag}&isActive=true&pageSize=1");
+            PagedResult<Job> received = await GetPageAsync($"searchTerm={tag}&isActive=false&pageSize=1");
+            PagedResult<Job> all = await GetPageAsync($"searchTerm={tag}&pageSize=1");
+
+            // Assert
+            Assert.Equal(2, active.TotalCount);
+            Assert.Single(active.Items);
+            Assert.Equal(1, received.TotalCount);
+            Assert.Equal(3, all.TotalCount);
+        }
+
+        private async Task SetStatusAsync(string jobId, JobStatus status)
+        {
+            // Changing a status needs the manager role; the default test identity is an admin
+            using HttpRequestMessage request = new(HttpMethod.Put, $"/api/Job/{jobId}/status")
+            {
+                Content = JsonContent.Create(new { status })
+            };
+            request.Headers.Add("X-Test-Role", "Manager");
+            HttpResponseMessage response = await Client.SendAsync(request);
+            response.EnsureSuccessStatusCode();
+        }
+
+        private async Task<PagedResult<Job>> GetPageAsync(string query)
+        {
+            HttpResponseMessage response = await Client.GetAsync($"/api/Job?{query}");
+            response.EnsureSuccessStatusCode();
+            PagedResult<Job>? page = await response.Content.ReadFromJsonAsync<PagedResult<Job>>();
+            Assert.NotNull(page);
+            return page;
+        }
+
+        /// <summary>
         ///     Creates a job owned by the calling test through the API, so tests never read or change seed jobs
         ///     picked by position.
         /// </summary>
-        /// <param name="idPrefix">Short label put in the job id.</param>
+        /// <param name="idPrefix">Short label put in the job id and title.</param>
         /// <returns>The created job.</returns>
         private async Task<Job> CreateOwnJobAsync(string idPrefix)
         {

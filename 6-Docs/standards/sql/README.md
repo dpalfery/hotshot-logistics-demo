@@ -13,7 +13,16 @@ last-reviewed: 2026-11-14
 How SQL is written in this repository. Agents and skills resolve this document as
 `<sql-coding-standard>`, so it outranks the defaults a portable agent shipped with.
 
-## Parameters, always
+## Naming and layout
+
+- Use PascalCase for user-defined schemas, tables and columns; use plural table names.
+  Keep SQL Server's built-in `dbo` schema name.
+- Keywords uppercase, one clause per line, joins and conditions indented consistently. A
+  formatter settles this; the point is that diffs stay readable.
+
+## Coding standards
+
+### Parameters, always
 
 Every value that came from outside the query is a parameter. String concatenation into SQL is
 an injection, including in a migration, including in a script that "only an admin runs",
@@ -22,7 +31,7 @@ including when the value is an integer today.
 Dynamic identifiers — a table or column name chosen at runtime — cannot be parameterized, so
 they are validated against an allow-list, never interpolated from input.
 
-## Queries
+### Queries
 
 - **Explicit `JOIN ... ON`.** Comma joins hide the condition, and a missing one is a cross
   join nobody notices until production.
@@ -34,7 +43,7 @@ they are validated against an allow-list, never interpolated from input.
 - No scalar user-defined functions in `WHERE` or `SELECT` over large sets — they defeat the
   optimizer.
 
-## Correctness at the edges
+### Correctness at the edges
 
 `NULL` is not a value and does not compare like one. State what a `WHERE` clause should do
 with missing data, and use `IS NULL` / `IS NOT NULL` / `COALESCE` deliberately rather than
@@ -42,20 +51,19 @@ discovering the behaviour in a report.
 
 Statements forming one unit of work run in one transaction, with an explicit rollback path.
 
-## Indexes
+### Indexes
 
 A query added with a new access pattern comes with the index that serves it, or with a stated
 reason it does not need one. Check the plan rather than guessing; an index that is never used
 still costs every write.
 
-## Naming and layout
+## Testing
 
-- Use PascalCase for user-defined schemas, tables and columns; use plural table names.
-  Keep SQL Server's built-in `dbo` schema name.
-- Keywords uppercase, one clause per line, joins and conditions indented consistently. A
-  formatter settles this; the point is that diffs stay readable.
+## Commands
 
-## Migrations
+## Security and data handling
+
+### Migrations
 
 Migrations are forward-only and idempotent where the platform allows it. A migration that
 cannot be re-run safely says so at the top, along with what to do if it half-applied.
@@ -63,7 +71,9 @@ cannot be re-run safely says so at the top, along with what to do if it half-app
 Destructive changes — dropping a column, narrowing a type — ship separately from the code that
 stops using them, so a rollback does not lose data.
 
-## Least privilege
+### Least privilege
 
 Application accounts get the permissions the application uses, and no more. Nothing routine
 runs as `sa`, `root`, or the schema owner.
+
+## Done checklist

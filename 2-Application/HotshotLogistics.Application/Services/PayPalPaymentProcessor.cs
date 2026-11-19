@@ -4,6 +4,7 @@
 
 using HotshotLogistics.Contracts.Services;
 using HotshotLogistics.Core.Enums;
+using HotshotLogistics.Domain.DTOs;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
@@ -14,7 +15,9 @@ namespace HotshotLogistics.Application.Services
     /// </summary>
     public class PayPalPaymentProcessor : IPaymentProcessor
     {
+        private readonly IPayPalCertificateProvider _certificates;
         private readonly ILogger<PayPalPaymentProcessor> _logger;
+        private readonly TimeProvider _timeProvider;
         private readonly string _webhookId;
 
         /// <summary>
@@ -23,32 +26,40 @@ namespace HotshotLogistics.Application.Services
         /// <param name="logger">The logger.</param>
         /// <param name="httpClientFactory">The HTTP client factory.</param>
         /// <param name="configuration">The configuration.</param>
+        /// <param name="certificates">Supplies the certificate PayPal signs webhooks with.</param>
+        /// <param name="timeProvider">The clock; the system clock when omitted.</param>
         public PayPalPaymentProcessor(
             ILogger<PayPalPaymentProcessor> logger,
             IHttpClientFactory httpClientFactory,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            IPayPalCertificateProvider certificates,
+            TimeProvider? timeProvider = null)
         {
             ArgumentNullException.ThrowIfNull(logger);
             ArgumentNullException.ThrowIfNull(httpClientFactory);
             ArgumentNullException.ThrowIfNull(configuration);
+            ArgumentNullException.ThrowIfNull(certificates);
 
             _logger = logger;
             _ = configuration["PayPal:ClientId"] ??
                 throw new InvalidOperationException("PayPal:ClientId configuration is required");
             _ = configuration["PayPal:ClientSecret"] ??
                 throw new InvalidOperationException("PayPal:ClientSecret configuration is required");
-            _webhookId = configuration["PayPal:WebhookId"] ??
-                         throw new InvalidOperationException("PayPal:WebhookId configuration is required");
+            _webhookId = configuration["PayPal:WebhookId"] is { Length: > 0 } webhookId
+                ? webhookId
+                : throw new InvalidOperationException("PayPal:WebhookId configuration is required");
+            _certificates = certificates;
+            _timeProvider = timeProvider ?? TimeProvider.System;
         }
 
         /// <inheritdoc />
         public string ProcessorName => "PayPal";
 
         /// <inheritdoc />
-        public async Task<PaymentProcessingResult> ProcessPaymentAsync(
+        public async Task<PaymentProcessingResultDto> ProcessPaymentAsync(
             decimal amount,
             string currency,
-            PaymentMethodDetails paymentMethod,
+            PaymentMethodDetailsDto paymentMethod,
             Dictionary<string, string> metadata,
             CancellationToken cancellationToken = default)
         {
@@ -58,7 +69,7 @@ namespace HotshotLogistics.Application.Services
             {
                 // In a real implementation, this would integrate with PayPal SDK
                 // For now, simulate the payment processing
-                PaymentProcessingResult result =
+                PaymentProcessingResultDto result =
                     await SimulatePayPalPaymentAsync(amount, currency, paymentMethod, metadata, cancellationToken);
 
                 _logger.LogInformation("PayPal payment processing completed: {Success}, TransactionId: {TransactionId}",
@@ -69,7 +80,7 @@ namespace HotshotLogistics.Application.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error processing payment via PayPal");
-                return new PaymentProcessingResult
+                return new PaymentProcessingResultDto
                 {
                     Success = false,
                     Message = "Payment processing failed",
@@ -79,7 +90,7 @@ namespace HotshotLogistics.Application.Services
         }
 
         /// <inheritdoc />
-        public async Task<PaymentProcessingResult> RefundPaymentAsync(
+        public async Task<PaymentProcessingResultDto> RefundPaymentAsync(
             string transactionId,
             decimal amount,
             string reason,
@@ -91,7 +102,7 @@ namespace HotshotLogistics.Application.Services
             try
             {
                 // In a real implementation, this would integrate with PayPal SDK
-                PaymentProcessingResult result =
+                PaymentProcessingResultDto result =
                     await SimulatePayPalRefundAsync(transactionId, amount, reason, cancellationToken);
 
                 _logger.LogInformation("PayPal refund processing completed: {Success}", result.Success);
@@ -102,7 +113,7 @@ namespace HotshotLogistics.Application.Services
             {
                 _logger.LogError(ex, "Error processing refund via PayPal for transaction {TransactionId}",
                     transactionId);
-                return new PaymentProcessingResult
+                return new PaymentProcessingResultDto
                 {
                     Success = false,
                     Message = "Refund processing failed",
@@ -112,43 +123,43 @@ namespace HotshotLogistics.Application.Services
         }
 
         /// <inheritdoc />
-        public bool ValidateWebhookSignature(string payload, string signature, string secret)
+        public Task<bool> ValidateWebhookSignatureAsync(
+            WebhookEventDataDto webhookData,
+            CancellationToken cancellationToken = default)
         {
-            try
-            {
-                // In a real implementation, this would use PayPal's webhook signature validation
-                // For now, simulate validation
-                return SimulatePayPalWebhookValidation(payload, signature, secret);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error validating PayPal webhook signature");
-                return false;
-            }
+            ArgumentNullException.ThrowIfNull(webhookData);
+            return PayPalWebhookSignatureVerifier.IsValidAsync(
+                webhookData.BodyBytes(),
+                webhookData.Headers,
+                _webhookId,
+                _certificates,
+                _timeProvider.GetUtcNow(),
+                cancellationToken);
         }
 
         /// <inheritdoc />
-        public async Task<WebhookProcessingResult> ProcessWebhookAsync(
-            WebhookEventData webhookData,
+        public async Task<WebhookProcessingResultDto> ProcessWebhookAsync(
+            WebhookEventDataDto webhookData,
             CancellationToken cancellationToken = default)
         {
-            _logger.LogInformation("Processing PayPal webhook event: {EventType}", webhookData.EventType);
-
             try
             {
-                // Validate signature first
-                if (!ValidateWebhookSignature(webhookData.Payload, webhookData.Signature, _webhookId))
+                // Verify the signature before anything else is read from the payload.
+                if (!await ValidateWebhookSignatureAsync(webhookData, cancellationToken))
                 {
                     _logger.LogWarning("Invalid PayPal webhook signature");
-                    return new WebhookProcessingResult
+                    return new WebhookProcessingResultDto
                     {
                         Success = false,
+                        SignatureRejected = true,
                         Message = "Invalid webhook signature"
                     };
                 }
 
+                _logger.LogInformation("Processing PayPal webhook event: {EventType}", webhookData.EventType);
+
                 // In a real implementation, this would parse PayPal webhook events
-                WebhookProcessingResult result =
+                WebhookProcessingResultDto result =
                     await SimulatePayPalWebhookProcessingAsync(webhookData, cancellationToken);
 
                 _logger.LogInformation("PayPal webhook processing completed: {Success}", result.Success);
@@ -158,7 +169,7 @@ namespace HotshotLogistics.Application.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error processing PayPal webhook");
-                return new WebhookProcessingResult
+                return new WebhookProcessingResultDto
                 {
                     Success = false,
                     Message = "Webhook processing failed"
@@ -175,10 +186,10 @@ namespace HotshotLogistics.Application.Services
         /// <param name="metadata">Additional metadata.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>The payment processing result.</returns>
-        private async Task<PaymentProcessingResult> SimulatePayPalPaymentAsync(
+        private async Task<PaymentProcessingResultDto> SimulatePayPalPaymentAsync(
             decimal amount,
             string currency,
-            PaymentMethodDetails paymentMethod,
+            PaymentMethodDetailsDto paymentMethod,
             Dictionary<string, string> metadata,
             CancellationToken cancellationToken)
         {
@@ -196,7 +207,7 @@ namespace HotshotLogistics.Application.Services
 
             if (success)
             {
-                return new PaymentProcessingResult
+                return new PaymentProcessingResultDto
                 {
                     Success = true,
                     TransactionId = $"paypal_{Guid.NewGuid()}",
@@ -209,7 +220,7 @@ namespace HotshotLogistics.Application.Services
                 };
             }
 
-            return new PaymentProcessingResult
+            return new PaymentProcessingResultDto
             {
                 Success = false,
                 Message = "Payment declined by PayPal",
@@ -225,7 +236,7 @@ namespace HotshotLogistics.Application.Services
         /// <param name="reason">The refund reason.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>The refund processing result.</returns>
-        private static async Task<PaymentProcessingResult> SimulatePayPalRefundAsync(
+        private static async Task<PaymentProcessingResultDto> SimulatePayPalRefundAsync(
             string transactionId,
             decimal amount,
             string reason,
@@ -243,7 +254,7 @@ namespace HotshotLogistics.Application.Services
 
             if (success)
             {
-                return new PaymentProcessingResult
+                return new PaymentProcessingResultDto
                 {
                     Success = true,
                     TransactionId = $"refund_paypal_{Guid.NewGuid()}",
@@ -256,7 +267,7 @@ namespace HotshotLogistics.Application.Services
                 };
             }
 
-            return new PaymentProcessingResult
+            return new PaymentProcessingResultDto
             {
                 Success = false,
                 Message = "Refund failed",
@@ -265,29 +276,13 @@ namespace HotshotLogistics.Application.Services
         }
 
         /// <summary>
-        ///     Simulates PayPal webhook signature validation.
-        /// </summary>
-        /// <param name="payload">The payload.</param>
-        /// <param name="signature">The signature.</param>
-        /// <param name="secret">The secret.</param>
-        /// <returns>True if valid, false otherwise.</returns>
-        private static bool SimulatePayPalWebhookValidation(string payload, string signature, string secret)
-        {
-            _ = payload;
-            _ = secret;
-
-            // Simple simulation - in real implementation, use proper HMAC validation
-            return !string.IsNullOrEmpty(signature) && signature.Contains("paypal");
-        }
-
-        /// <summary>
         ///     Simulates PayPal webhook processing.
         /// </summary>
         /// <param name="webhookData">The webhook data.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>The webhook processing result.</returns>
-        private async Task<WebhookProcessingResult> SimulatePayPalWebhookProcessingAsync(
-            WebhookEventData webhookData,
+        private async Task<WebhookProcessingResultDto> SimulatePayPalWebhookProcessingAsync(
+            WebhookEventDataDto webhookData,
             CancellationToken cancellationToken)
         {
             // Simulate processing delay
@@ -297,10 +292,10 @@ namespace HotshotLogistics.Application.Services
             switch (webhookData.EventType)
             {
                 case "PAYMENT.CAPTURE.COMPLETED":
-                    return new WebhookProcessingResult
+                    return new WebhookProcessingResultDto
                     {
                         Success = true,
-                        StatusUpdate = new PaymentStatusUpdate
+                        StatusUpdate = new PaymentStatusUpdateDto
                         {
                             TransactionId = "paypal_test_txn_456",
                             Status = PaymentStatus.Completed,
@@ -311,10 +306,10 @@ namespace HotshotLogistics.Application.Services
                     };
 
                 case "PAYMENT.CAPTURE.DENIED":
-                    return new WebhookProcessingResult
+                    return new WebhookProcessingResultDto
                     {
                         Success = true,
-                        StatusUpdate = new PaymentStatusUpdate
+                        StatusUpdate = new PaymentStatusUpdateDto
                         {
                             TransactionId = "paypal_test_txn_456",
                             Status = PaymentStatus.Failed,
@@ -325,7 +320,7 @@ namespace HotshotLogistics.Application.Services
                     };
 
                 default:
-                    return new WebhookProcessingResult
+                    return new WebhookProcessingResultDto
                     {
                         Success = true,
                         Message = $"Event {webhookData.EventType} acknowledged"

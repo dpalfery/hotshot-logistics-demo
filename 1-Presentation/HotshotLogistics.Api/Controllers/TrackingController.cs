@@ -2,9 +2,16 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
+using System.Globalization;
+using System.Security.Claims;
+using HotshotLogistics.Api.Models;
+using HotshotLogistics.Application.Authorization;
 using HotshotLogistics.Contracts.Services;
 using HotshotLogistics.Domain.Entities;
+using HotshotLogistics.Api.RateLimiting;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace HotshotLogistics.Api.Controllers
 {
@@ -13,8 +20,12 @@ namespace HotshotLogistics.Api.Controllers
     /// </summary>
     [ApiController]
     [Route("api/[controller]")]
-    public class TrackingController : ControllerBase
+    [Authorize]
+    public sealed class TrackingController : ApiControllerBase
     {
+        private const string s_driverIdClaim = "driver_id";
+
+        private readonly IJobService _jobService;
         private readonly ILogger<TrackingController> _logger;
         private readonly ITrackingService _trackingService;
 
@@ -22,12 +33,15 @@ namespace HotshotLogistics.Api.Controllers
         ///     Initializes a new instance of the <see cref="TrackingController" /> class.
         /// </summary>
         /// <param name="trackingService">The tracking service.</param>
+        /// <param name="jobService">The job service, used to check that a driver owns the job.</param>
         /// <param name="logger">The _logger.</param>
         public TrackingController(
             ITrackingService trackingService,
+            IJobService jobService,
             ILogger<TrackingController> logger)
         {
             _trackingService = trackingService ?? throw new ArgumentNullException(nameof(trackingService));
+            _jobService = jobService ?? throw new ArgumentNullException(nameof(jobService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
@@ -38,6 +52,7 @@ namespace HotshotLogistics.Api.Controllers
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>Success status of starting tracking.</returns>
         [HttpPost("start")]
+        [Authorize(Policy = AuthorizationPolicies.ManagerOrDriver)]
         [ProducesResponseType(typeof(TrackingResult), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -49,17 +64,23 @@ namespace HotshotLogistics.Api.Controllers
             {
                 if (request == null)
                 {
-                    return BadRequest("Start tracking request is required");
+                    return BadRequestProblem("Start tracking request is required");
                 }
 
                 if (string.IsNullOrWhiteSpace(request.JobId))
                 {
-                    return BadRequest("Job ID is required");
+                    return BadRequestProblem("Job ID is required");
                 }
 
                 if (request.DriverId <= 0)
                 {
-                    return BadRequest("Valid driver ID is required");
+                    return BadRequestProblem("Valid driver ID is required");
+                }
+
+                ActionResult? forbidden = RejectIfDriverImpersonating(request.DriverId);
+                if (forbidden is not null)
+                {
+                    return forbidden;
                 }
 
                 bool success =
@@ -79,18 +100,12 @@ namespace HotshotLogistics.Api.Controllers
             catch (ArgumentException ex)
             {
                 _logger.LogWarning(ex, "Invalid start tracking request: {Message}", ex.Message);
-                return BadRequest(ex.Message);
+                return BadRequestProblem(ex.Message);
             }
             catch (KeyNotFoundException ex)
             {
                 _logger.LogWarning(ex, "Job or driver not found: {Message}", ex.Message);
-                return NotFound(ex.Message);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "An error occurred while starting tracking for job");
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    "An error occurred while processing your request.");
+                return NotFoundProblem(ex.Message);
             }
         }
 
@@ -101,6 +116,7 @@ namespace HotshotLogistics.Api.Controllers
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>Success status of stopping tracking.</returns>
         [HttpPost("stop/{jobId}")]
+        [Authorize(Policy = AuthorizationPolicies.ManagerOrDriver)]
         [ProducesResponseType(typeof(TrackingResult), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -111,7 +127,13 @@ namespace HotshotLogistics.Api.Controllers
             {
                 if (string.IsNullOrWhiteSpace(jobId))
                 {
-                    return BadRequest("Job ID is required");
+                    return BadRequestProblem("Job ID is required");
+                }
+
+                ActionResult? forbidden = await RejectIfDriverDoesNotOwnJobAsync(jobId, cancellationToken);
+                if (forbidden is not null)
+                {
+                    return forbidden;
                 }
 
                 bool success = await _trackingService.StopTrackingAsync(jobId, cancellationToken);
@@ -129,18 +151,12 @@ namespace HotshotLogistics.Api.Controllers
             catch (ArgumentException ex)
             {
                 _logger.LogWarning(ex, "Invalid stop tracking request for job: {Message}", ex.Message);
-                return BadRequest(ex.Message);
+                return BadRequestProblem(ex.Message);
             }
             catch (KeyNotFoundException ex)
             {
                 _logger.LogWarning(ex, "Job not found for stop tracking");
-                return NotFound(ex.Message);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "An error occurred while stopping tracking for job");
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    "An error occurred while processing your request.");
+                return NotFoundProblem(ex.Message);
             }
         }
 
@@ -151,6 +167,7 @@ namespace HotshotLogistics.Api.Controllers
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>The created location tracking record.</returns>
         [HttpPost("location")]
+        [Authorize(Policy = AuthorizationPolicies.ManagerOrDriver)]
         [ProducesResponseType(typeof(LocationTracking), StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -162,22 +179,28 @@ namespace HotshotLogistics.Api.Controllers
             {
                 if (request == null)
                 {
-                    return BadRequest("Location update request is required");
+                    return BadRequestProblem("Location update request is required");
                 }
 
                 if (string.IsNullOrWhiteSpace(request.JobId))
                 {
-                    return BadRequest("Job ID is required");
+                    return BadRequestProblem("Job ID is required");
                 }
 
                 if (request.DriverId <= 0)
                 {
-                    return BadRequest("Valid driver ID is required");
+                    return BadRequestProblem("Valid driver ID is required");
                 }
 
                 if (request.LocationUpdate == null)
                 {
-                    return BadRequest("Location update data is required");
+                    return BadRequestProblem("Location update data is required");
+                }
+
+                ActionResult? forbidden = RejectIfDriverImpersonating(request.DriverId);
+                if (forbidden is not null)
+                {
+                    return forbidden;
                 }
 
                 LocationTracking locationTracking = await _trackingService.UpdateLocationAsync(
@@ -194,18 +217,17 @@ namespace HotshotLogistics.Api.Controllers
             catch (ArgumentException ex)
             {
                 _logger.LogWarning(ex, "Invalid location update request: {Message}", ex.Message);
-                return BadRequest(ex.Message);
+                return BadRequestProblem(ex.Message);
             }
             catch (KeyNotFoundException ex)
             {
                 _logger.LogWarning(ex, "Job or driver not found for location update: {Message}", ex.Message);
-                return NotFound(ex.Message);
+                return NotFoundProblem(ex.Message);
             }
-            catch (Exception ex)
+            catch (UnauthorizedAccessException ex)
             {
-                _logger.LogError(ex, "An error occurred while updating location for job");
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    "An error occurred while processing your request.");
+                _logger.LogWarning(ex, "Location update refused: the driver is not assigned to the job");
+                return ForbiddenProblem("You cannot record a location for this job.");
             }
         }
 
@@ -216,28 +238,20 @@ namespace HotshotLogistics.Api.Controllers
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>The latest location tracking record.</returns>
         [HttpGet("location/{jobId}")]
+        [Authorize(Policy = AuthorizationPolicies.ManagerOrAdmin)]
         [ProducesResponseType(typeof(LocationTracking), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult<LocationTracking>> GetCurrentLocation(string jobId,
             CancellationToken cancellationToken = default)
         {
-            try
+            LocationTracking? locationTracking =
+                await _trackingService.GetCurrentLocationAsync(jobId, cancellationToken);
+            if (locationTracking == null)
             {
-                LocationTracking? locationTracking =
-                    await _trackingService.GetCurrentLocationAsync(jobId, cancellationToken);
-                if (locationTracking == null)
-                {
-                    return NotFound($"No location tracking found for job {jobId}");
-                }
+                return NotFoundProblem($"No location tracking found for job {jobId}");
+            }
 
-                return Ok(locationTracking);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "An error occurred while retrieving current location for job");
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    "An error occurred while processing your request.");
-            }
+            return Ok(locationTracking);
         }
 
         /// <summary>
@@ -249,6 +263,7 @@ namespace HotshotLogistics.Api.Controllers
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>The location tracking history.</returns>
         [HttpGet("history/{jobId}")]
+        [Authorize(Policy = AuthorizationPolicies.ManagerOrAdmin)]
         [ProducesResponseType(typeof(IEnumerable<LocationTracking>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<ActionResult<IEnumerable<LocationTracking>>> GetLocationHistory(
@@ -257,32 +272,23 @@ namespace HotshotLogistics.Api.Controllers
             [FromQuery] DateTime? endTime = null,
             CancellationToken cancellationToken = default)
         {
-            try
+            if (string.IsNullOrWhiteSpace(jobId))
             {
-                if (string.IsNullOrWhiteSpace(jobId))
-                {
-                    return BadRequest("Job ID is required");
-                }
-
-                // Default to last 24 hours if no time range specified
-                DateTime start = startTime ?? DateTime.UtcNow.AddDays(-1);
-                DateTime end = endTime ?? DateTime.UtcNow;
-
-                if (start >= end)
-                {
-                    return BadRequest("Start time must be before end time");
-                }
-
-                IEnumerable<LocationTracking> locationHistory =
-                    await _trackingService.GetLocationHistoryAsync(jobId, start, end, cancellationToken);
-                return Ok(locationHistory);
+                return BadRequestProblem("Job ID is required");
             }
-            catch (Exception ex)
+
+            // Default to last 24 hours if no time range specified
+            DateTime start = startTime ?? DateTime.UtcNow.AddDays(-1);
+            DateTime end = endTime ?? DateTime.UtcNow;
+
+            if (start >= end)
             {
-                _logger.LogError(ex, "An error occurred while retrieving location history for job");
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    "An error occurred while processing your request.");
+                return BadRequestProblem("Start time must be before end time");
             }
+
+            IEnumerable<LocationTracking> locationHistory =
+                await _trackingService.GetLocationHistoryAsync(jobId, start, end, cancellationToken);
+            return Ok(locationHistory);
         }
 
         /// <summary>
@@ -292,6 +298,7 @@ namespace HotshotLogistics.Api.Controllers
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>Route deviation status.</returns>
         [HttpPost("check-deviation")]
+        [Authorize(Policy = AuthorizationPolicies.ManagerOrDriver)]
         [ProducesResponseType(typeof(RouteDeviationResult), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -303,17 +310,23 @@ namespace HotshotLogistics.Api.Controllers
             {
                 if (request == null)
                 {
-                    return BadRequest("Route deviation request is required");
+                    return BadRequestProblem("Route deviation request is required");
                 }
 
                 if (string.IsNullOrWhiteSpace(request.JobId))
                 {
-                    return BadRequest("Job ID is required");
+                    return BadRequestProblem("Job ID is required");
                 }
 
                 if (request.CurrentLocation == null)
                 {
-                    return BadRequest("Current location is required");
+                    return BadRequestProblem("Current location is required");
+                }
+
+                ActionResult? forbidden = await RejectIfDriverDoesNotOwnJobAsync(request.JobId, cancellationToken);
+                if (forbidden is not null)
+                {
+                    return forbidden;
                 }
 
                 bool hasDeviated = await _trackingService.CheckRouteDeviationAsync(
@@ -335,211 +348,115 @@ namespace HotshotLogistics.Api.Controllers
             catch (ArgumentException ex)
             {
                 _logger.LogWarning(ex, "Invalid route deviation request: {Message}", ex.Message);
-                return BadRequest(ex.Message);
+                return BadRequestProblem(ex.Message);
             }
             catch (KeyNotFoundException ex)
             {
                 _logger.LogWarning(ex, "Job not found for route deviation check: {Message}", ex.Message);
-                return NotFound(ex.Message);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "An error occurred while checking route deviation for job");
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    "An error occurred while processing your request.");
+                return NotFoundProblem(ex.Message);
             }
         }
 
         /// <summary>
-        ///     Gets a public tracking link for a job (for customer access).
+        ///     Gets the public tracking information for a job (for customer access). This is the only
+        ///     anonymous action; <see cref="PublicTrackingInfo" /> carries no driver or internal identifiers.
         /// </summary>
         /// <param name="jobId">The job ID.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>Public tracking information.</returns>
         [HttpGet("public/{jobId}")]
+        [AllowAnonymous]
+        [EnableRateLimiting(RateLimitPolicies.Public)]
         [ProducesResponseType(typeof(PublicTrackingInfo), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult<PublicTrackingInfo>> GetPublicTrackingInfo(string jobId,
             CancellationToken cancellationToken = default)
         {
-            try
+            LocationTracking? currentLocation =
+                await _trackingService.GetCurrentLocationAsync(jobId, cancellationToken);
+            if (currentLocation == null)
             {
-                LocationTracking? currentLocation =
-                    await _trackingService.GetCurrentLocationAsync(jobId, cancellationToken);
-                if (currentLocation == null)
-                {
-                    return NotFound($"No tracking information available for job {jobId}");
-                }
-
-                PublicTrackingInfo publicInfo = new()
-                {
-                    JobId = jobId,
-                    CurrentLatitude = (double)currentLocation.Latitude,
-                    CurrentLongitude = (double)currentLocation.Longitude,
-                    LastUpdated = currentLocation.Timestamp,
-                    Status = "In Transit", // This could be derived from job status
-                    EstimatedArrival = currentLocation.Timestamp.AddHours(2) // Placeholder calculation
-                };
-
-                return Ok(publicInfo);
+                return NotFoundProblem($"No tracking information available for job {jobId}");
             }
-            catch (Exception ex)
+
+            Job? job = await _jobService.GetJobByIdAsync(jobId, cancellationToken);
+            if (job == null)
             {
-                _logger.LogError(ex, "An error occurred while retrieving public tracking info for job");
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    "An error occurred while processing your request.");
+                return NotFoundProblem($"No tracking information available for job {jobId}");
             }
+
+            PublicTrackingInfo publicInfo = new()
+            {
+                JobId = jobId,
+                CurrentLatitude = (double)currentLocation.Latitude,
+                CurrentLongitude = (double)currentLocation.Longitude,
+                LastUpdated = currentLocation.Timestamp,
+                Status = job.Status.ToString(),
+                EstimatedArrival = job.EstimatedDeliveryTime
+            };
+
+            return Ok(publicInfo);
         }
-    }
-
-    /// <summary>
-    ///     Request model for starting tracking.
-    /// </summary>
-    public class StartTrackingRequest
-    {
-        /// <summary>
-        ///     Gets or sets the job ID.
-        /// </summary>
-        public string JobId { get; set; } = string.Empty;
 
         /// <summary>
-        ///     Gets or sets the driver ID.
+        ///     A driver may record tracking only as themselves. A manager may name the assigned driver.
         /// </summary>
-        public int DriverId { get; set; }
-    }
+        private ActionResult? RejectIfDriverImpersonating(int requestedDriverId)
+        {
+            if (!IsDriver(User) || IsManager(User))
+            {
+                return null;
+            }
 
-    /// <summary>
-    ///     Request model for updating location.
-    /// </summary>
-    public class UpdateLocationRequest
-    {
-        /// <summary>
-        ///     Gets or sets the job ID.
-        /// </summary>
-        public string JobId { get; set; } = string.Empty;
+            if (!TryGetOwnDriverId(User, out int ownDriverId) || ownDriverId != requestedDriverId)
+            {
+                return ForbiddenProblem("A driver can only track as themselves.");
+            }
 
-        /// <summary>
-        ///     Gets or sets the driver ID.
-        /// </summary>
-        public int DriverId { get; set; }
+            return null;
+        }
 
         /// <summary>
-        ///     Gets or sets the location update data.
+        ///     A driver may read or stop only a job assigned to them. Missing and unassigned jobs answer the same
+        ///     way, so the call cannot be used to learn whether some other job exists.
         /// </summary>
-        public LocationUpdate? LocationUpdate { get; set; }
-    }
+        private async Task<ActionResult?> RejectIfDriverDoesNotOwnJobAsync(string jobId, CancellationToken cancellationToken)
+        {
+            if (!IsDriver(User) || IsManager(User))
+            {
+                return null;
+            }
 
-    /// <summary>
-    ///     Request model for checking route deviation.
-    /// </summary>
-    public class RouteDeviationRequest
-    {
-        /// <summary>
-        ///     Gets or sets the job ID.
-        /// </summary>
-        public string JobId { get; set; } = string.Empty;
+            if (!TryGetOwnDriverId(User, out int ownDriverId))
+            {
+                return ForbiddenProblem("A driver identity is required.");
+            }
 
-        /// <summary>
-        ///     Gets or sets the current location.
-        /// </summary>
-        public LocationUpdate? CurrentLocation { get; set; }
-    }
+            Job? job = await _jobService.GetJobByIdAsync(jobId, cancellationToken);
+            if (job?.AssignedDriverId != ownDriverId)
+            {
+                return ForbiddenProblem("A driver can only access jobs assigned to them.");
+            }
 
-    /// <summary>
-    ///     Result model for tracking operations.
-    /// </summary>
-    public class TrackingResult
-    {
-        /// <summary>
-        ///     Gets or sets a value indicating whether the operation was successful.
-        /// </summary>
-        public bool Success { get; set; }
+            return null;
+        }
 
-        /// <summary>
-        ///     Gets or sets the job ID.
-        /// </summary>
-        public string JobId { get; set; } = string.Empty;
+        private static bool IsManager(ClaimsPrincipal? user)
+        {
+            return user is not null
+                && (user.IsInRole("Manager") || user.HasClaim(claim => claim.Type == "roles" && claim.Value == "Manager"));
+        }
 
-        /// <summary>
-        ///     Gets or sets the driver ID.
-        /// </summary>
-        public int? DriverId { get; set; }
+        private static bool IsDriver(ClaimsPrincipal? user)
+        {
+            return user is not null
+                && (user.IsInRole("Driver") || user.HasClaim(claim => claim.Type == "roles" && claim.Value == "Driver"));
+        }
 
-        /// <summary>
-        ///     Gets or sets the result message.
-        /// </summary>
-        public string Message { get; set; } = string.Empty;
-
-        /// <summary>
-        ///     Gets or sets the operation timestamp.
-        /// </summary>
-        public DateTime Timestamp { get; set; }
-    }
-
-    /// <summary>
-    ///     Result model for route deviation checks.
-    /// </summary>
-    public class RouteDeviationResult
-    {
-        /// <summary>
-        ///     Gets or sets the job ID.
-        /// </summary>
-        public string JobId { get; set; } = string.Empty;
-
-        /// <summary>
-        ///     Gets or sets a value indicating whether the driver has deviated from route.
-        /// </summary>
-        public bool HasDeviated { get; set; }
-
-        /// <summary>
-        ///     Gets or sets the current location.
-        /// </summary>
-        public LocationUpdate CurrentLocation { get; set; } = new();
-
-        /// <summary>
-        ///     Gets or sets the check timestamp.
-        /// </summary>
-        public DateTime CheckedAt { get; set; }
-
-        /// <summary>
-        ///     Gets or sets the result message.
-        /// </summary>
-        public string Message { get; set; } = string.Empty;
-    }
-
-    /// <summary>
-    ///     Public tracking information for customer access.
-    /// </summary>
-    public class PublicTrackingInfo
-    {
-        /// <summary>
-        ///     Gets or sets the job ID.
-        /// </summary>
-        public string JobId { get; set; } = string.Empty;
-
-        /// <summary>
-        ///     Gets or sets the current latitude.
-        /// </summary>
-        public double CurrentLatitude { get; set; }
-
-        /// <summary>
-        ///     Gets or sets the current longitude.
-        /// </summary>
-        public double CurrentLongitude { get; set; }
-
-        /// <summary>
-        ///     Gets or sets the last updated timestamp.
-        /// </summary>
-        public DateTime LastUpdated { get; set; }
-
-        /// <summary>
-        ///     Gets or sets the current status.
-        /// </summary>
-        public string Status { get; set; } = string.Empty;
-
-        /// <summary>
-        ///     Gets or sets the estimated arrival time.
-        /// </summary>
-        public DateTime? EstimatedArrival { get; set; }
+        private static bool TryGetOwnDriverId(ClaimsPrincipal? user, out int driverId)
+        {
+            string? value = user?.FindFirst(s_driverIdClaim)?.Value;
+            return int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out driverId) && driverId > 0;
+        }
     }
 }

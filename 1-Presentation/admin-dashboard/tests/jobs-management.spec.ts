@@ -138,7 +138,7 @@ test.describe('Jobs Management', () => {
               {
                 id: 'job-2',
                 title: 'In Progress Job',
-                status: 'InProgress',
+                status: 'EnRoute',
                 pickupAddress: '789 Pine St',
                 dropoffAddress: '321 Elm Ave',
                 amount: 200.00,
@@ -155,14 +155,14 @@ test.describe('Jobs Management', () => {
 
       // Check that different statuses have different styling
       const pendingStatus = page.getByText('Pending', { exact: true });
-      const inProgressStatus = page.getByText('InProgress', { exact: true });
+      const enRouteStatus = page.getByText('EnRoute', { exact: true });
       
       await expect(pendingStatus).toBeVisible();
-      await expect(inProgressStatus).toBeVisible();
+      await expect(enRouteStatus).toBeVisible();
       
       // Verify status badges have appropriate classes (color coding)
       await expect(pendingStatus).toHaveClass(/bg-yellow-100.*text-yellow-800/);
-      await expect(inProgressStatus).toHaveClass(/bg-green-100.*text-green-800/);
+      await expect(enRouteStatus).toHaveClass(/bg-green-100.*text-green-800/);
     });
 
     test('should open edit job form when edit button is clicked', async ({ page }) => {
@@ -349,7 +349,7 @@ test.describe('Jobs Management', () => {
           {
             id: 'job-2',
             title: 'Job 2',
-            status: 'InProgress',
+            status: 'EnRoute',
             pickupAddress: '789 Pine St',
             dropoffAddress: '321 Elm Ave',
             amount: 200.00,

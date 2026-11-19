@@ -4,8 +4,13 @@
 
 using Azure.Identity;
 using HotshotLogistics.Api;
+using HotshotLogistics.Api.Errors;
+using HotshotLogistics.Api.Health;
+using HotshotLogistics.Api.RateLimiting;
+using HotshotLogistics.Api.Telemetry;
 using HotshotLogistics.Application;
 using HotshotLogistics.Application.Hubs;
+using HotshotLogistics.Application.Services;
 using HotshotLogistics.Core.Extensions;
 using HotshotLogistics.Data;
 using HotshotLogistics.Domain.DTOs;
@@ -26,6 +31,10 @@ bool azureAppConfigurationEnabled = builder.Configuration.AddAzureAppConfigurati
 builder.Services.Configure<GoogleMapsSettings>(builder.Configuration.GetSection("Mapping:GoogleMaps"));
 builder.Services.Configure<AzureMapsSettings>(builder.Configuration.GetSection("Mapping:AzureMaps"));
 builder.Services.Configure<SendGridSettings>(builder.Configuration.GetSection("Communication:SendGrid"));
+builder.Services.AddOptions<PaymentRetryOptions>()
+    .Bind(builder.Configuration.GetSection(PaymentRetryOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
 
 // Add services to the container.
 builder.Services.AddHotshotRepositories();
@@ -44,6 +53,23 @@ else
 {
     builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAdB2C"));
+
+    // A browser WebSocket cannot send the Authorization header, so the SignalR client sends the bearer token
+    // as the access_token query value on the hub's path. Run after the identity library's own setup, and
+    // keep its handler.
+    builder.Services.PostConfigure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, options =>
+    {
+        options.Events ??= new JwtBearerEvents();
+        Func<MessageReceivedContext, Task> existing = options.Events.OnMessageReceived;
+        options.Events.OnMessageReceived = async context =>
+        {
+            await existing(context);
+            if (string.IsNullOrEmpty(context.Token) && context.HttpContext.Request.Path.StartsWithSegments("/realtime"))
+            {
+                context.Token = context.Request.Query["access_token"];
+            }
+        };
+    });
 }
 
 builder.Services.AddControllers()
@@ -59,6 +85,12 @@ builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "HotshotLogistics.Api", Version = "v1" });
 });
+
+// One error contract: ProblemDetails plus the domain exception handler
+builder.Services.AddApiErrorHandling();
+builder.Services.AddApiHealthChecks(builder.Configuration);
+builder.Services.AddApiRateLimiting(builder.Configuration);
+builder.Services.AddApiTelemetry(builder.Configuration);
 
 // Add HTTP client factory for external API calls
 builder.Services.AddHttpClient();
@@ -106,6 +138,8 @@ builder.Services.AddSignalR();
 
 WebApplication app = builder.Build();
 
+app.UseApiErrorHandling();
+
 if (azureAppConfigurationEnabled)
 {
     app.UseAzureAppConfiguration();
@@ -131,10 +165,13 @@ app.UseCors(policy =>
         .AllowCredentials();
 });
 
+app.UseRateLimiter();
+
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapApiHealthChecks();
 app.MapHub<RealtimeHub>("/realtime");
 
 app.Run();

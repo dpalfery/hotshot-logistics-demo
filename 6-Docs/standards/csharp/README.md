@@ -13,40 +13,9 @@ last-reviewed: 2026-11-14
 How C# is written in this repository. Agents and skills resolve this document as
 `<csharp-coding-standard>`, so it outranks the defaults a portable agent shipped with.
 
-## Stack
+## Naming and layout
 
-- **Target:** ASP.NET Core on .NET 10, using its default C# 14 language version.
-- **HTTP surface:** MVC controllers (`ControllerBase`), not minimal APIs. Use MVC
-  `ActionResult` / `ActionResult<T>` and `ControllerBase` helpers. Target request and
-  response bodies are `sealed record` DTOs (tracked in the
-  [sealed-record DTOs todo](../../todo/api-platform-hardening.md)); never return a
-  domain entity or persistence row from an action.
-- **Data access:** parameterized ADO.NET in the persistence project. Dapper and Entity
-  Framework are out of scope. FluentMigrator owns schema change.
-- **Composition:** constructor DI. Configuration follows the Options pattern.
-
-Application and API code consumes `IRepository<T>` (or an equivalent persistence
-abstraction). It does not open connections, write SQL, or author migrations.
-
-## Configuration
-
-- Bind settings with the Options pattern: `IOptions<T>`, `IOptionsSnapshot<T>` for per-request reload, `IOptionsMonitor<T>` for change notification. Never hardcode configuration values.
-- For local development, use `appsettings.json` and `appsettings.Development.json` for non-secret settings.
-- Store local development secrets in .NET User Secrets outside the repository. Never use production secrets for development or testing.
-- Applications deployed to Azure must support Azure App Configuration and Key Vault references for settings and secrets.
-- Follow Microsoft Learn: [safe storage of app secrets](https://learn.microsoft.com/en-us/aspnet/core/security/app-secrets?view=aspnetcore-10.0) and [Key Vault references](https://learn.microsoft.com/en-us/azure/azure-app-configuration/use-key-vault-references-dotnet-core).
-
-## The build is the first reviewer
-
-`.editorconfig` and the analyzers are authoritative for formatting and mechanical rules.
-`TreatWarningsAsErrors` is on with `AnalysisMode=Default`. A warning is a failed build.
-Adding an id to `NoWarn` is a repository-wide decision and needs a reason you can state
-in the file (`Directory.Build.props` currently suppresses `CS1591` while `GenerateDocumentationFile`
-is enabled for `IDE0005` until a repository-wide XML-doc pass is completed).
-
-Do not merge code that fails the build, and do not restate analyzer rules here.
-
-## Style
+### Style
 
 `.editorconfig` is the source of truth. The choices worth stating because other .NET
 repositories disagree:
@@ -57,7 +26,7 @@ repositories disagree:
 - **Predefined type keywords** — `string`, `int`, `bool`, never `String` or `Int32`.
 - **Allman braces**, and a new line before `else`, `catch` and `finally`.
 
-## Naming
+### Naming
 
 C# follows the official **.NET Framework Design Guidelines**. Casing communicates
 scope, accessibility, and kind of identifier at a glance. Encode mechanical naming
@@ -76,7 +45,7 @@ agents and reviewers apply when the analyzer is silent.
 | Interfaces | `PascalCase` | `I` prefix | `IRepository`, `IDisposable` |
 | Generic type parameters | `PascalCase` | `T` prefix | `T`, `TKey`, `TEntity` |
 
-### Core variable and field rules
+#### Core variable and field rules
 
 - **Local variables and parameters:** always `camelCase`. Avoid abbreviations unless
   they are standard domain acronyms (for example `id`, `xml`, `api`).
@@ -88,7 +57,7 @@ agents and reviewers apply when the analyzer is silent.
 - **Boolean identifiers:** affirmative verb prefix that states a true/false condition:
   `hasErrors`, `canExecute`, `isVisible`, `shouldRetry`.
 
-### Naming conventions and suffixes
+#### Naming conventions and suffixes
 
 - **Async methods:** suffix methods that return `Task` or `Task<T>` with `Async`
   (for example `FetchDataAsync`).
@@ -100,7 +69,7 @@ agents and reviewers apply when the analyzer is silent.
 - **Attributes:** suffix custom attribute classes with `Attribute` (for example
   `JsonSerializableAttribute`).
 
-### Anti-patterns
+#### Anti-patterns
 
 - **Hungarian notation:** never encode the data type in the name (use `count`, not
   `iCount`; `customers`, not `arrCustomers`; `name`, not `strName`).
@@ -110,7 +79,57 @@ agents and reviewers apply when the analyzer is silent.
 - **Screaming snake case:** never use `ALL_CAPS_WITH_UNDERSCORES` for constants or
   enum members in modern C#.
 
-## Types
+### Model classification and placement
+
+A database key, a set of public auto-properties, a default initializer, an attribute, or
+a property count does not make a type an Entity.
+
+| Kind | Where | Shape |
+|---|---|---|
+| Shared DTO | `HotshotLogistics.Domain/DTOs` (namespace `HotshotLogistics.Domain.DTOs`) | Property bag, no domain invariant. Suffix `Dto`. |
+| Use-case DTO | `HotshotLogistics.Application` | Same shape, same `Dto` suffix, not shared across layers. |
+| Entity | `HotshotLogistics.Domain/Entities` | Stable identity plus a business invariant or legal state transition. Controlled construction and mutation; no getter/setter-only padding. |
+| Value object | `HotshotLogistics.Domain/ValueObjects` | Immutable, equality by value. May carry domain behaviour; has no independent identity. |
+| Persistence row | `HotshotLogistics.Data` (internal) | Storage/schema projection. Mapped at the adapter boundary. Not a shared contract and not a Domain entity. |
+
+`HotshotLogistics.Contracts` contains interfaces only. Shared DTOs live in
+`HotshotLogistics.Domain.DTOs` (owner decision, 2026-11-19); there is no separate contracts
+models project. Any exception is an architecture decision with focused behaviour tests, not a
+convenience.
+
+Server-side C# follows Clean Architecture: inner layers never depend on outer layers;
+business invariants belong in Domain; application services belong in
+`HotshotLogistics.Application/Services`.
+
+Do not add getter/setter-only tests to pad coverage.
+
+## Coding standards
+
+### Stack
+
+- **Target:** ASP.NET Core on .NET 10, using its default C# 14 language version.
+- **HTTP surface:** MVC controllers (`ControllerBase`), not minimal APIs. Use MVC
+  `ActionResult` / `ActionResult<T>` and `ControllerBase` helpers. Target request and
+  response bodies are `sealed record` DTOs with `init` properties, one per file under `HotshotLogistics.Api/Models`
+  (the remaining gaps are tracked in the
+  [entities-in-actions todo](../../todo/entities-in-controller-actions.md)); never return a
+  domain entity or persistence row from an action.
+- **Data access:** parameterized ADO.NET in the persistence project. Dapper and Entity
+  Framework are out of scope. FluentMigrator owns schema change.
+- **Composition:** constructor DI. Configuration follows the Options pattern.
+
+Application and API code consumes `IRepository<T>` (or an equivalent persistence
+abstraction). It does not open connections, write SQL, or author migrations.
+
+### Configuration
+
+- Bind settings with the Options pattern: `IOptions<T>`, `IOptionsSnapshot<T>` for per-request reload, `IOptionsMonitor<T>` for change notification. Never hardcode configuration values.
+- For local development, use `appsettings.json` and `appsettings.Development.json` for non-secret settings.
+- Store local development secrets in .NET User Secrets outside the repository. Never use production secrets for development or testing.
+- Applications deployed to Azure must support Azure App Configuration and Key Vault references for settings and secrets.
+- Follow Microsoft Learn: [safe storage of app secrets](https://learn.microsoft.com/en-us/aspnet/core/security/app-secrets?view=aspnetcore-10.0) and [Key Vault references](https://learn.microsoft.com/en-us/azure/azure-app-configuration/use-key-vault-references-dotnet-core).
+
+### Types
 
 **Seal by default.** A public type is `sealed` unless something derives from it.
 Inheritance is a deliberate extension point, not the default shape of a class.
@@ -125,31 +144,7 @@ response DTOs are `sealed record`.
 One top-level type per file, named after the file. Align filename, namespace, and suffix
 with the classification below.
 
-## Model classification and placement
-
-A database key, a set of public auto-properties, a default initializer, an attribute, or
-a property count does not make a type an Entity.
-
-| Kind | Where | Shape |
-|---|---|---|
-| Shared DTO | `HotshotLogistics.Contracts.Models` (target; see [contracts todo](../../todo/contracts-model-placement.md)) | Property bag, no domain invariant. Suffix `Dto`. |
-| Use-case DTO | `HotshotLogistics.Application` | Same shape, same `Dto` suffix, not shared across layers. |
-| Entity | `HotshotLogistics.Domain/Entities` | Stable identity plus a business invariant or legal state transition. Controlled construction and mutation; no getter/setter-only padding. |
-| Value object | `HotshotLogistics.Domain/ValueObjects` | Immutable, equality by value. May carry domain behaviour; has no independent identity. |
-| Persistence row | `HotshotLogistics.Data` (internal) | Storage/schema projection. Mapped at the adapter boundary. Not a shared contract and not a Domain entity. |
-
-`HotshotLogistics.Contracts` contains interfaces only; `HotshotLogistics.Contracts.Models`
-is the approved target location for shared DTOs (tracked in the
-[contracts todo](../../todo/contracts-model-placement.md)). Any exception is an
-architecture decision with focused behaviour tests, not a convenience.
-
-Server-side C# follows Clean Architecture: inner layers never depend on outer layers;
-business invariants belong in Domain; application services belong in
-`HotshotLogistics.Application/Services`.
-
-Do not add getter/setter-only tests to pad coverage.
-
-## Async
+### Async
 
 - Methods that return a `Task` take the `Async` suffix.
 - Async all the way down. `.Result`, `.Wait()`, and `Thread.Sleep` in async code are
@@ -157,7 +152,7 @@ Do not add getter/setter-only tests to pad coverage.
 - Accept a `CancellationToken` on I/O — including controller actions — and pass it
   through. A call that cannot be cancelled is a hang waiting for a bad network.
 
-## Resources
+### Resources
 
 `IDisposable` values are owned. Dispose them with `using` / `await using`, or the type
 that holds them implements `IDisposable` and disposes them. A leaked `HttpClient`,
@@ -167,12 +162,13 @@ Reuse outbound HTTP through `IHttpClientFactory`. Configure retries, timeouts, a
 circuit breaking on the factory with Polly; do not new up `HttpClient` or wrap every
 call site in its own policy.
 
-- Use typed clients. Give every outbound call a timeout and pass the `CancellationToken`.
+- Use typed clients. Give every outbound call a timeout and pass the `CancellationToken`. Register each client
+  with `AddOutboundResilience()` (`HotshotLogistics.Data.Http`), which applies the standard pipeline below.
 - Retry only transient failures, with exponential backoff and a bounded attempt count.
 - Circuit breakers fail fast during prolonged outages. Log retry and breaker events.
 - Database retries need a separate review of transaction boundaries and idempotency.
 
-## Errors
+### Errors
 
 - **Catch what you can name.** Operational failures are caught by type and translated
   into a diagnostic, a log line, an exit code, or RFC 7807 `ProblemDetails`. A bare
@@ -183,30 +179,15 @@ call site in its own policy.
   comment says why.
 - Rethrow with `throw;`, never `throw ex;`.
 - Use MVC `ValidationProblem` / `ProblemDetails` for invalid input, not a bare
-  string. Target setup registers `AddProblemDetails()` and `UseExceptionHandler()`
-  (tracked in the [ProblemDetails todo](../../todo/problem-details.md)).
+  string. The API registers `AddProblemDetails()`, a domain `IExceptionHandler` and
+  `UseExceptionHandler()` / `UseStatusCodePages()`; controllers return the same body through the
+  `ApiControllerBase` helpers. Never add a catch-all `catch (Exception)` that returns 500: let it
+  reach the handler.
 - Validate every endpoint input on the server even when the client validates. Use data
   annotations or FluentValidation; validate file type and size on uploads. Return 400
   for validation failures and never leak internals in an error body.
 
-## Safety
-
-- Parameterized ADO.NET commands, always. String concatenation into SQL is an
-  injection, including in a migration.
-- Follow the configuration policy above; never put secrets in literals, repository files,
-  or logs.
-- Log through `ILogger<T>` with structured properties and a correlation id.
-  `Console.WriteLine` is not production logging. Configure providers per environment.
-- Middleware creates or accepts the correlation id and propagates it to outbound calls,
-  logs, traces, and `ProblemDetails` responses.
-- Target: emit metrics (latency, error rate, throughput) and distributed traces to
-  Application Insights through OpenTelemetry (tracked in the
-  [telemetry todo](../../todo/telemetry.md)).
-- HTTPS and HSTS are on. Authenticate, then authorize. CORS is explicit. CSRF
-  protection is on wherever cookie-authenticated browser clients can POST. Persist
-  Data Protection keys and rotate them.
-
-## HTTP pipeline
+### HTTP pipeline
 
 Middleware order is:
 
@@ -217,22 +198,26 @@ Version the API. OpenAPI is served with Swashbuckle (`AddSwaggerGen` / `UseSwagg
 `UseSwaggerUI`).
 New and modified public API members carry XML documentation comments.
 
-Target: expose `/health` with checks for the dependencies this process needs (database,
-queue, downstream API) so an orchestrator can tell liveness from readiness (tracked in
-the [health-checks todo](../../todo/health-checks.md)).
+The API exposes `/health` (every check), `/health/live` (process up, runs no checks) and `/health/ready`
+(checks tagged `ready`: the database) so an orchestrator can tell liveness from readiness. The endpoints are
+anonymous and report names and statuses only. Add a dependency this process needs before serving as a `ready`
+check; do not open connections in the Api project (the database check lives in `HotshotLogistics.Data.Health`).
 
-Cache responses only where the data is safe to reuse. Rate-limit public endpoints (see the
-[rate-limiting todo](../../todo/rate-limiting.md)). Measure with the platform diagnostics
+Cache responses only where the data is safe to reuse. Rate-limit public endpoints: the API applies a global
+limit to everything and a stricter `public` policy (`[EnableRateLimiting(RateLimitPolicies.Public)]`) to public tracking
+and the payment webhooks; health endpoints stay exempt. Apply the policy to any new unauthenticated action. Measure with the platform diagnostics
 rather than guessing.
 
-## Dependencies
+### Dependencies
 
 New dependencies need a reason: what it does, why the existing stack cannot, and who
 maintains it. This repository's data stack is ADO.NET plus FluentMigrator — do not
 import Dapper, Entity Framework, or a second migrator because a portable skill
 shipped with them.
 
-## Tests
+## Testing
+
+### Tests
 
 Test authorship follows `<test-coding-standard>`. Language-level C# in test files
 follows this document. New behaviour ships with the test that would fail without it.
@@ -247,3 +232,34 @@ dotnet run                # local run
 ```
 
 Database provisioning: see the [DbSetup onboarding guide](../../dbsetup/onboarding.md).
+
+### The build is the first reviewer
+
+`.editorconfig` and the analyzers are authoritative for formatting and mechanical rules.
+`TreatWarningsAsErrors` is on with `AnalysisMode=Default`. A warning is a failed build.
+Adding an id to `NoWarn` is a repository-wide decision and needs a reason you can state
+in the file (`Directory.Build.props` currently suppresses `CS1591` while `GenerateDocumentationFile`
+is enabled for `IDE0005` until a repository-wide XML-doc pass is completed).
+
+Do not merge code that fails the build, and do not restate analyzer rules here.
+
+## Security and data handling
+
+### Safety
+
+- Parameterized ADO.NET commands, always. String concatenation into SQL is an
+  injection, including in a migration.
+- Follow the configuration policy above; never put secrets in literals, repository files,
+  or logs.
+- Log through `ILogger<T>` with structured properties and a correlation id.
+  `Console.WriteLine` is not production logging. Configure providers per environment.
+- Middleware creates or accepts the correlation id and propagates it to outbound calls,
+  logs, traces, and `ProblemDetails` responses.
+- Metrics (latency, error rate, throughput) and distributed traces are emitted through OpenTelemetry, and exported to
+  Application Insights only when a connection string is configured (`AddApiTelemetry()`). Never put the connection
+  string in the repository.
+- HTTPS and HSTS are on. Authenticate, then authorize. CORS is explicit. CSRF
+  protection is on wherever cookie-authenticated browser clients can POST. Persist
+  Data Protection keys and rotate them.
+
+## Done checklist

@@ -1,4 +1,4 @@
-using HotshotLogistics.Contracts.Repositories;
+using HotshotLogistics.Domain.DTOs;
 using HotshotLogistics.Domain.Entities;
 
 namespace HotshotLogistics.Contracts.Services
@@ -63,11 +63,11 @@ namespace HotshotLogistics.Contracts.Services
         /// <summary>
         ///     Gets invoice summary statistics for the dashboard.
         /// </summary>
-        Task<InvoiceSummary> GetInvoiceSummaryAsync(CancellationToken cancellationToken = default);
+        Task<InvoiceSummaryDto> GetInvoiceSummaryAsync(CancellationToken cancellationToken = default);
 
         /// <summary>
         ///     Gets accounts-receivable aging entries.
         /// </summary>
-        Task<IEnumerable<AgingReportEntry>> GetAgingReportAsync(CancellationToken cancellationToken = default);
+        Task<IEnumerable<AgingReportEntryDto>> GetAgingReportAsync(CancellationToken cancellationToken = default);
     }
 }

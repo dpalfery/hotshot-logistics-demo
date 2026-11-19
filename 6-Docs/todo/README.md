@@ -4,7 +4,7 @@ title: Todos
 doc-type: index
 status: current
 owner: 'unassigned'
-last-reviewed: 2026-11-14
+last-reviewed: 2026-11-19
 ---
 
 # Todos
@@ -16,18 +16,14 @@ Add one document per todo and list it here, ordered by priority (`P1` high, `P2`
 
 | Todo | Priority | Status | Component | Summary |
 |---|---|---|---|---|
-| [Resolve unresolved DashboardOverview issues](admin-dashboard-job-status-unresolved.md) | P1 | Open | admin-dashboard | D6 follow-up: SignalR event name mismatch, first-page Active Jobs count, stale `JobStatus` enum in `src/types/index.ts`. |
 | [Complete Azure configuration support](azure-configuration-support.md) | P1 | Open | Api | Plan and verify local settings and Azure App Configuration with Key Vault references. |
-| [Standardize API ProblemDetails responses](problem-details.md) | P1 | Open | Api | Register `AddProblemDetails()` / `UseExceptionHandler()` and standardize error payloads. |
-| [Add API health checks](health-checks.md) | P1 | Open | Api | Add `/health` dependency, readiness, and liveness checks. |
-| [Make invoice number generation concurrency-safe](invoice-number-concurrency.md) | P2 | Open | Api | Replace unlocked `MAX() + 1` in `GetNextInvoiceNumberAsync` with a sequence or lock-safe allocation. |
-| [Admin dashboard Playwright tests marked fixme](admin-dashboard-playwright-baseline.md) | P2 | Open | admin-dashboard | Eleven dashboard e2e tests check behaviour the app lacks: overview error/empty states, Quick Actions, live stats, SignalR injection. |
-| [Define external-call resilience policies](resilience-policies.md) | P2 | Open | Api | Narrow `BillingService` retry exceptions and add Polly timeouts/circuit breakers on outbound HTTP clients. |
-| [Define metrics and tracing](telemetry.md) | P2 | Open | Api | Configure OpenTelemetry metrics, distributed tracing, and Application Insights export. |
-| [Add API rate limiting](rate-limiting.md) | P2 | Open | Api | Define global and endpoint rate limits and configure `AddRateLimiter()` / `UseRateLimiter()`. |
-| [Remove Data dependency on Application](persistence-application-dependency.md) | P2 | Open | Api | Remove `HotshotLogistics.Data` project reference to `HotshotLogistics.Application`. |
-| [Introduce a SQL connection factory](sql-connection-factory.md) | P2 | Open | Api | Plan a factory and migrate direct repository connection creation. |
-| [Migrate to the generic repository contract](generic-repository-migration.md) | P2 | Open | Api | Design and adopt `IRepository<T>` while preserving repository behavior. |
-| [Align C# contract model placement](contracts-model-placement.md) | P3 | Open | Api | Plan a migration of contract classes, project references, and shared DTOs to their prescribed locations. |
-| [Adopt sealed record HTTP DTOs](api-platform-hardening.md) | P3 | Open | Api | Migrate controller request/response DTOs to `sealed record` types. |
+| [Make the tracking dashboard's live events match the hub](tracking-live-events-contract.md) | P2 | Open | admin-dashboard | The tracking view listens for `LocationUpdate` and `Notification` with payloads the hub does not send, and the server never sends either to the dashboard. |
+| [Add the missing Payments table migration](payments-table.md) | P2 | Open | Api | `PaymentRepository` targets a `Payments` table no migration creates; add the migration and real-database tests. |
+| [Build the Add Driver and Generate Invoice forms](admin-dashboard-quick-action-forms.md) | P2 | Open | admin-dashboard | The Quick Actions link to `?action=add` and `?action=generate`, but the Drivers and Billing pages have no such forms. |
+| [Align the dashboard types with what the API sends](admin-dashboard-api-wire-types.md) | P2 | Open | admin-dashboard | Enums arrive as numbers and locations are nested; only job status is converted, priority and invoice status are not, and `Job` expects flat addresses. |
+| [Decide whether admins can call the tracking write endpoints](admin-tracking-access.md) | P2 | Open | Api | Admins are not in the `ManagerOrDriver` policy, so start, stop, location and check-deviation answer 403 for them. |
+| [De-duplicate payment webhook events](payment-webhook-deduplication.md) | P2 | Open | Api | Store processed provider event ids and skip repeats, so a replayed or redelivered event does not update a payment twice. |
+| [Pass CancellationToken through driver endpoints and billing queries](driver-cancellation-tokens.md) | P3 | Open | Api | `DriversController` and two billing queries drop the token because the service and repository methods take none. |
+| [Stop exposing entities and mutable shared DTOs from actions](entities-in-controller-actions.md) | P3 | Open | Api | Controllers still take and return entities and mutable `Domain.DTOs`; introduce `sealed record` HTTP DTOs. |
 | [Add frontend unit-test tooling](frontend-unit-test-tooling.md) | P3 | Open | admin-dashboard | Add Vitest and React Testing Library for frontend unit and component tests. |
+| [Check why overdue jobs exclude Pending jobs](job-overdue-excludes-pending.md) | P3 | Open | Api | `GetOverdueJobsAsync` passes Pending as the cancelled status, so pending jobs are never overdue, unlike the `isOverdue` filter. |

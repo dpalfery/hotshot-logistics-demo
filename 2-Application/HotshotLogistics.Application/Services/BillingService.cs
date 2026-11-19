@@ -5,9 +5,12 @@
 using HotshotLogistics.Contracts.Repositories;
 using HotshotLogistics.Contracts.Services;
 using HotshotLogistics.Core.Enums;
+using HotshotLogistics.Core.Exceptions;
+using HotshotLogistics.Domain.DTOs;
 using HotshotLogistics.Domain.Entities;
 using HotshotLogistics.Domain.ValueObjects;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Polly;
 using Polly.Retry;
 
@@ -49,6 +52,7 @@ namespace HotshotLogistics.Application.Services
         /// <param name="notificationService">The notification service.</param>
         /// <param name="paymentProcessorFactory">The payment processor factory.</param>
         /// <param name="logger">The _logger.</param>
+        /// <param name="retryOptions">The payment retry settings; defaults apply when omitted.</param>
         public BillingService(
             IInvoiceRepository invoiceRepository,
             IJobRepository jobRepository,
@@ -56,7 +60,8 @@ namespace HotshotLogistics.Application.Services
             IPaymentRepository paymentRepository,
             INotificationService notificationService,
             IPaymentProcessorFactory paymentProcessorFactory,
-            ILogger<BillingService> logger)
+            ILogger<BillingService> logger,
+            IOptions<PaymentRetryOptions>? retryOptions = null)
         {
             _invoiceRepository = invoiceRepository ?? throw new ArgumentNullException(nameof(invoiceRepository));
             _jobRepository = jobRepository ?? throw new ArgumentNullException(nameof(jobRepository));
@@ -67,12 +72,18 @@ namespace HotshotLogistics.Application.Services
                                        throw new ArgumentNullException(nameof(paymentProcessorFactory));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-            // Configure retry policy for payment processing
+            // Retry only what cannot have charged the customer: transport failures and the processor's
+            // explicitly transient error codes. Caller cancellation and unknown exceptions are never retried.
+            PaymentRetryOptions retry = retryOptions?.Value ?? new PaymentRetryOptions();
             _retryPolicy = Policy
-                .Handle<Exception>()
+                .Handle<HttpRequestException>()
+                .Or<TimeoutException>()
+                .Or<ExternalServiceException>()
+                .Or<PaymentProcessingException>(ex =>
+                    ex.ProviderErrorCode is not null && retry.TransientErrorCodes.Contains(ex.ProviderErrorCode))
                 .WaitAndRetryAsync(
-                    3,
-                    retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)),
+                    retry.MaxRetries,
+                    retryAttempt => TimeSpan.FromTicks(retry.BaseDelay.Ticks << (retryAttempt - 1)),
                     (exception, timeSpan, retryCount, _) =>
                     {
                         _logger.LogWarning(exception,
@@ -146,7 +157,7 @@ namespace HotshotLogistics.Application.Services
             invoice.CalculateTotals();
 
             // Save invoice
-            Invoice createdInvoice = await _invoiceRepository.AddAsync(invoice);
+            Invoice createdInvoice = await _invoiceRepository.AddAsync(invoice, cancellationToken);
 
             // Send notification to customer
             try
@@ -221,7 +232,7 @@ namespace HotshotLogistics.Application.Services
                 Status = PaymentStatus.Processing
             };
 
-            await _paymentRepository.AddAsync(payment);
+            await _paymentRepository.AddAsync(payment, cancellationToken);
 
             try
             {
@@ -230,7 +241,7 @@ namespace HotshotLogistics.Application.Services
                     _paymentProcessorFactory.GetProcessorForPaymentMethod(payment.PaymentMethod);
 
                 // Prepare payment method details
-                PaymentMethodDetails paymentMethodDetails = new()
+                PaymentMethodDetailsDto paymentMethodDetails = new()
                 {
                     Type = payment.PaymentMethod,
                     Token = paymentMethod, // In real implementation, this would be a secure token
@@ -241,31 +252,36 @@ namespace HotshotLogistics.Application.Services
                     }
                 };
 
-                // Process payment with retry logic
-                PaymentProcessingResult result = await _retryPolicy.ExecuteAsync(async () =>
+                // Process payment with retry logic. The payment id is stable across attempts, so a
+                // processor that honours idempotency keys cannot charge twice for one payment.
+                PaymentProcessingResultDto result = await _retryPolicy.ExecuteAsync(async retryToken =>
                 {
-                    PaymentProcessingResult processingResult = await processor.ProcessPaymentAsync(
+                    PaymentProcessingResultDto processingResult = await processor.ProcessPaymentAsync(
                         paymentAmount,
                         "USD", // Default currency
                         paymentMethodDetails,
                         new Dictionary<string, string>
                         {
                             ["invoice_number"] = invoice.InvoiceNumber,
-                            ["customer_id"] = invoice.CustomerId
+                            ["customer_id"] = invoice.CustomerId,
+                            ["idempotency_key"] = payment.Id
                         },
-                        cancellationToken);
+                        retryToken);
 
                     if (!processingResult.Success)
                     {
-                        throw new Exception($"Payment processing failed: {processingResult.Message}");
+                        throw new PaymentProcessingException(
+                            $"Payment processing failed: {processingResult.Message}",
+                            processingResult.TransactionId,
+                            processingResult.ErrorCode ?? string.Empty);
                     }
 
                     return processingResult;
-                });
+                }, cancellationToken);
 
                 // Update payment with successful result
                 payment.MarkAsCompleted(result.TransactionId, result.Message);
-                await _paymentRepository.UpdateAsync(payment);
+                await _paymentRepository.UpdateAsync(payment, cancellationToken);
 
                 // Update invoice with payment
                 bool success =
@@ -296,11 +312,18 @@ namespace HotshotLogistics.Application.Services
                     invoiceId, result.TransactionId);
                 return true;
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                // The caller gave up: the outcome at the processor is unknown, so leave the payment
+                // in Processing for reconciliation instead of recording a failure.
+                throw;
+            }
             catch (Exception ex)
             {
+                // Deliberately broad: whatever went wrong, the payment record must leave Processing.
                 // Update payment with failed status
                 payment.MarkAsFailed(ex.Message);
-                await _paymentRepository.UpdateAsync(payment);
+                await _paymentRepository.UpdateAsync(payment, cancellationToken);
 
                 _logger.LogError(ex, "Payment processing failed for invoice: {InvoiceId}", invoiceId);
                 return false;
@@ -328,13 +351,13 @@ namespace HotshotLogistics.Application.Services
         }
 
         /// <inheritdoc />
-        public Task<InvoiceSummary> GetInvoiceSummaryAsync(CancellationToken cancellationToken = default)
+        public Task<InvoiceSummaryDto> GetInvoiceSummaryAsync(CancellationToken cancellationToken = default)
         {
             return _invoiceRepository.GetInvoiceSummaryAsync();
         }
 
         /// <inheritdoc />
-        public Task<IEnumerable<AgingReportEntry>> GetAgingReportAsync(CancellationToken cancellationToken = default)
+        public Task<IEnumerable<AgingReportEntryDto>> GetAgingReportAsync(CancellationToken cancellationToken = default)
         {
             return _invoiceRepository.GetAgingReportAsync();
         }
@@ -404,7 +427,7 @@ namespace HotshotLogistics.Application.Services
             invoice.CalculateTotals();
 
             // Save invoice
-            Invoice createdInvoice = await _invoiceRepository.AddAsync(invoice);
+            Invoice createdInvoice = await _invoiceRepository.AddAsync(invoice, cancellationToken);
 
             _logger.LogInformation("Custom invoice created successfully: {InvoiceNumber} for customer: {CustomerId}",
                 invoiceNumber, customerId);
@@ -438,7 +461,7 @@ namespace HotshotLogistics.Application.Services
                 // Update invoice status to sent
                 invoice.Status = InvoiceStatus.Sent;
                 invoice.UpdatedAt = DateTime.UtcNow;
-                await _invoiceRepository.UpdateAsync(invoice);
+                await _invoiceRepository.UpdateAsync(invoice, cancellationToken);
 
                 // Send notification to customer
                 await _notificationService.SendNotificationAsync(
@@ -530,7 +553,7 @@ namespace HotshotLogistics.Application.Services
                     });
 
                     invoice.CalculateTotals();
-                    await _invoiceRepository.UpdateAsync(invoice);
+                    await _invoiceRepository.UpdateAsync(invoice, cancellationToken);
                     feesApplied++;
 
                     _logger.LogInformation("Applied late fee of ${LateFee:F2} to invoice {InvoiceNumber}",

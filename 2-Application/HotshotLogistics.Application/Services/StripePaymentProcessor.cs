@@ -4,6 +4,7 @@
 
 using HotshotLogistics.Contracts.Services;
 using HotshotLogistics.Core.Enums;
+using HotshotLogistics.Domain.DTOs;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
@@ -15,6 +16,7 @@ namespace HotshotLogistics.Application.Services
     public class StripePaymentProcessor : IPaymentProcessor
     {
         private readonly ILogger<StripePaymentProcessor> _logger;
+        private readonly TimeProvider _timeProvider;
         private readonly string _webhookSecret;
 
         /// <summary>
@@ -23,30 +25,34 @@ namespace HotshotLogistics.Application.Services
         /// <param name="logger">The logger.</param>
         /// <param name="httpClientFactory">The HTTP client factory.</param>
         /// <param name="configuration">The configuration.</param>
+        /// <param name="timeProvider">The clock; the system clock when omitted.</param>
         public StripePaymentProcessor(
             ILogger<StripePaymentProcessor> logger,
             IHttpClientFactory httpClientFactory,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            TimeProvider? timeProvider = null)
         {
             ArgumentNullException.ThrowIfNull(logger);
             ArgumentNullException.ThrowIfNull(httpClientFactory);
             ArgumentNullException.ThrowIfNull(configuration);
 
             _logger = logger;
+            _timeProvider = timeProvider ?? TimeProvider.System;
             _ = configuration["Stripe:ApiKey"] ??
                 throw new InvalidOperationException("Stripe:ApiKey configuration is required");
-            _webhookSecret = configuration["Stripe:WebhookSecret"] ??
-                             throw new InvalidOperationException("Stripe:WebhookSecret configuration is required");
+            _webhookSecret = configuration["Stripe:WebhookSecret"] is { Length: > 0 } secret
+                ? secret
+                : throw new InvalidOperationException("Stripe:WebhookSecret configuration is required");
         }
 
         /// <inheritdoc />
         public string ProcessorName => "Stripe";
 
         /// <inheritdoc />
-        public async Task<PaymentProcessingResult> ProcessPaymentAsync(
+        public async Task<PaymentProcessingResultDto> ProcessPaymentAsync(
             decimal amount,
             string currency,
-            PaymentMethodDetails paymentMethod,
+            PaymentMethodDetailsDto paymentMethod,
             Dictionary<string, string> metadata,
             CancellationToken cancellationToken = default)
         {
@@ -56,7 +62,7 @@ namespace HotshotLogistics.Application.Services
             {
                 // In a real implementation, this would integrate with Stripe SDK
                 // For now, simulate the payment processing
-                PaymentProcessingResult result =
+                PaymentProcessingResultDto result =
                     await SimulateStripePaymentAsync(amount, currency, paymentMethod, metadata, cancellationToken);
 
                 _logger.LogInformation("Stripe payment processing completed: {Success}, TransactionId: {TransactionId}",
@@ -67,7 +73,7 @@ namespace HotshotLogistics.Application.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error processing payment via Stripe");
-                return new PaymentProcessingResult
+                return new PaymentProcessingResultDto
                 {
                     Success = false,
                     Message = "Payment processing failed",
@@ -77,7 +83,7 @@ namespace HotshotLogistics.Application.Services
         }
 
         /// <inheritdoc />
-        public async Task<PaymentProcessingResult> RefundPaymentAsync(
+        public async Task<PaymentProcessingResultDto> RefundPaymentAsync(
             string transactionId,
             decimal amount,
             string reason,
@@ -89,7 +95,7 @@ namespace HotshotLogistics.Application.Services
             try
             {
                 // In a real implementation, this would integrate with Stripe SDK
-                PaymentProcessingResult result =
+                PaymentProcessingResultDto result =
                     await SimulateStripeRefundAsync(transactionId, amount, reason, cancellationToken);
 
                 _logger.LogInformation("Stripe refund processing completed: {Success}", result.Success);
@@ -100,7 +106,7 @@ namespace HotshotLogistics.Application.Services
             {
                 _logger.LogError(ex, "Error processing refund via Stripe for transaction {TransactionId}",
                     transactionId);
-                return new PaymentProcessingResult
+                return new PaymentProcessingResultDto
                 {
                     Success = false,
                     Message = "Refund processing failed",
@@ -110,43 +116,41 @@ namespace HotshotLogistics.Application.Services
         }
 
         /// <inheritdoc />
-        public bool ValidateWebhookSignature(string payload, string signature, string secret)
+        public Task<bool> ValidateWebhookSignatureAsync(
+            WebhookEventDataDto webhookData,
+            CancellationToken cancellationToken = default)
         {
-            try
-            {
-                // In a real implementation, this would use Stripe's webhook signature validation
-                // For now, simulate validation
-                return SimulateStripeWebhookValidation(payload, signature, secret);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error validating Stripe webhook signature");
-                return false;
-            }
+            ArgumentNullException.ThrowIfNull(webhookData);
+            return Task.FromResult(StripeWebhookSignatureVerifier.IsValid(
+                webhookData.BodyBytes(),
+                webhookData.Signature,
+                _webhookSecret,
+                _timeProvider.GetUtcNow()));
         }
 
         /// <inheritdoc />
-        public async Task<WebhookProcessingResult> ProcessWebhookAsync(
-            WebhookEventData webhookData,
+        public async Task<WebhookProcessingResultDto> ProcessWebhookAsync(
+            WebhookEventDataDto webhookData,
             CancellationToken cancellationToken = default)
         {
-            _logger.LogInformation("Processing Stripe webhook event: {EventType}", webhookData.EventType);
-
             try
             {
-                // Validate signature first
-                if (!ValidateWebhookSignature(webhookData.Payload, webhookData.Signature, _webhookSecret))
+                // Verify the signature before anything else is read from the payload.
+                if (!await ValidateWebhookSignatureAsync(webhookData, cancellationToken))
                 {
                     _logger.LogWarning("Invalid Stripe webhook signature");
-                    return new WebhookProcessingResult
+                    return new WebhookProcessingResultDto
                     {
                         Success = false,
+                        SignatureRejected = true,
                         Message = "Invalid webhook signature"
                     };
                 }
 
+                _logger.LogInformation("Processing Stripe webhook event: {EventType}", webhookData.EventType);
+
                 // In a real implementation, this would parse Stripe webhook events
-                WebhookProcessingResult result =
+                WebhookProcessingResultDto result =
                     await SimulateStripeWebhookProcessingAsync(webhookData, cancellationToken);
 
                 _logger.LogInformation("Stripe webhook processing completed: {Success}", result.Success);
@@ -156,7 +160,7 @@ namespace HotshotLogistics.Application.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error processing Stripe webhook");
-                return new WebhookProcessingResult
+                return new WebhookProcessingResultDto
                 {
                     Success = false,
                     Message = "Webhook processing failed"
@@ -173,10 +177,10 @@ namespace HotshotLogistics.Application.Services
         /// <param name="metadata">Additional metadata.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>The payment processing result.</returns>
-        private async Task<PaymentProcessingResult> SimulateStripePaymentAsync(
+        private async Task<PaymentProcessingResultDto> SimulateStripePaymentAsync(
             decimal amount,
             string currency,
-            PaymentMethodDetails paymentMethod,
+            PaymentMethodDetailsDto paymentMethod,
             Dictionary<string, string> metadata,
             CancellationToken cancellationToken)
         {
@@ -194,7 +198,7 @@ namespace HotshotLogistics.Application.Services
 
             if (success)
             {
-                return new PaymentProcessingResult
+                return new PaymentProcessingResultDto
                 {
                     Success = true,
                     TransactionId = $"stripe_{Guid.NewGuid()}",
@@ -207,7 +211,7 @@ namespace HotshotLogistics.Application.Services
                 };
             }
 
-            return new PaymentProcessingResult
+            return new PaymentProcessingResultDto
             {
                 Success = false,
                 Message = "Payment declined by card issuer",
@@ -223,7 +227,7 @@ namespace HotshotLogistics.Application.Services
         /// <param name="reason">The refund reason.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>The refund processing result.</returns>
-        private static async Task<PaymentProcessingResult> SimulateStripeRefundAsync(
+        private static async Task<PaymentProcessingResultDto> SimulateStripeRefundAsync(
             string transactionId,
             decimal amount,
             string reason,
@@ -241,7 +245,7 @@ namespace HotshotLogistics.Application.Services
 
             if (success)
             {
-                return new PaymentProcessingResult
+                return new PaymentProcessingResultDto
                 {
                     Success = true,
                     TransactionId = $"refund_{Guid.NewGuid()}",
@@ -254,7 +258,7 @@ namespace HotshotLogistics.Application.Services
                 };
             }
 
-            return new PaymentProcessingResult
+            return new PaymentProcessingResultDto
             {
                 Success = false,
                 Message = "Refund failed",
@@ -263,29 +267,13 @@ namespace HotshotLogistics.Application.Services
         }
 
         /// <summary>
-        ///     Simulates Stripe webhook signature validation.
-        /// </summary>
-        /// <param name="payload">The payload.</param>
-        /// <param name="signature">The signature.</param>
-        /// <param name="secret">The secret.</param>
-        /// <returns>True if valid, false otherwise.</returns>
-        private static bool SimulateStripeWebhookValidation(string payload, string signature, string secret)
-        {
-            _ = payload;
-            _ = secret;
-
-            // Simple simulation - in real implementation, use proper HMAC validation
-            return !string.IsNullOrEmpty(signature) && signature.Length > 10;
-        }
-
-        /// <summary>
         ///     Simulates Stripe webhook processing.
         /// </summary>
         /// <param name="webhookData">The webhook data.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>The webhook processing result.</returns>
-        private async Task<WebhookProcessingResult> SimulateStripeWebhookProcessingAsync(
-            WebhookEventData webhookData,
+        private async Task<WebhookProcessingResultDto> SimulateStripeWebhookProcessingAsync(
+            WebhookEventDataDto webhookData,
             CancellationToken cancellationToken)
         {
             // Simulate processing delay
@@ -295,10 +283,10 @@ namespace HotshotLogistics.Application.Services
             switch (webhookData.EventType)
             {
                 case "payment_intent.succeeded":
-                    return new WebhookProcessingResult
+                    return new WebhookProcessingResultDto
                     {
                         Success = true,
-                        StatusUpdate = new PaymentStatusUpdate
+                        StatusUpdate = new PaymentStatusUpdateDto
                         {
                             TransactionId = "stripe_test_txn_123",
                             Status = PaymentStatus.Completed,
@@ -309,10 +297,10 @@ namespace HotshotLogistics.Application.Services
                     };
 
                 case "payment_intent.payment_failed":
-                    return new WebhookProcessingResult
+                    return new WebhookProcessingResultDto
                     {
                         Success = true,
-                        StatusUpdate = new PaymentStatusUpdate
+                        StatusUpdate = new PaymentStatusUpdateDto
                         {
                             TransactionId = "stripe_test_txn_123",
                             Status = PaymentStatus.Failed,
@@ -323,7 +311,7 @@ namespace HotshotLogistics.Application.Services
                     };
 
                 default:
-                    return new WebhookProcessingResult
+                    return new WebhookProcessingResultDto
                     {
                         Success = true,
                         Message = $"Event {webhookData.EventType} acknowledged"

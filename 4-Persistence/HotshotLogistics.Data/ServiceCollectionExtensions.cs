@@ -2,9 +2,9 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
-using HotshotLogistics.Application.Services;
 using HotshotLogistics.Contracts.Repositories;
 using HotshotLogistics.Contracts.Services;
+using HotshotLogistics.Data.Http;
 using HotshotLogistics.Data.Repositories;
 using HotshotLogistics.Data.Services;
 using HotshotLogistics.Domain.DTOs;
@@ -26,6 +26,7 @@ namespace HotshotLogistics.Data
         /// <returns>The service collection for chaining.</returns>
         public static IServiceCollection AddHotshotRepositories(this IServiceCollection services)
         {
+            services.AddSingleton<ISqlConnectionFactory, SqlConnectionFactory>();
             services.AddScoped<ICustomerRepository, CustomerRepository>();
             services.AddScoped<IDriverRepository, DriverRepository>();
             services.AddScoped<IJobRepository, JobRepository>();
@@ -38,7 +39,7 @@ namespace HotshotLogistics.Data
 
         public static IServiceCollection AddMappingServices(this IServiceCollection services)
         {
-            services.AddHttpClient("MappingService");
+            services.AddHttpClient("MappingService").AddOutboundResilience();
             services.AddTransient<IMappingService, MockMappingService>();
 
             // Register AzureMapsService with proper HttpClient factory and settings
@@ -69,7 +70,6 @@ namespace HotshotLogistics.Data
             services.AddTransient<ICommunicationService, TwilioSmsService>();
             services.AddTransient<ICommunicationService, SendGridEmailService>();
             services.AddTransient<ICommunicationService, AzureNotificationHubService>();
-            services.AddTransient<ICommunicationServiceFactory, CommunicationServiceFactory>();
             return services;
         }
     }

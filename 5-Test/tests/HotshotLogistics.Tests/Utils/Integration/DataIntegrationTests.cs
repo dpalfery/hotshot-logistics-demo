@@ -127,7 +127,8 @@ namespace HotshotLogistics.Tests.Utils.Integration
             customerRepoMock.Setup(r => r.GetByIdAsync("CUST001", It.IsAny<CancellationToken>()))
                 .ReturnsAsync(customer);
             JobService service = new(mockRepo.Object, customerRepoMock.Object, driverRepoMock.Object,
-                notificationServiceMock.Object, mappingServiceMock.Object, loggerMock.Object);
+                notificationServiceMock.Object, mappingServiceMock.Object, Mock.Of<IRealtimeService>(),
+                loggerMock.Object);
 
             Job created = await service.CreateJobAsync(newJob);
 

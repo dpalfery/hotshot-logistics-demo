@@ -3,6 +3,7 @@
 // </copyright>
 
 using FluentAssertions;
+using HotshotLogistics.Data;
 using HotshotLogistics.Domain.Entities;
 using Microsoft.Extensions.Configuration;
 
@@ -41,7 +42,7 @@ namespace HotshotLogistics.Tests.Jobs
                 });
 
             IConfiguration configuration = configBuilder.Build();
-            _jobRepository = new JobRepository(configuration);
+            _jobRepository = new JobRepository(new SqlConnectionFactory(configuration));
         }
 
         /// <inheritdoc />
