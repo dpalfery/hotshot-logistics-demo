@@ -358,7 +358,7 @@ public class SeedInitialLargeDataset : Migration
                 if (job.Status == JobStatus.Completed)
                 {
                     var invoiceId = $"INV-{jobId}";
-                    var invoiceNumber = $"INV-{random.Next(10000, 99999)}";
+                    var invoiceNumber = $"INV-{jobId}";
                     var invoiceDate = job.EstimatedDeliveryTime.Date;
                     var dueDate = invoiceDate.AddDays(30);
 
