@@ -44,6 +44,7 @@ namespace HotshotLogistics.Application
             services.AddScoped<ITrackingService, TrackingService>();
 
             /* Register payment processors */
+            services.AddSingleton<IPayPalCertificateProvider, PayPalCertificateProvider>();
             services.AddScoped<StripePaymentProcessor>();
             services.AddScoped<PayPalPaymentProcessor>();
             services.AddScoped<IPaymentProcessorFactory, PaymentProcessorFactory>();

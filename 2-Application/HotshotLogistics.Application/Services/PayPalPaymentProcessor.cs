@@ -15,7 +15,9 @@ namespace HotshotLogistics.Application.Services
     /// </summary>
     public class PayPalPaymentProcessor : IPaymentProcessor
     {
+        private readonly IPayPalCertificateProvider _certificates;
         private readonly ILogger<PayPalPaymentProcessor> _logger;
+        private readonly TimeProvider _timeProvider;
         private readonly string _webhookId;
 
         /// <summary>
@@ -24,22 +26,30 @@ namespace HotshotLogistics.Application.Services
         /// <param name="logger">The logger.</param>
         /// <param name="httpClientFactory">The HTTP client factory.</param>
         /// <param name="configuration">The configuration.</param>
+        /// <param name="certificates">Supplies the certificate PayPal signs webhooks with.</param>
+        /// <param name="timeProvider">The clock; the system clock when omitted.</param>
         public PayPalPaymentProcessor(
             ILogger<PayPalPaymentProcessor> logger,
             IHttpClientFactory httpClientFactory,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            IPayPalCertificateProvider certificates,
+            TimeProvider? timeProvider = null)
         {
             ArgumentNullException.ThrowIfNull(logger);
             ArgumentNullException.ThrowIfNull(httpClientFactory);
             ArgumentNullException.ThrowIfNull(configuration);
+            ArgumentNullException.ThrowIfNull(certificates);
 
             _logger = logger;
             _ = configuration["PayPal:ClientId"] ??
                 throw new InvalidOperationException("PayPal:ClientId configuration is required");
             _ = configuration["PayPal:ClientSecret"] ??
                 throw new InvalidOperationException("PayPal:ClientSecret configuration is required");
-            _webhookId = configuration["PayPal:WebhookId"] ??
-                         throw new InvalidOperationException("PayPal:WebhookId configuration is required");
+            _webhookId = configuration["PayPal:WebhookId"] is { Length: > 0 } webhookId
+                ? webhookId
+                : throw new InvalidOperationException("PayPal:WebhookId configuration is required");
+            _certificates = certificates;
+            _timeProvider = timeProvider ?? TimeProvider.System;
         }
 
         /// <inheritdoc />
@@ -113,19 +123,18 @@ namespace HotshotLogistics.Application.Services
         }
 
         /// <inheritdoc />
-        public bool ValidateWebhookSignature(string payload, string signature, string secret)
+        public Task<bool> ValidateWebhookSignatureAsync(
+            WebhookEventData webhookData,
+            CancellationToken cancellationToken = default)
         {
-            try
-            {
-                // In a real implementation, this would use PayPal's webhook signature validation
-                // For now, simulate validation
-                return SimulatePayPalWebhookValidation(payload, signature, secret);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error validating PayPal webhook signature");
-                return false;
-            }
+            ArgumentNullException.ThrowIfNull(webhookData);
+            return PayPalWebhookSignatureVerifier.IsValidAsync(
+                webhookData.Payload,
+                webhookData.Headers,
+                _webhookId,
+                _certificates,
+                _timeProvider.GetUtcNow(),
+                cancellationToken);
         }
 
         /// <inheritdoc />
@@ -133,20 +142,21 @@ namespace HotshotLogistics.Application.Services
             WebhookEventData webhookData,
             CancellationToken cancellationToken = default)
         {
-            _logger.LogInformation("Processing PayPal webhook event: {EventType}", webhookData.EventType);
-
             try
             {
-                // Validate signature first
-                if (!ValidateWebhookSignature(webhookData.Payload, webhookData.Signature, _webhookId))
+                // Verify the signature before anything else is read from the payload.
+                if (!await ValidateWebhookSignatureAsync(webhookData, cancellationToken))
                 {
                     _logger.LogWarning("Invalid PayPal webhook signature");
                     return new WebhookProcessingResult
                     {
                         Success = false,
+                        SignatureRejected = true,
                         Message = "Invalid webhook signature"
                     };
                 }
+
+                _logger.LogInformation("Processing PayPal webhook event: {EventType}", webhookData.EventType);
 
                 // In a real implementation, this would parse PayPal webhook events
                 WebhookProcessingResult result =
@@ -263,22 +273,6 @@ namespace HotshotLogistics.Application.Services
                 Message = "Refund failed",
                 ErrorCode = "paypal_refund_failed"
             };
-        }
-
-        /// <summary>
-        ///     Simulates PayPal webhook signature validation.
-        /// </summary>
-        /// <param name="payload">The payload.</param>
-        /// <param name="signature">The signature.</param>
-        /// <param name="secret">The secret.</param>
-        /// <returns>True if valid, false otherwise.</returns>
-        private static bool SimulatePayPalWebhookValidation(string payload, string signature, string secret)
-        {
-            _ = payload;
-            _ = secret;
-
-            // Simple simulation - in real implementation, use proper HMAC validation
-            return !string.IsNullOrEmpty(signature) && signature.Contains("paypal");
         }
 
         /// <summary>

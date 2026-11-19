@@ -28,6 +28,16 @@ namespace HotshotLogistics.Api.Controllers
         }
 
         /// <summary>
+        ///     Creates a 401 response with a problem body.
+        /// </summary>
+        /// <param name="detail">Why the caller was not authenticated.</param>
+        /// <returns>The result.</returns>
+        protected UnauthorizedObjectResult UnauthorizedProblem(string detail)
+        {
+            return Unauthorized(CreateProblem(StatusCodes.Status401Unauthorized, detail));
+        }
+
+        /// <summary>
         ///     Creates a 404 response with a problem body.
         /// </summary>
         /// <param name="detail">What could not be found.</param>

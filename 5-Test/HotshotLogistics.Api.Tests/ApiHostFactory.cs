@@ -53,6 +53,16 @@ namespace HotshotLogistics.Api.Tests
         }
 
         /// <summary>
+        ///     Replaces a registered service with a singleton test double.
+        /// </summary>
+        public static void ReplaceSingleton<TService>(this IServiceCollection services, TService instance)
+            where TService : class
+        {
+            services.RemoveAll<TService>();
+            services.AddSingleton(instance);
+        }
+
+        /// <summary>
         ///     Creates a client that authenticates through the API's development <c>Test</c> scheme.
         /// </summary>
         public static HttpClient CreateAuthenticatedClient(

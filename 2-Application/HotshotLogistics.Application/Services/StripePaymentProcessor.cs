@@ -16,6 +16,7 @@ namespace HotshotLogistics.Application.Services
     public class StripePaymentProcessor : IPaymentProcessor
     {
         private readonly ILogger<StripePaymentProcessor> _logger;
+        private readonly TimeProvider _timeProvider;
         private readonly string _webhookSecret;
 
         /// <summary>
@@ -24,20 +25,24 @@ namespace HotshotLogistics.Application.Services
         /// <param name="logger">The logger.</param>
         /// <param name="httpClientFactory">The HTTP client factory.</param>
         /// <param name="configuration">The configuration.</param>
+        /// <param name="timeProvider">The clock; the system clock when omitted.</param>
         public StripePaymentProcessor(
             ILogger<StripePaymentProcessor> logger,
             IHttpClientFactory httpClientFactory,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            TimeProvider? timeProvider = null)
         {
             ArgumentNullException.ThrowIfNull(logger);
             ArgumentNullException.ThrowIfNull(httpClientFactory);
             ArgumentNullException.ThrowIfNull(configuration);
 
             _logger = logger;
+            _timeProvider = timeProvider ?? TimeProvider.System;
             _ = configuration["Stripe:ApiKey"] ??
                 throw new InvalidOperationException("Stripe:ApiKey configuration is required");
-            _webhookSecret = configuration["Stripe:WebhookSecret"] ??
-                             throw new InvalidOperationException("Stripe:WebhookSecret configuration is required");
+            _webhookSecret = configuration["Stripe:WebhookSecret"] is { Length: > 0 } secret
+                ? secret
+                : throw new InvalidOperationException("Stripe:WebhookSecret configuration is required");
         }
 
         /// <inheritdoc />
@@ -111,19 +116,16 @@ namespace HotshotLogistics.Application.Services
         }
 
         /// <inheritdoc />
-        public bool ValidateWebhookSignature(string payload, string signature, string secret)
+        public Task<bool> ValidateWebhookSignatureAsync(
+            WebhookEventData webhookData,
+            CancellationToken cancellationToken = default)
         {
-            try
-            {
-                // In a real implementation, this would use Stripe's webhook signature validation
-                // For now, simulate validation
-                return SimulateStripeWebhookValidation(payload, signature, secret);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error validating Stripe webhook signature");
-                return false;
-            }
+            ArgumentNullException.ThrowIfNull(webhookData);
+            return Task.FromResult(StripeWebhookSignatureVerifier.IsValid(
+                webhookData.Payload,
+                webhookData.Signature,
+                _webhookSecret,
+                _timeProvider.GetUtcNow()));
         }
 
         /// <inheritdoc />
@@ -131,20 +133,21 @@ namespace HotshotLogistics.Application.Services
             WebhookEventData webhookData,
             CancellationToken cancellationToken = default)
         {
-            _logger.LogInformation("Processing Stripe webhook event: {EventType}", webhookData.EventType);
-
             try
             {
-                // Validate signature first
-                if (!ValidateWebhookSignature(webhookData.Payload, webhookData.Signature, _webhookSecret))
+                // Verify the signature before anything else is read from the payload.
+                if (!await ValidateWebhookSignatureAsync(webhookData, cancellationToken))
                 {
                     _logger.LogWarning("Invalid Stripe webhook signature");
                     return new WebhookProcessingResult
                     {
                         Success = false,
+                        SignatureRejected = true,
                         Message = "Invalid webhook signature"
                     };
                 }
+
+                _logger.LogInformation("Processing Stripe webhook event: {EventType}", webhookData.EventType);
 
                 // In a real implementation, this would parse Stripe webhook events
                 WebhookProcessingResult result =
@@ -261,22 +264,6 @@ namespace HotshotLogistics.Application.Services
                 Message = "Refund failed",
                 ErrorCode = "refund_failed"
             };
-        }
-
-        /// <summary>
-        ///     Simulates Stripe webhook signature validation.
-        /// </summary>
-        /// <param name="payload">The payload.</param>
-        /// <param name="signature">The signature.</param>
-        /// <param name="secret">The secret.</param>
-        /// <returns>True if valid, false otherwise.</returns>
-        private static bool SimulateStripeWebhookValidation(string payload, string signature, string secret)
-        {
-            _ = payload;
-            _ = secret;
-
-            // Simple simulation - in real implementation, use proper HMAC validation
-            return !string.IsNullOrEmpty(signature) && signature.Length > 10;
         }
 
         /// <summary>

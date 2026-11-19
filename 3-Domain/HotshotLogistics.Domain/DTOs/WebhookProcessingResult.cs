@@ -11,6 +11,11 @@ namespace HotshotLogistics.Domain.DTOs
         public bool Success { get; set; }
 
         /// <summary>
+        ///     Gets or sets a value indicating whether the request failed signature verification, so nothing was processed.
+        /// </summary>
+        public bool SignatureRejected { get; set; }
+
+        /// <summary>
         ///     Gets or sets the payment status update if applicable.
         /// </summary>
         public PaymentStatusUpdate? StatusUpdate { get; set; }

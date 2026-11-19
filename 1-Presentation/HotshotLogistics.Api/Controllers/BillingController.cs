@@ -23,6 +23,8 @@ namespace HotshotLogistics.Api.Controllers
     [Authorize]
     public sealed class BillingController : ApiControllerBase
     {
+        private const int s_maxWebhookBodyBytes = 256 * 1024;
+
         private readonly IBillingService _billingService;
         private readonly ILogger<BillingController> _logger;
         private readonly IPaymentProcessorFactory _paymentProcessorFactory;
@@ -322,101 +324,94 @@ namespace HotshotLogistics.Api.Controllers
         }
 
         /// <summary>
-        ///     Handles Stripe webhook events.
+        ///     Handles Stripe webhook events. Anonymous because Stripe cannot sign in; the
+        ///     <c>Stripe-Signature</c> header is the authentication, and a request that fails it is rejected
+        ///     before anything is processed.
         /// </summary>
         /// <param name="cancellationToken">The cancellation token.</param>
-        /// <returns>The webhook processing result.</returns>
+        /// <returns>200 when the event was accepted, 401 when the signature is missing, wrong or stale.</returns>
         [HttpPost("webhooks/stripe")]
+        [AllowAnonymous]
+        [RequestSizeLimit(s_maxWebhookBodyBytes)]
         [EnableRateLimiting(RateLimitPolicies.Public)]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> HandleStripeWebhook(CancellationToken cancellationToken = default)
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public Task<IActionResult> HandleStripeWebhook(CancellationToken cancellationToken = default)
         {
-            try
-            {
-                IPaymentProcessor processor = _paymentProcessorFactory.GetProcessor("Stripe");
-
-                // Read the request body
-                using StreamReader reader = new(Request.Body);
-                string payload = await reader.ReadToEndAsync(cancellationToken);
-
-                // Get the Stripe signature from headers
-                string signature = Request.Headers["Stripe-Signature"].FirstOrDefault() ?? string.Empty;
-
-                WebhookEventData webhookData = new()
-                {
-                    Payload = payload,
-                    Signature = signature,
-                    Headers = Request.Headers.ToDictionary(h => h.Key, h => h.Value.FirstOrDefault() ?? string.Empty),
-                    EventType = ExtractStripeEventType(payload)
-                };
-
-                WebhookProcessingResult result = await processor.ProcessWebhookAsync(webhookData, cancellationToken);
-
-                if (result is { Success: true, StatusUpdate: not null })
-                {
-                    // Handle payment status update
-                    await HandlePaymentStatusUpdateAsync(result.StatusUpdate, cancellationToken);
-                }
-
-                _logger.LogInformation("Stripe webhook processed: {Success}", result.Success);
-
-                return Ok(new { received = true });
-            }
-            catch (Exception ex)
-            {
-                // Deliberately broad: the provider retries on any 4xx and must never see internals.
-                _logger.LogError(ex, "Error processing Stripe webhook");
-                return BadRequestProblem("Webhook processing failed");
-            }
+            return HandleWebhookAsync("Stripe", "Stripe-Signature", ExtractStripeEventType, cancellationToken);
         }
 
         /// <summary>
-        ///     Handles PayPal webhook events.
+        ///     Handles PayPal webhook events. Anonymous because PayPal cannot sign in; the
+        ///     <c>PAYPAL-TRANSMISSION-SIG</c> signature and its companion headers are the authentication, and a
+        ///     request that fails verification is rejected before anything is processed.
         /// </summary>
         /// <param name="cancellationToken">The cancellation token.</param>
-        /// <returns>The webhook processing result.</returns>
+        /// <returns>200 when the event was accepted, 401 when the signature is missing, wrong or stale.</returns>
         [HttpPost("webhooks/paypal")]
+        [AllowAnonymous]
+        [RequestSizeLimit(s_maxWebhookBodyBytes)]
         [EnableRateLimiting(RateLimitPolicies.Public)]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> HandlePayPalWebhook(CancellationToken cancellationToken = default)
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public Task<IActionResult> HandlePayPalWebhook(CancellationToken cancellationToken = default)
+        {
+            return HandleWebhookAsync("PayPal", "PAYPAL-TRANSMISSION-SIG", ExtractPayPalEventType, cancellationToken);
+        }
+
+        private async Task<IActionResult> HandleWebhookAsync(
+            string processorName,
+            string signatureHeaderName,
+            Func<string, string> extractEventType,
+            CancellationToken cancellationToken)
         {
             try
             {
-                IPaymentProcessor processor = _paymentProcessorFactory.GetProcessor("PayPal");
+                IPaymentProcessor processor = _paymentProcessorFactory.GetProcessor(processorName);
 
-                // Read the request body
                 using StreamReader reader = new(Request.Body);
                 string payload = await reader.ReadToEndAsync(cancellationToken);
-
-                // Get PayPal signature from headers
-                string signature = Request.Headers["PayPal-Transmission-Signature"].FirstOrDefault() ?? string.Empty;
 
                 WebhookEventData webhookData = new()
                 {
                     Payload = payload,
-                    Signature = signature,
-                    Headers = Request.Headers.ToDictionary(h => h.Key, h => h.Value.FirstOrDefault() ?? string.Empty),
-                    EventType = ExtractPayPalEventType(payload)
+                    Signature = Request.Headers[signatureHeaderName].FirstOrDefault() ?? string.Empty,
+                    Headers = Request.Headers.ToDictionary(
+                        h => h.Key,
+                        h => h.Value.FirstOrDefault() ?? string.Empty,
+                        StringComparer.OrdinalIgnoreCase),
+                    EventType = extractEventType(payload)
                 };
 
                 WebhookProcessingResult result = await processor.ProcessWebhookAsync(webhookData, cancellationToken);
 
-                if (result is { Success: true, StatusUpdate: not null })
+                if (result.SignatureRejected)
                 {
-                    // Handle payment status update
+                    _logger.LogWarning("{Processor} webhook rejected: the signature did not verify", processorName);
+                    return UnauthorizedProblem("The webhook signature is invalid.");
+                }
+
+                if (!result.Success)
+                {
+                    _logger.LogWarning("{Processor} webhook processing failed", processorName);
+                    return BadRequestProblem("Webhook processing failed");
+                }
+
+                if (result.StatusUpdate is not null)
+                {
                     await HandlePaymentStatusUpdateAsync(result.StatusUpdate, cancellationToken);
                 }
 
-                _logger.LogInformation("PayPal webhook processed: {Success}", result.Success);
+                _logger.LogInformation("{Processor} webhook processed", processorName);
 
                 return Ok(new { received = true });
             }
             catch (Exception ex)
             {
                 // Deliberately broad: the provider retries on any 4xx and must never see internals.
-                _logger.LogError(ex, "Error processing PayPal webhook");
+                _logger.LogError(ex, "Error processing {Processor} webhook", processorName);
                 return BadRequestProblem("Webhook processing failed");
             }
         }

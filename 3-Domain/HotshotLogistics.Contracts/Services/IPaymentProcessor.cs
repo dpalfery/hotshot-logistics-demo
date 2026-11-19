@@ -43,16 +43,20 @@ namespace HotshotLogistics.Contracts.Services
             CancellationToken cancellationToken = default);
 
         /// <summary>
-        ///     Validates webhook signature for security.
+        ///     Verifies that a webhook request was signed by the provider, using the provider's webhook
+        ///     secret or id from configuration. A request that is unsigned, wrongly signed or outside the
+        ///     provider's replay window is not valid.
         /// </summary>
-        /// <param name="payload">The webhook payload.</param>
-        /// <param name="signature">The signature to validate.</param>
-        /// <param name="secret">The webhook secret.</param>
+        /// <param name="webhookData">The webhook payload and request headers.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>True if the signature is valid, false otherwise.</returns>
-        bool ValidateWebhookSignature(string payload, string signature, string secret);
+        Task<bool> ValidateWebhookSignatureAsync(
+            WebhookEventData webhookData,
+            CancellationToken cancellationToken = default);
 
         /// <summary>
-        ///     Processes a webhook event.
+        ///     Processes a webhook event. The signature is verified first; a request that fails verification is
+        ///     not processed and the result has <see cref="WebhookProcessingResult.SignatureRejected" /> set.
         /// </summary>
         /// <param name="webhookData">The webhook event data.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
