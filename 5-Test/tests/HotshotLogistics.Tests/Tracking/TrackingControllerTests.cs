@@ -4,6 +4,7 @@
 
 using FluentAssertions;
 using HotshotLogistics.Api.Controllers;
+using HotshotLogistics.Api.Models;
 using HotshotLogistics.Domain.Entities;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;

@@ -110,8 +110,9 @@ Do not add getter/setter-only tests to pad coverage.
 - **Target:** ASP.NET Core on .NET 10, using its default C# 14 language version.
 - **HTTP surface:** MVC controllers (`ControllerBase`), not minimal APIs. Use MVC
   `ActionResult` / `ActionResult<T>` and `ControllerBase` helpers. Target request and
-  response bodies are `sealed record` DTOs (tracked in the
-  [sealed-record DTOs todo](../../todo/api-platform-hardening.md)); never return a
+  response bodies are `sealed record` DTOs with `init` properties, one per file under `HotshotLogistics.Api/Models`
+  (the remaining gaps are tracked in the
+  [entities-in-actions todo](../../todo/entities-in-controller-actions.md)); never return a
   domain entity or persistence row from an action.
 - **Data access:** parameterized ADO.NET in the persistence project. Dapper and Entity
   Framework are out of scope. FluentMigrator owns schema change.
@@ -161,7 +162,8 @@ Reuse outbound HTTP through `IHttpClientFactory`. Configure retries, timeouts, a
 circuit breaking on the factory with Polly; do not new up `HttpClient` or wrap every
 call site in its own policy.
 
-- Use typed clients. Give every outbound call a timeout and pass the `CancellationToken`.
+- Use typed clients. Give every outbound call a timeout and pass the `CancellationToken`. Register each client
+  with `AddOutboundResilience()` (`HotshotLogistics.Data.Http`), which applies the standard pipeline below.
 - Retry only transient failures, with exponential backoff and a bounded attempt count.
 - Circuit breakers fail fast during prolonged outages. Log retry and breaker events.
 - Database retries need a separate review of transaction boundaries and idempotency.
@@ -177,8 +179,10 @@ call site in its own policy.
   comment says why.
 - Rethrow with `throw;`, never `throw ex;`.
 - Use MVC `ValidationProblem` / `ProblemDetails` for invalid input, not a bare
-  string. Target setup registers `AddProblemDetails()` and `UseExceptionHandler()`
-  (tracked in the [ProblemDetails todo](../../todo/problem-details.md)).
+  string. The API registers `AddProblemDetails()`, a domain `IExceptionHandler` and
+  `UseExceptionHandler()` / `UseStatusCodePages()`; controllers return the same body through the
+  `ApiControllerBase` helpers. Never add a catch-all `catch (Exception)` that returns 500: let it
+  reach the handler.
 - Validate every endpoint input on the server even when the client validates. Use data
   annotations or FluentValidation; validate file type and size on uploads. Return 400
   for validation failures and never leak internals in an error body.
@@ -194,12 +198,14 @@ Version the API. OpenAPI is served with Swashbuckle (`AddSwaggerGen` / `UseSwagg
 `UseSwaggerUI`).
 New and modified public API members carry XML documentation comments.
 
-Target: expose `/health` with checks for the dependencies this process needs (database,
-queue, downstream API) so an orchestrator can tell liveness from readiness (tracked in
-the [health-checks todo](../../todo/health-checks.md)).
+The API exposes `/health` (every check), `/health/live` (process up, runs no checks) and `/health/ready`
+(checks tagged `ready`: the database) so an orchestrator can tell liveness from readiness. The endpoints are
+anonymous and report names and statuses only. Add a dependency this process needs before serving as a `ready`
+check; do not open connections in the Api project (the database check lives in `HotshotLogistics.Data.Health`).
 
-Cache responses only where the data is safe to reuse. Rate-limit public endpoints (see the
-[rate-limiting todo](../../todo/rate-limiting.md)). Measure with the platform diagnostics
+Cache responses only where the data is safe to reuse. Rate-limit public endpoints: the API applies a global
+limit to everything and a stricter `public` policy (`[EnableRateLimiting(RateLimitPolicies.Public)]`) to public tracking
+and the payment webhooks; health endpoints stay exempt. Apply the policy to any new unauthenticated action. Measure with the platform diagnostics
 rather than guessing.
 
 ### Dependencies
@@ -249,9 +255,9 @@ Do not merge code that fails the build, and do not restate analyzer rules here.
   `Console.WriteLine` is not production logging. Configure providers per environment.
 - Middleware creates or accepts the correlation id and propagates it to outbound calls,
   logs, traces, and `ProblemDetails` responses.
-- Target: emit metrics (latency, error rate, throughput) and distributed traces to
-  Application Insights through OpenTelemetry (tracked in the
-  [telemetry todo](../../todo/telemetry.md)).
+- Metrics (latency, error rate, throughput) and distributed traces are emitted through OpenTelemetry, and exported to
+  Application Insights only when a connection string is configured (`AddApiTelemetry()`). Never put the connection
+  string in the repository.
 - HTTPS and HSTS are on. Authenticate, then authorize. CORS is explicit. CSRF
   protection is on wherever cookie-authenticated browser clients can POST. Persist
   Data Protection keys and rotate them.

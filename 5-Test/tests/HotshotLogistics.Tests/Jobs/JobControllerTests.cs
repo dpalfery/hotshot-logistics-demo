@@ -7,6 +7,7 @@ using FluentAssertions;
 using FluentValidation;
 using FluentValidation.Results;
 using HotshotLogistics.Api.Controllers;
+using HotshotLogistics.Api.Models;
 using HotshotLogistics.Domain.Entities;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -212,12 +213,10 @@ namespace HotshotLogistics.Tests.Jobs
             // Assert
             result.Should().NotBeNull();
             BadRequestObjectResult badRequestResult = result.Result.Should().BeOfType<BadRequestObjectResult>().Subject;
-            object errorResponse = badRequestResult.Value.Should().BeAssignableTo<object>().Subject;
-            // The controller returns an anonymous object with Message and Errors properties
-            Dictionary<string, object?> errorObj = errorResponse.GetType().GetProperties()
-                .ToDictionary(p => p.Name, p => p.GetValue(errorResponse));
-            errorObj.Should().ContainKey("Message");
-            errorObj["Message"].Should().Be("Job validation failed");
+            ValidationProblemDetails problem =
+                badRequestResult.Value.Should().BeOfType<ValidationProblemDetails>().Subject;
+            problem.Status.Should().Be(400);
+            problem.Errors.Should().ContainKey("Title").WhoseValue.Should().Equal("Job title is required.");
         }
 
         /// <summary>
@@ -241,6 +240,8 @@ namespace HotshotLogistics.Tests.Jobs
 
             Job updatedJob = CreateTestJob(jobId, JobStatus.Assigned);
 
+            _mockJobValidator.Setup(v => v.ValidateAsync(It.IsAny<Job>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new ValidationResult());
             _mockJobService.Setup(s => s.UpdateJobAsync(jobId, It.IsAny<Job>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(updatedJob);
 
@@ -248,10 +249,8 @@ namespace HotshotLogistics.Tests.Jobs
             ActionResult<Job> result = await _controller.UpdateJob(jobId, jobDto);
 
             // Assert
-            result.Should().NotBeNull();
-            ObjectResult objectResult = result.Result.Should().BeOfType<ObjectResult>().Subject;
-            objectResult.StatusCode.Should().Be(500); // Internal Server Error
-            // Note: The UpdateJob method currently returns 500 errors
+            OkObjectResult okResult = result.Result.Should().BeOfType<OkObjectResult>().Subject;
+            okResult.Value.Should().BeSameAs(updatedJob);
         }
 
         /// <summary>
@@ -265,6 +264,8 @@ namespace HotshotLogistics.Tests.Jobs
             string jobId = "non-existent-job";
             Job jobDto = new() { Id = jobId, Title = "Test" };
 
+            _mockJobValidator.Setup(v => v.ValidateAsync(It.IsAny<Job>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new ValidationResult());
             _mockJobService.Setup(s => s.UpdateJobAsync(jobId, It.IsAny<Job>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync((Job?)null);
 
@@ -272,10 +273,51 @@ namespace HotshotLogistics.Tests.Jobs
             ActionResult<Job> result = await _controller.UpdateJob(jobId, jobDto);
 
             // Assert
-            result.Should().NotBeNull();
-            ObjectResult objectResult = result.Result.Should().BeOfType<ObjectResult>().Subject;
-            objectResult.StatusCode.Should().Be(500); // Internal Server Error
-            // Note: The UpdateJob method currently returns 500 errors
+            NotFoundObjectResult notFound = result.Result.Should().BeOfType<NotFoundObjectResult>().Subject;
+            ProblemDetails problem = notFound.Value.Should().BeOfType<ProblemDetails>().Subject;
+            problem.Status.Should().Be(404);
+            problem.Detail.Should().Contain(jobId);
+        }
+
+        /// <summary>
+        ///     Tests that UpdateJob returns a validation problem when the job fails validation.
+        /// </summary>
+        /// <returns>A task representing the asynchronous test.</returns>
+        [Fact]
+        public async Task UpdateJob_WithInvalidData_ReturnsValidationProblem()
+        {
+            // Arrange
+            Job jobDto = new() { Id = "job-1", Title = string.Empty };
+            _mockJobValidator.Setup(v => v.ValidateAsync(It.IsAny<Job>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new ValidationResult([new ValidationFailure("Title", "Job title is required.")]));
+
+            // Act
+            ActionResult<Job> result = await _controller.UpdateJob("job-1", jobDto);
+
+            // Assert
+            BadRequestObjectResult badRequest = result.Result.Should().BeOfType<BadRequestObjectResult>().Subject;
+            ValidationProblemDetails problem = badRequest.Value.Should().BeOfType<ValidationProblemDetails>().Subject;
+            problem.Errors.Should().ContainKey("Title");
+        }
+
+        /// <summary>
+        ///     Tests that an unexpected service failure reaches the exception handler instead of being swallowed.
+        /// </summary>
+        /// <returns>A task representing the asynchronous test.</returns>
+        [Fact]
+        public async Task UpdateJob_WhenServiceThrowsUnexpectedly_PropagatesToTheExceptionHandler()
+        {
+            // Arrange
+            _mockJobValidator.Setup(v => v.ValidateAsync(It.IsAny<Job>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new ValidationResult());
+            _mockJobService.Setup(s => s.UpdateJobAsync("job-1", It.IsAny<Job>(), It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new TimeoutException("database timed out"));
+
+            // Act
+            Func<Task> act = () => _controller.UpdateJob("job-1", new Job { Id = "job-1", Title = "Title" });
+
+            // Assert
+            await act.Should().ThrowAsync<TimeoutException>();
         }
 
         /// <summary>

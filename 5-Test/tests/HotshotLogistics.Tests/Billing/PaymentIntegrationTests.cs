@@ -7,6 +7,7 @@ using HotshotLogistics.Application.Services;
 using HotshotLogistics.Domain.Entities;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Moq;
 
 namespace HotshotLogistics.Tests.Billing
@@ -388,7 +389,8 @@ namespace HotshotLogistics.Tests.Billing
                 _mockPaymentRepository.Object,
                 _mockNotificationService.Object,
                 _paymentProcessorFactory,
-                _mockLogger.Object);
+                _mockLogger.Object,
+                Options.Create(new PaymentRetryOptions { BaseDelay = TimeSpan.FromMilliseconds(1) }));
         }
     }
 }

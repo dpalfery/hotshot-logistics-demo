@@ -4,6 +4,7 @@
 
 using HotshotLogistics.Contracts.Repositories;
 using HotshotLogistics.Contracts.Services;
+using HotshotLogistics.Data.Http;
 using HotshotLogistics.Data.Repositories;
 using HotshotLogistics.Data.Services;
 using HotshotLogistics.Domain.DTOs;
@@ -38,7 +39,7 @@ namespace HotshotLogistics.Data
 
         public static IServiceCollection AddMappingServices(this IServiceCollection services)
         {
-            services.AddHttpClient("MappingService");
+            services.AddHttpClient("MappingService").AddOutboundResilience();
             services.AddTransient<IMappingService, MockMappingService>();
 
             // Register AzureMapsService with proper HttpClient factory and settings

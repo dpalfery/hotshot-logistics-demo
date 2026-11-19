@@ -18,7 +18,7 @@ namespace HotshotLogistics.Api.Controllers
     [ApiController]
     [Route("api/[controller]")]
     [Authorize]
-    public class DriversController : ControllerBase
+    public sealed class DriversController : ApiControllerBase
     {
         private readonly IDriverService _driverService;
         private readonly ILogger<DriversController> _logger;
@@ -46,30 +46,21 @@ namespace HotshotLogistics.Api.Controllers
         [ProducesResponseType(StatusCodes.Status403Forbidden)]
         public async Task<ActionResult<IEnumerable<DriverDto>>> GetDrivers()
         {
-            try
+            IEnumerable<Driver> drivers = await _driverService.GetDriversAsync();
+            IEnumerable<DriverDto> driverDtos = drivers.Select(d => new DriverDto
             {
-                IEnumerable<Driver> drivers = await _driverService.GetDriversAsync();
-                IEnumerable<DriverDto> driverDtos = drivers.Select(d => new DriverDto
-                {
-                    Id = d.Id,
-                    FirstName = d.PersonalInfo.FirstName,
-                    LastName = d.PersonalInfo.LastName,
-                    Email = d.PersonalInfo.Email,
-                    PhoneNumber = d.PersonalInfo.PhoneNumber,
-                    LicenseNumber = d.License.LicenseNumber,
-                    LicenseExpiryDate = d.License.LicenseExpiryDate,
-                    IsActive = d.IsActive,
-                    CreatedAt = d.CreatedAt,
-                    UpdatedAt = d.UpdatedAt
-                });
-                return Ok(driverDtos);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "An error occurred while retrieving drivers");
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    "An error occurred while processing your request.");
-            }
+                Id = d.Id,
+                FirstName = d.PersonalInfo.FirstName,
+                LastName = d.PersonalInfo.LastName,
+                Email = d.PersonalInfo.Email,
+                PhoneNumber = d.PersonalInfo.PhoneNumber,
+                LicenseNumber = d.License.LicenseNumber,
+                LicenseExpiryDate = d.License.LicenseExpiryDate,
+                IsActive = d.IsActive,
+                CreatedAt = d.CreatedAt,
+                UpdatedAt = d.UpdatedAt
+            });
+            return Ok(driverDtos);
         }
 
         /// <summary>
@@ -83,35 +74,26 @@ namespace HotshotLogistics.Api.Controllers
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult<DriverDto>> GetDriverById(int id)
         {
-            try
+            Driver? driver = await _driverService.GetDriverByIdAsync(id);
+            if (driver == null)
             {
-                Driver? driver = await _driverService.GetDriverByIdAsync(id);
-                if (driver == null)
-                {
-                    return NotFound($"Driver with ID {id} not found");
-                }
+                return NotFoundProblem($"Driver with ID {id} not found");
+            }
 
-                DriverDto driverDto = new()
-                {
-                    Id = driver.Id,
-                    FirstName = driver.PersonalInfo.FirstName,
-                    LastName = driver.PersonalInfo.LastName,
-                    Email = driver.PersonalInfo.Email,
-                    PhoneNumber = driver.PersonalInfo.PhoneNumber,
-                    LicenseNumber = driver.License.LicenseNumber,
-                    LicenseExpiryDate = driver.License.LicenseExpiryDate,
-                    IsActive = driver.IsActive,
-                    CreatedAt = driver.CreatedAt,
-                    UpdatedAt = driver.UpdatedAt
-                };
-                return Ok(driverDto);
-            }
-            catch (Exception ex)
+            DriverDto driverDto = new()
             {
-                _logger.LogError(ex, "An error occurred while retrieving driver");
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    "An error occurred while processing your request.");
-            }
+                Id = driver.Id,
+                FirstName = driver.PersonalInfo.FirstName,
+                LastName = driver.PersonalInfo.LastName,
+                Email = driver.PersonalInfo.Email,
+                PhoneNumber = driver.PersonalInfo.PhoneNumber,
+                LicenseNumber = driver.License.LicenseNumber,
+                LicenseExpiryDate = driver.License.LicenseExpiryDate,
+                IsActive = driver.IsActive,
+                CreatedAt = driver.CreatedAt,
+                UpdatedAt = driver.UpdatedAt
+            };
+            return Ok(driverDto);
         }
 
         /// <summary>
@@ -130,7 +112,7 @@ namespace HotshotLogistics.Api.Controllers
             {
                 if (driverDto == null)
                 {
-                    return BadRequest("Driver data is required");
+                    return BadRequestProblem("Driver data is required");
                 }
 
                 Driver driver = new()
@@ -176,13 +158,7 @@ namespace HotshotLogistics.Api.Controllers
             catch (ArgumentException ex)
             {
                 _logger.LogWarning(ex, "Invalid driver data provided: {Message}", ex.Message);
-                return BadRequest(ex.Message);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "An error occurred while creating driver");
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    "An error occurred while processing your request.");
+                return BadRequestProblem(ex.Message);
             }
         }
 
@@ -202,7 +178,7 @@ namespace HotshotLogistics.Api.Controllers
         {
             if (id != driverDto.Id)
             {
-                return BadRequest("Driver ID mismatch");
+                return BadRequestProblem("Driver ID mismatch");
             }
 
             try
@@ -245,12 +221,7 @@ namespace HotshotLogistics.Api.Controllers
             }
             catch (ArgumentException ex)
             {
-                return BadRequest(ex.Message);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"An error occurred while updating driver {id}");
-                return StatusCode(500, "An internal error occurred.");
+                return BadRequestProblem(ex.Message);
             }
         }
 
@@ -266,21 +237,13 @@ namespace HotshotLogistics.Api.Controllers
         [ProducesResponseType(StatusCodes.Status403Forbidden)]
         public async Task<IActionResult> DeleteDriver(int id)
         {
-            try
+            bool success = await _driverService.DeleteDriverAsync(id);
+            if (!success)
             {
-                bool success = await _driverService.DeleteDriverAsync(id);
-                if (!success)
-                {
-                    return NotFound();
-                }
+                return NotFound();
+            }
 
-                return NoContent();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"An error occurred while deleting driver {id}");
-                return StatusCode(500, "An internal error occurred.");
-            }
+            return NoContent();
         }
     }
 }

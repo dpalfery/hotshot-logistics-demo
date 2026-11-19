@@ -5,10 +5,12 @@
 using HotshotLogistics.Contracts.Repositories;
 using HotshotLogistics.Contracts.Services;
 using HotshotLogistics.Core.Enums;
+using HotshotLogistics.Core.Exceptions;
 using HotshotLogistics.Domain.DTOs;
 using HotshotLogistics.Domain.Entities;
 using HotshotLogistics.Domain.ValueObjects;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Polly;
 using Polly.Retry;
 
@@ -50,6 +52,7 @@ namespace HotshotLogistics.Application.Services
         /// <param name="notificationService">The notification service.</param>
         /// <param name="paymentProcessorFactory">The payment processor factory.</param>
         /// <param name="logger">The _logger.</param>
+        /// <param name="retryOptions">The payment retry settings; defaults apply when omitted.</param>
         public BillingService(
             IInvoiceRepository invoiceRepository,
             IJobRepository jobRepository,
@@ -57,7 +60,8 @@ namespace HotshotLogistics.Application.Services
             IPaymentRepository paymentRepository,
             INotificationService notificationService,
             IPaymentProcessorFactory paymentProcessorFactory,
-            ILogger<BillingService> logger)
+            ILogger<BillingService> logger,
+            IOptions<PaymentRetryOptions>? retryOptions = null)
         {
             _invoiceRepository = invoiceRepository ?? throw new ArgumentNullException(nameof(invoiceRepository));
             _jobRepository = jobRepository ?? throw new ArgumentNullException(nameof(jobRepository));
@@ -68,12 +72,18 @@ namespace HotshotLogistics.Application.Services
                                        throw new ArgumentNullException(nameof(paymentProcessorFactory));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-            // Configure retry policy for payment processing
+            // Retry only what cannot have charged the customer: transport failures and the processor's
+            // explicitly transient error codes. Caller cancellation and unknown exceptions are never retried.
+            PaymentRetryOptions retry = retryOptions?.Value ?? new PaymentRetryOptions();
             _retryPolicy = Policy
-                .Handle<Exception>()
+                .Handle<HttpRequestException>()
+                .Or<TimeoutException>()
+                .Or<ExternalServiceException>()
+                .Or<PaymentProcessingException>(ex =>
+                    ex.ProviderErrorCode is not null && retry.TransientErrorCodes.Contains(ex.ProviderErrorCode))
                 .WaitAndRetryAsync(
-                    3,
-                    retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)),
+                    retry.MaxRetries,
+                    retryAttempt => TimeSpan.FromTicks(retry.BaseDelay.Ticks << (retryAttempt - 1)),
                     (exception, timeSpan, retryCount, _) =>
                     {
                         _logger.LogWarning(exception,
@@ -242,8 +252,9 @@ namespace HotshotLogistics.Application.Services
                     }
                 };
 
-                // Process payment with retry logic
-                PaymentProcessingResult result = await _retryPolicy.ExecuteAsync(async () =>
+                // Process payment with retry logic. The payment id is stable across attempts, so a
+                // processor that honours idempotency keys cannot charge twice for one payment.
+                PaymentProcessingResult result = await _retryPolicy.ExecuteAsync(async retryToken =>
                 {
                     PaymentProcessingResult processingResult = await processor.ProcessPaymentAsync(
                         paymentAmount,
@@ -252,17 +263,21 @@ namespace HotshotLogistics.Application.Services
                         new Dictionary<string, string>
                         {
                             ["invoice_number"] = invoice.InvoiceNumber,
-                            ["customer_id"] = invoice.CustomerId
+                            ["customer_id"] = invoice.CustomerId,
+                            ["idempotency_key"] = payment.Id
                         },
-                        cancellationToken);
+                        retryToken);
 
                     if (!processingResult.Success)
                     {
-                        throw new Exception($"Payment processing failed: {processingResult.Message}");
+                        throw new PaymentProcessingException(
+                            $"Payment processing failed: {processingResult.Message}",
+                            processingResult.TransactionId,
+                            processingResult.ErrorCode ?? string.Empty);
                     }
 
                     return processingResult;
-                });
+                }, cancellationToken);
 
                 // Update payment with successful result
                 payment.MarkAsCompleted(result.TransactionId, result.Message);
@@ -297,8 +312,15 @@ namespace HotshotLogistics.Application.Services
                     invoiceId, result.TransactionId);
                 return true;
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                // The caller gave up: the outcome at the processor is unknown, so leave the payment
+                // in Processing for reconciliation instead of recording a failure.
+                throw;
+            }
             catch (Exception ex)
             {
+                // Deliberately broad: whatever went wrong, the payment record must leave Processing.
                 // Update payment with failed status
                 payment.MarkAsFailed(ex.Message);
                 await _paymentRepository.UpdateAsync(payment);
