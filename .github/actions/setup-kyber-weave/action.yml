@@ -35,15 +35,27 @@ runs:
         KW_VERSION: ${{ inputs.version }}
       run: |
         set -euo pipefail
-        # The installer accepts a leading "v" and the CLI prints the version without it.
+        # Installer tags may include a leading v; the CLI prints the version without it.
         expected="${KW_VERSION#v}"
         if [ -z "${expected}" ]; then
           echo "::error::Kyber-Weave CLI version must be pinned and non-empty."
           exit 1
         fi
-        actual="$(kyber-weave --version | awk 'NF { print $NF; exit }')"
-        actual="${actual#v}"
-        if [ "${actual}" != "${expected}" ]; then
-          echo "::error::Installed Kyber-Weave CLI '${actual}' does not match pinned version '${expected}'."
+        version_output=""
+        if ! version_output="$(kyber-weave --version 2>&1)"; then
+          echo "::error::kyber-weave --version failed: ${version_output}"
+          exit 1
+        fi
+        matched=false
+        while IFS= read -r token; do
+          [ -n "${token}" ] || continue
+          token="${token#v}"
+          if [ "${token}" = "${expected}" ]; then
+            matched=true
+            break
+          fi
+        done < <(printf '%s\n' "${version_output}" | tr ' \t' '\n')
+        if [ "${matched}" != "true" ]; then
+          echo "::error::Installed Kyber-Weave CLI output '${version_output}' does not match pinned version '${expected}'."
           exit 1
         fi
