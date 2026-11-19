@@ -4,6 +4,7 @@
 
 using Azure.Identity;
 using HotshotLogistics.Api;
+using HotshotLogistics.Api.Errors;
 using HotshotLogistics.Application;
 using HotshotLogistics.Application.Hubs;
 using HotshotLogistics.Core.Extensions;
@@ -60,6 +61,9 @@ builder.Services.AddSwaggerGen(c =>
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "HotshotLogistics.Api", Version = "v1" });
 });
 
+// One error contract: ProblemDetails plus the domain exception handler
+builder.Services.AddApiErrorHandling();
+
 // Add HTTP client factory for external API calls
 builder.Services.AddHttpClient();
 
@@ -105,6 +109,8 @@ builder.Services.AddAuthorization(options =>
 builder.Services.AddSignalR();
 
 WebApplication app = builder.Build();
+
+app.UseApiErrorHandling();
 
 if (azureAppConfigurationEnabled)
 {

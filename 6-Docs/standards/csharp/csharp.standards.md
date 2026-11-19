@@ -177,8 +177,10 @@ call site in its own policy.
   comment says why.
 - Rethrow with `throw;`, never `throw ex;`.
 - Use MVC `ValidationProblem` / `ProblemDetails` for invalid input, not a bare
-  string. Target setup registers `AddProblemDetails()` and `UseExceptionHandler()`
-  (tracked in the [ProblemDetails todo](../../todo/problem-details.md)).
+  string. The API registers `AddProblemDetails()`, a domain `IExceptionHandler` and
+  `UseExceptionHandler()` / `UseStatusCodePages()`; controllers return the same body through the
+  `ApiControllerBase` helpers. Never add a catch-all `catch (Exception)` that returns 500: let it
+  reach the handler.
 - Validate every endpoint input on the server even when the client validates. Use data
   annotations or FluentValidation; validate file type and size on uploads. Return 400
   for validation failures and never leak internals in an error body.

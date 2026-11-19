@@ -17,7 +17,7 @@ namespace HotshotLogistics.Api.Controllers
     [Authorize]
     [ApiController]
     [Route("api/[controller]")]
-    public class JobAssignmentsController : ControllerBase
+    public sealed class JobAssignmentsController : ApiControllerBase
     {
         private readonly IJobAssignmentService _assignmentService;
         private readonly ILogger<JobAssignmentsController> _logger;
@@ -153,18 +153,12 @@ namespace HotshotLogistics.Api.Controllers
             catch (KeyNotFoundException ex)
             {
                 _logger.LogWarning(ex, "Failed to assign job: {Message}", ex.Message);
-                return NotFound(ex.Message);
+                return NotFoundProblem(ex.Message);
             }
             catch (InvalidOperationException ex)
             {
                 _logger.LogWarning(ex, "Failed to assign job: {Message}", ex.Message);
-                return Conflict(ex.Message);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "An error occurred while assigning job");
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    "An error occurred while processing your request.");
+                return ConflictProblem(ex.Message);
             }
         }
 
@@ -194,13 +188,7 @@ namespace HotshotLogistics.Api.Controllers
             catch (KeyNotFoundException ex)
             {
                 _logger.LogWarning(ex, "Failed to update assignment status: {Message}", ex.Message);
-                return NotFound(ex.Message);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "An error occurred while updating assignment status");
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    "An error occurred while processing your request.");
+                return NotFoundProblem(ex.Message);
             }
         }
 
