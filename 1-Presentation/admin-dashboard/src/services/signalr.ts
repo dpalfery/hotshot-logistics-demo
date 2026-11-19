@@ -21,28 +21,40 @@ class SignalRService {
       return;
     }
 
-    this.connection = new HubConnectionBuilder()
+    const connection = new HubConnectionBuilder()
       .withUrl(SIGNALR_URL)
       .withAutomaticReconnect()
       .configureLogging(LogLevel.Information)
       .build();
+    this.connection = connection;
 
     try {
-      await this.connection.start();
-      this.isConnected = true;
-      console.log('SignalR connected');
+      await connection.start();
     } catch (error) {
-      console.error('SignalR connection failed:', error);
+      // A connection that disconnect() replaced or removed while it was starting is not a failure
+      if (this.connection === connection) {
+        this.connection = null;
+      }
       throw error;
+    }
+
+    if (this.connection === connection) {
+      this.isConnected = true;
     }
   }
 
   async disconnect(): Promise<void> {
-    if (this.connection) {
-      await this.connection.stop();
-      this.isConnected = false;
-      this.connection = null;
+    const connection = this.connection;
+    if (!connection) {
+      return;
     }
+
+    // Drop the reference before awaiting, so a connect() that follows straight away (React
+    // StrictMode mounts, unmounts and mounts again) builds a new connection instead of
+    // returning early and then losing it when this stop completes.
+    this.connection = null;
+    this.isConnected = false;
+    await connection.stop();
   }
 
   // Location tracking methods

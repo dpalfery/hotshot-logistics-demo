@@ -7,38 +7,47 @@ import { signalRService } from '@/services/signalr';
 import { LocationUpdate, NotificationMessage } from '@/types';
 import { MapIcon, BellIcon } from '@heroicons/react/24/outline';
 
+const LIVE_ITEM_LIMIT = 10;
+
 export function TrackingDashboard() {
   const [locationUpdates, setLocationUpdates] = useState<LocationUpdate[]>([]);
   const [notifications, setNotifications] = useState<NotificationMessage[]>([]);
+  const [liveUpdatesFailed, setLiveUpdatesFailed] = useState(false);
 
-  const { data: jobsResult } = useQuery({
+  const { data: jobsResult, isPending: jobsPending, isError: jobsError } = useQuery({
     queryKey: ['jobs'],
     queryFn: () => apiService.getJobs(),
+    retry: false,
   });
 
   useEffect(() => {
-    // Connect to SignalR
+    // StrictMode runs this effect, its cleanup and this effect again: a connection attempt that
+    // the cleanup has already cancelled must not register handlers or report a failure
+    let cancelled = false;
+
     const connectSignalR = async () => {
       try {
         await signalRService.connect();
+        if (cancelled) return;
 
-        // Set up event handlers
         signalRService.onLocationUpdate((update) => {
-          setLocationUpdates(prev => [update, ...prev.slice(0, 9)]); // Keep last 10
+          setLocationUpdates(prev => [update, ...prev.slice(0, LIVE_ITEM_LIMIT - 1)]);
         });
 
         signalRService.onNotification((notification) => {
-          setNotifications(prev => [notification, ...prev.slice(0, 9)]); // Keep last 10
+          setNotifications(prev => [notification, ...prev.slice(0, LIVE_ITEM_LIMIT - 1)]);
         });
-
       } catch (error) {
+        if (cancelled) return;
         console.error('Failed to connect to SignalR:', error);
+        setLiveUpdatesFailed(true);
       }
     };
 
     connectSignalR();
 
     return () => {
+      cancelled = true;
       signalRService.disconnect();
     };
   }, []);
@@ -52,6 +61,11 @@ export function TrackingDashboard() {
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Real-Time Tracking</h1>
         <p className="text-gray-600">Live maps, job monitoring, and notifications</p>
+        {liveUpdatesFailed && (
+          <p role="alert" className="mt-2 text-sm text-red-600">
+            Live updates are unavailable: the connection to the server failed.
+          </p>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -70,7 +84,11 @@ export function TrackingDashboard() {
         <div className="bg-white p-6 rounded-lg shadow">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Active Jobs</h3>
           <div className="space-y-3">
-            {activeJobs.length === 0 ? (
+            {jobsPending ? (
+              <p className="text-gray-500">Loading active jobs...</p>
+            ) : jobsError ? (
+              <p role="alert" className="text-red-600">Error loading active jobs</p>
+            ) : activeJobs.length === 0 ? (
               <p className="text-gray-500">No active jobs</p>
             ) : (
               activeJobs.map((job) => (
@@ -108,8 +126,8 @@ export function TrackingDashboard() {
             {locationUpdates.length === 0 ? (
               <p className="text-gray-500">No recent location updates</p>
             ) : (
-              locationUpdates.map((update, index) => (
-                <div key={index} className="border border-gray-200 rounded-lg p-3">
+              locationUpdates.map((update) => (
+                <div key={`${update.jobId}-${update.driverId}-${update.timestamp}`} className="border border-gray-200 rounded-lg p-3" data-testid="location-update">
                   <p className="text-sm font-medium text-gray-900">
                     Job #{update.jobId} - Driver #{update.driverId}
                   </p>
@@ -135,8 +153,8 @@ export function TrackingDashboard() {
             {notifications.length === 0 ? (
               <p className="text-gray-500">No recent notifications</p>
             ) : (
-              notifications.map((notification, index) => (
-                <div key={index} className="border border-gray-200 rounded-lg p-3">
+              notifications.map((notification) => (
+                <div key={notification.id} className="border border-gray-200 rounded-lg p-3" data-testid="notification">
                   <div className="flex justify-between items-start">
                     <div>
                       <p className="text-sm font-medium text-gray-900">{notification.title}</p>
