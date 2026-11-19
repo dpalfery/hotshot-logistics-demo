@@ -291,16 +291,24 @@ namespace HotshotLogistics.Data.Repositories
         /// <inheritdoc />
         public async Task<string> GetNextInvoiceNumberAsync()
         {
-            // Only sequential INV000001-style numbers. Seeded values such as INV-12345 and INV{ticks}
-            // must not participate, or MAX()+D6 produces the wrong length and can overflow.
+            // One UPDATE both advances and reads the counter, so concurrent callers each get a distinct
+            // number. The counter row is created by the CreateInvoiceNumberCounter migration.
             const string sql = @"
-            SELECT ISNULL(MAX(CAST(SUBSTRING(InvoiceNumber, 4, 6) AS INT)), 0) + 1
-            FROM Invoices
-            WHERE LEN(InvoiceNumber) = 9
-              AND InvoiceNumber LIKE 'INV[0-9][0-9][0-9][0-9][0-9][0-9]'";
+            UPDATE InvoiceNumberCounters
+            SET LastNumber = LastNumber + 1
+            OUTPUT INSERTED.LastNumber
+            WHERE Name = @Name";
 
-            int nextNumber = await ExecuteScalarAsync<int>(sql);
-            return $"INV{nextNumber:D6}";
+            SqlParameter[] parameters = [new("@Name", "Invoice")];
+
+            int? nextNumber = await ExecuteScalarAsync<int?>(sql, parameters);
+            if (nextNumber is null)
+            {
+                throw new InvalidOperationException(
+                    "The invoice number counter row is missing. Apply the CreateInvoiceNumberCounter migration.");
+            }
+
+            return $"INV{nextNumber.Value:D6}";
         }
 
         /// <inheritdoc />
