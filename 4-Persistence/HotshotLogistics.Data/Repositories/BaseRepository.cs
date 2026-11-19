@@ -198,12 +198,14 @@ namespace HotshotLogistics.Data.Repositories
         /// </summary>
         /// <param name="sql">The SQL query.</param>
         /// <param name="parameters">The query parameters.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>A list of entities.</returns>
-        protected async Task<IEnumerable<T>> ExecuteQueryAsync(string sql, SqlParameter[]? parameters = null)
+        protected async Task<IEnumerable<T>> ExecuteQueryAsync(string sql, SqlParameter[]? parameters = null,
+            CancellationToken cancellationToken = default)
         {
             List<T> entities = new();
 
-            await using SqlConnection connection = await ConnectionFactory.OpenConnectionAsync();
+            await using SqlConnection connection = await ConnectionFactory.OpenConnectionAsync(cancellationToken);
 
             await using SqlCommand command = new(sql, connection);
             if (parameters != null)
@@ -211,8 +213,8 @@ namespace HotshotLogistics.Data.Repositories
                 command.Parameters.AddRange(parameters);
             }
 
-            await using SqlDataReader reader = await command.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
+            await using SqlDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
             {
                 entities.Add(MapReaderToEntity(reader));
             }
@@ -225,10 +227,12 @@ namespace HotshotLogistics.Data.Repositories
         /// </summary>
         /// <param name="sql">The SQL command.</param>
         /// <param name="parameters">The command parameters.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>The number of affected rows.</returns>
-        protected async Task<int> ExecuteNonQueryAsync(string sql, SqlParameter[]? parameters = null)
+        protected async Task<int> ExecuteNonQueryAsync(string sql, SqlParameter[]? parameters = null,
+            CancellationToken cancellationToken = default)
         {
-            await using SqlConnection connection = await ConnectionFactory.OpenConnectionAsync();
+            await using SqlConnection connection = await ConnectionFactory.OpenConnectionAsync(cancellationToken);
 
             await using SqlCommand command = new(sql, connection);
             if (parameters != null)
@@ -236,7 +240,7 @@ namespace HotshotLogistics.Data.Repositories
                 command.Parameters.AddRange(parameters);
             }
 
-            return await command.ExecuteNonQueryAsync();
+            return await command.ExecuteNonQueryAsync(cancellationToken);
         }
 
         /// <summary>
@@ -245,10 +249,12 @@ namespace HotshotLogistics.Data.Repositories
         /// <typeparam name="TResult">The type of the result.</typeparam>
         /// <param name="sql">The SQL query.</param>
         /// <param name="parameters">The query parameters.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>The scalar result.</returns>
-        protected async Task<TResult> ExecuteScalarAsync<TResult>(string sql, SqlParameter[]? parameters = null)
+        protected async Task<TResult> ExecuteScalarAsync<TResult>(string sql, SqlParameter[]? parameters = null,
+            CancellationToken cancellationToken = default)
         {
-            await using SqlConnection connection = await ConnectionFactory.OpenConnectionAsync();
+            await using SqlConnection connection = await ConnectionFactory.OpenConnectionAsync(cancellationToken);
 
             await using SqlCommand command = new(sql, connection);
             if (parameters != null)
@@ -256,7 +262,7 @@ namespace HotshotLogistics.Data.Repositories
                 command.Parameters.AddRange(parameters);
             }
 
-            object? result = await command.ExecuteScalarAsync();
+            object? result = await command.ExecuteScalarAsync(cancellationToken);
             if (result is null || result == DBNull.Value)
             {
                 return default!;

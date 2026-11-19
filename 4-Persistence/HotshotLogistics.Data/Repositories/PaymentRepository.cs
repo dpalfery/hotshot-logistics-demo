@@ -39,7 +39,7 @@ namespace HotshotLogistics.Data.Repositories
                 new("@InvoiceId", SqlDbType.NVarChar, 50) { Value = invoiceId }
             ];
 
-            return await ExecuteQueryAsync(sql, parameters);
+            return await ExecuteQueryAsync(sql, parameters, cancellationToken);
         }
 
         /// <inheritdoc />
@@ -56,7 +56,7 @@ namespace HotshotLogistics.Data.Repositories
                 new("@TransactionId", SqlDbType.NVarChar, 100) { Value = transactionId }
             ];
 
-            return (await ExecuteQueryAsync(sql, parameters)).FirstOrDefault();
+            return (await ExecuteQueryAsync(sql, parameters, cancellationToken)).FirstOrDefault();
         }
 
         /// <inheritdoc />
@@ -74,7 +74,7 @@ namespace HotshotLogistics.Data.Repositories
                 new("@Status", SqlDbType.Int) { Value = (int)status }
             ];
 
-            return await ExecuteQueryAsync(sql, parameters);
+            return await ExecuteQueryAsync(sql, parameters, cancellationToken);
         }
 
         /// <inheritdoc />
@@ -97,7 +97,7 @@ namespace HotshotLogistics.Data.Repositories
                 new("@UpdatedAt", SqlDbType.DateTime2) { Value = DateTime.UtcNow }
             ];
 
-            int result = await ExecuteNonQueryAsync(sql, parameters);
+            int result = await ExecuteNonQueryAsync(sql, parameters, cancellationToken);
             return result > 0;
         }
 

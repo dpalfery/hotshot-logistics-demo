@@ -31,7 +31,7 @@ namespace HotshotLogistics.Data.Repositories
             if (invoice != null)
             {
                 // Load line items
-                invoice.LineItems = await LoadLineItemsAsync(id);
+                invoice.LineItems = await LoadLineItemsAsync(id, cancellationToken);
             }
 
             return invoice;
@@ -615,12 +615,14 @@ namespace HotshotLogistics.Data.Repositories
         /// </summary>
         /// <param name="sql">The SQL query.</param>
         /// <param name="parameters">The query parameters.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>A list of entities.</returns>
-        private new async Task<IEnumerable<Invoice>> ExecuteQueryAsync(string sql, SqlParameter[]? parameters = null)
+        private new async Task<IEnumerable<Invoice>> ExecuteQueryAsync(string sql, SqlParameter[]? parameters = null,
+            CancellationToken cancellationToken = default)
         {
             List<Invoice> entities = new();
 
-            await using SqlConnection connection = await ConnectionFactory.OpenConnectionAsync();
+            await using SqlConnection connection = await ConnectionFactory.OpenConnectionAsync(cancellationToken);
 
             await using SqlCommand command = new(sql, connection);
             if (parameters != null)
@@ -628,12 +630,12 @@ namespace HotshotLogistics.Data.Repositories
                 command.Parameters.AddRange(parameters);
             }
 
-            await using SqlDataReader reader = await command.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
+            await using SqlDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
             {
                 Invoice invoice = MapReaderToEntity(reader);
                 // Load line items for each invoice
-                invoice.LineItems = await LoadLineItemsAsync(invoice.Id);
+                invoice.LineItems = await LoadLineItemsAsync(invoice.Id, cancellationToken);
                 entities.Add(invoice);
             }
 
@@ -644,8 +646,10 @@ namespace HotshotLogistics.Data.Repositories
         ///     Loads line items for an invoice.
         /// </summary>
         /// <param name="invoiceId">The invoice ID.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>A task representing the asynchronous operation that returns the line items.</returns>
-        private async Task<List<InvoiceLineItem>> LoadLineItemsAsync(string invoiceId)
+        private async Task<List<InvoiceLineItem>> LoadLineItemsAsync(string invoiceId,
+            CancellationToken cancellationToken = default)
         {
             const string sql = @"
             SELECT Id, Description, Quantity, UnitPrice, TaxApplicable, SortOrder
@@ -655,13 +659,13 @@ namespace HotshotLogistics.Data.Repositories
 
             List<InvoiceLineItem> lineItems = new();
 
-            await using SqlConnection connection = await ConnectionFactory.OpenConnectionAsync();
+            await using SqlConnection connection = await ConnectionFactory.OpenConnectionAsync(cancellationToken);
 
             await using SqlCommand command = new(sql, connection);
             command.Parameters.Add(new SqlParameter("@InvoiceId", invoiceId));
 
-            await using SqlDataReader reader = await command.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
+            await using SqlDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
             {
                 lineItems.Add(new InvoiceLineItem
                 {

@@ -90,12 +90,6 @@ namespace HotshotLogistics.Data.Repositories
             (string whereClause, IReadOnlyList<SqlParameter> parameters) = BuildWhereClause(filter);
             string orderByClause = BuildOrderByClause(sort);
 
-            // Log the query details for debugging
-            Console.WriteLine(
-                $"[DEBUG] JobRepository.GetJobsAsync - Filter: {filter}, Pagination: {pagination}, Sort: {sort}");
-            Console.WriteLine($"[DEBUG] JobRepository.GetJobsAsync - WhereClause: {whereClause}");
-            Console.WriteLine($"[DEBUG] JobRepository.GetJobsAsync - OrderByClause: {orderByClause}");
-
             string countQuery = $"SELECT COUNT(*) FROM {GetTableName()}{whereClause}";
             string dataQuery = $@"
                 SELECT * FROM {GetTableName()}
@@ -137,12 +131,6 @@ namespace HotshotLogistics.Data.Repositories
                 PageNumber = pagination.PageNumber,
                 PageSize = pagination.PageSize
             };
-
-            // Log the results for debugging
-            Console.WriteLine(
-                $"[DEBUG] JobRepository.GetJobsAsync - TotalCount: {totalCount}, Items returned: {jobs.Count}");
-            Console.WriteLine(
-                $"[DEBUG] JobRepository.GetJobsAsync - PageNumber: {pagination.PageNumber}, PageSize: {pagination.PageSize}");
 
             return result;
         }

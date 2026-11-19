@@ -36,7 +36,7 @@ namespace HotshotLogistics.Data.Repositories
             WHERE ja.Id = @Id";
 
             SqlParameter[] parameters = [new("@Id", SqlDbType.NVarChar) { Value = id }];
-            IEnumerable<JobAssignmentDto> assignments = await ExecuteQueryAsync(sql, parameters);
+            IEnumerable<JobAssignmentDto> assignments = await ExecuteQueryAsync(sql, parameters, cancellationToken);
             return assignments.FirstOrDefault();
         }
 
@@ -54,7 +54,7 @@ namespace HotshotLogistics.Data.Repositories
             LEFT JOIN Jobs j ON ja.JobId = j.Id
             ORDER BY ja.AssignedAt DESC";
 
-            return await ExecuteQueryAsync(sql);
+            return await ExecuteQueryAsync(sql, null, cancellationToken);
         }
 
         /// <inheritdoc />
@@ -74,7 +74,7 @@ namespace HotshotLogistics.Data.Repositories
             ORDER BY ja.AssignedAt DESC";
 
             SqlParameter[] parameters = [new("@DriverId", SqlDbType.Int) { Value = driverId }];
-            return await ExecuteQueryAsync(sql, parameters);
+            return await ExecuteQueryAsync(sql, parameters, cancellationToken);
         }
 
         /// <inheritdoc />
@@ -94,7 +94,7 @@ namespace HotshotLogistics.Data.Repositories
             ORDER BY ja.AssignedAt DESC";
 
             SqlParameter[] parameters = [new("@JobId", SqlDbType.NVarChar) { Value = jobId }];
-            return await ExecuteQueryAsync(sql, parameters);
+            return await ExecuteQueryAsync(sql, parameters, cancellationToken);
         }
 
         /// <inheritdoc />
@@ -114,7 +114,7 @@ namespace HotshotLogistics.Data.Repositories
             ORDER BY ja.AssignedAt DESC";
 
             SqlParameter[] parameters = [new("@Status", SqlDbType.Int) { Value = (int)JobAssignmentStatus.Active }];
-            return await ExecuteQueryAsync(sql, parameters);
+            return await ExecuteQueryAsync(sql, parameters, cancellationToken);
         }
 
         /// <inheritdoc />

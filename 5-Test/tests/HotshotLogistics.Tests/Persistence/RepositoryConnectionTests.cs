@@ -85,6 +85,49 @@ namespace HotshotLogistics.Tests.Persistence
             factory.Verify(f => f.OpenConnectionAsync(cancellation.Token), Times.Once);
         }
 
+        /// <summary>
+        ///     Tests that every repository method that accepts a cancellation token passes it on to the factory.
+        /// </summary>
+        /// <param name="operation">The repository method under test.</param>
+        /// <returns>A task representing the asynchronous operation.</returns>
+        [Theory]
+        [InlineData("Payment.GetByInvoiceIdAsync")]
+        [InlineData("Payment.GetByTransactionIdAsync")]
+        [InlineData("Payment.GetByStatusAsync")]
+        [InlineData("Payment.UpdatePaymentStatusAsync")]
+        [InlineData("Driver.GetDriversAsync")]
+        [InlineData("Driver.GetDriverByIdAsync")]
+        [InlineData("JobAssignment.GetActiveAssignmentsAsync")]
+        [InlineData("JobAssignment.GetByDriverIdAsync")]
+        [InlineData("Invoice.GetByIdAsync")]
+        public async Task Operation_WithCancellationToken_PassesTokenToFactory(string operation)
+        {
+            using CancellationTokenSource cancellation = new();
+            CancellationToken token = cancellation.Token;
+            Mock<ISqlConnectionFactory> factory = new();
+            factory.Setup(f => f.OpenConnectionAsync(token)).ThrowsAsync(new TimeoutException());
+            ISqlConnectionFactory fake = factory.Object;
+
+            Task call = operation switch
+            {
+                "Payment.GetByInvoiceIdAsync" => new PaymentRepository(fake).GetByInvoiceIdAsync("i", token),
+                "Payment.GetByTransactionIdAsync" => new PaymentRepository(fake).GetByTransactionIdAsync("t", token),
+                "Payment.GetByStatusAsync" => new PaymentRepository(fake).GetByStatusAsync(PaymentStatus.Pending, token),
+                "Payment.UpdatePaymentStatusAsync" => new PaymentRepository(fake).UpdatePaymentStatusAsync(
+                    "p", PaymentStatus.Pending, null, token),
+                "Driver.GetDriversAsync" => new DriverRepository(fake).GetDriversAsync(token),
+                "Driver.GetDriverByIdAsync" => new DriverRepository(fake).GetDriverByIdAsync(1, token),
+                "JobAssignment.GetActiveAssignmentsAsync" => new JobAssignmentRepository(fake)
+                    .GetActiveAssignmentsAsync(token),
+                "JobAssignment.GetByDriverIdAsync" => new JobAssignmentRepository(fake).GetByDriverIdAsync(1, token),
+                "Invoice.GetByIdAsync" => new InvoiceRepository(fake).GetByIdAsync("i", token),
+                _ => throw new ArgumentOutOfRangeException(nameof(operation), operation, null)
+            };
+
+            await Assert.ThrowsAsync<TimeoutException>(() => call);
+            factory.Verify(f => f.OpenConnectionAsync(token), Times.Once);
+        }
+
         private static Task Run(string repository, ISqlConnectionFactory factory)
         {
             return repository switch
