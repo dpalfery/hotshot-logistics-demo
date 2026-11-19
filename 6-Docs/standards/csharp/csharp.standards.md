@@ -201,8 +201,9 @@ The API exposes `/health` (every check), `/health/live` (process up, runs no che
 anonymous and report names and statuses only. Add a dependency this process needs before serving as a `ready`
 check; do not open connections in the Api project (the database check lives in `HotshotLogistics.Data.Health`).
 
-Cache responses only where the data is safe to reuse. Rate-limit public endpoints (see the
-[rate-limiting todo](../../todo/rate-limiting.md)). Measure with the platform diagnostics
+Cache responses only where the data is safe to reuse. Rate-limit public endpoints: the API applies a global
+limit and a stricter `public` policy (`[EnableRateLimiting(RateLimitPolicies.Public)]`) to every unauthenticated action,
+and health endpoints stay exempt. Measure with the platform diagnostics
 rather than guessing.
 
 ### Dependencies

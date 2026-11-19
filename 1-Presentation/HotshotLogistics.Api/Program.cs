@@ -6,6 +6,7 @@ using Azure.Identity;
 using HotshotLogistics.Api;
 using HotshotLogistics.Api.Errors;
 using HotshotLogistics.Api.Health;
+using HotshotLogistics.Api.RateLimiting;
 using HotshotLogistics.Application;
 using HotshotLogistics.Application.Hubs;
 using HotshotLogistics.Core.Extensions;
@@ -65,6 +66,7 @@ builder.Services.AddSwaggerGen(c =>
 // One error contract: ProblemDetails plus the domain exception handler
 builder.Services.AddApiErrorHandling();
 builder.Services.AddApiHealthChecks(builder.Configuration);
+builder.Services.AddApiRateLimiting(builder.Configuration);
 
 // Add HTTP client factory for external API calls
 builder.Services.AddHttpClient();
@@ -138,6 +140,8 @@ app.UseCors(policy =>
         .WithHeaders("Content-Type", "Authorization", "X-Requested-With", "x-signalr-user-agent")
         .AllowCredentials();
 });
+
+app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();

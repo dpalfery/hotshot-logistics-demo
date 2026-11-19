@@ -8,7 +8,9 @@ using HotshotLogistics.Contracts.Services;
 using HotshotLogistics.Core.Enums;
 using HotshotLogistics.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
+using HotshotLogistics.Api.RateLimiting;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace HotshotLogistics.Api.Controllers
 {
@@ -324,6 +326,7 @@ namespace HotshotLogistics.Api.Controllers
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>The webhook processing result.</returns>
         [HttpPost("webhooks/stripe")]
+        [EnableRateLimiting(RateLimitPolicies.Public)]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> HandleStripeWebhook(CancellationToken cancellationToken = default)
@@ -373,6 +376,7 @@ namespace HotshotLogistics.Api.Controllers
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>The webhook processing result.</returns>
         [HttpPost("webhooks/paypal")]
+        [EnableRateLimiting(RateLimitPolicies.Public)]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> HandlePayPalWebhook(CancellationToken cancellationToken = default)

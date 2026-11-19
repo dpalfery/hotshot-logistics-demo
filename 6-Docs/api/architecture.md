@@ -14,6 +14,7 @@ code-refs:
   - CorrelationIdMiddleware
   - ApiControllerBase
   - HealthCheckExtensions
+  - RateLimitingExtensions
 ---
 
 # API architecture
@@ -48,6 +49,7 @@ flowchart TD
 | JWT Bearer + Microsoft Identity Web | Non-development Azure AD B2C |
 | `DomainExceptionHandler`, `CorrelationIdMiddleware`, `ApiControllerBase` | One RFC 9457 `ProblemDetails` error contract with trace and correlation ids |
 | `HealthCheckExtensions`, `DatabaseHealthCheck` | `/health`, `/health/live`, `/health/ready` probes; the database is the only readiness dependency |
+| `RateLimitingExtensions` | Global and `public` per-address limits; 429 `ProblemDetails` with `Retry-After`; health exempt |
 | Application `RealtimeHub` | Real-time updates mapped from the API host |
 
 Authorization policies include `Admin`, `Manager`, `Driver`, `Customer`, and combined roles.
@@ -71,6 +73,13 @@ named exceptions and return `ApiControllerBase` helpers; they do not catch `Exce
 `/health/live` runs no checks and answers 200 while the process serves requests. `/health/ready` runs the checks tagged
 `ready` (the database: connect plus `SELECT 1` within `Health:Database:TimeoutSeconds`, default 3) and answers 503
 when one fails. `/health` runs every check. All three are anonymous and write only check names and statuses.
+
+## Rate limiting
+
+`UseRateLimiter()` runs after CORS and before authentication. The global limit is a fixed window per client address;
+`/health*` is exempt. The `public` policy is stricter and is applied to the unauthenticated actions (public tracking and
+the payment webhooks). Limits bind from the `RateLimiting` section and are validated at startup; a rejection is a 429
+`ProblemDetails` with `Retry-After`.
 
 ## Testing strategy
 

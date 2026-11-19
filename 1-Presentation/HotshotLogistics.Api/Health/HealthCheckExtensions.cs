@@ -61,17 +61,17 @@ namespace HotshotLogistics.Api.Health
             endpoints.MapHealthChecks(HealthPath, new HealthCheckOptions
             {
                 ResponseWriter = HealthResponseWriter.WriteAsync
-            });
+            }).DisableRateLimiting();
             endpoints.MapHealthChecks(LivePath, new HealthCheckOptions
             {
                 Predicate = _ => false,
                 ResponseWriter = HealthResponseWriter.WriteAsync
-            });
+            }).DisableRateLimiting();
             endpoints.MapHealthChecks(ReadyPath, new HealthCheckOptions
             {
                 Predicate = registration => registration.Tags.Contains(ReadyTag),
                 ResponseWriter = HealthResponseWriter.WriteAsync
-            });
+            }).DisableRateLimiting();
             return endpoints;
         }
     }

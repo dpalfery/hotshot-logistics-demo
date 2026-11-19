@@ -4,7 +4,9 @@
 
 using HotshotLogistics.Contracts.Services;
 using HotshotLogistics.Domain.Entities;
+using HotshotLogistics.Api.RateLimiting;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace HotshotLogistics.Api.Controllers
 {
@@ -315,6 +317,7 @@ namespace HotshotLogistics.Api.Controllers
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>Public tracking information.</returns>
         [HttpGet("public/{jobId}")]
+        [EnableRateLimiting(RateLimitPolicies.Public)]
         [ProducesResponseType(typeof(PublicTrackingInfo), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult<PublicTrackingInfo>> GetPublicTrackingInfo(string jobId,
