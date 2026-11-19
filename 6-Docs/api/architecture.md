@@ -74,7 +74,7 @@ named exceptions and return `ApiControllerBase` helpers; they do not catch `Exce
 ## Health
 
 `/health/live` runs no checks and answers 200 while the process serves requests. `/health/ready` runs the checks tagged
-`ready` (the database: connect plus `SELECT 1` within `Health:Database:TimeoutSeconds`, default 3) and answers 503
+`ready` (the database: connect through `ISqlConnectionFactory` plus `SELECT 1` within `Health:Database:TimeoutSeconds`, default 3) and answers 503
 when one fails. `/health` runs every check. All three are anonymous and write only check names and statuses.
 
 ## Rate limiting

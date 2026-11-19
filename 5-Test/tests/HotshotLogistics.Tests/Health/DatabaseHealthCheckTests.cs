@@ -2,8 +2,11 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
+using System.Data;
 using FluentAssertions;
+using HotshotLogistics.Data;
 using HotshotLogistics.Data.Health;
+using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -17,16 +20,6 @@ namespace HotshotLogistics.Tests.Health
     [Collection(DatabaseCollection.Name)]
     public class DatabaseHealthCheckTests
     {
-        [Fact]
-        public async Task CheckHealthAsync_WithoutConnectionString_ReturnsUnhealthy()
-        {
-            DatabaseHealthCheck check = CreateCheck(connectionString: null);
-
-            HealthCheckResult result = await check.CheckHealthAsync(new HealthCheckContext(), TestContext.Current.CancellationToken);
-
-            result.Status.Should().Be(HealthStatus.Unhealthy);
-        }
-
         [Fact]
         public async Task CheckHealthAsync_WhenServerRefusesConnection_ReturnsUnhealthyWithoutDetails()
         {
@@ -54,17 +47,55 @@ namespace HotshotLogistics.Tests.Health
             await act.Should().ThrowAsync<OperationCanceledException>();
         }
 
-        [DatabaseFact]
-        public async Task CheckHealthAsync_WithReachableDatabase_ReturnsHealthy()
+        [Fact]
+        public async Task CheckHealthAsync_WhenFactoryFails_ReturnsUnhealthyWithoutDetails()
         {
-            DatabaseHealthCheck check = CreateCheck(TestDatabaseHelper.GetConnectionString());
+            FakeConnectionFactory factory = new(_ => throw new InvalidOperationException("leak-sentinel-detail"));
+            DatabaseHealthCheck check = CreateCheck(factory);
+
+            HealthCheckResult result = await check.CheckHealthAsync(new HealthCheckContext(), TestContext.Current.CancellationToken);
+
+            factory.OpenCalls.Should().Be(1);
+            result.Status.Should().Be(HealthStatus.Unhealthy);
+            result.Exception.Should().BeNull();
+            result.Description.Should().NotContain("leak-sentinel-detail");
+        }
+
+        [Fact]
+        public async Task CheckHealthAsync_WhenFactoryOutlastsTheTimeout_ReturnsUnhealthy()
+        {
+            FakeConnectionFactory factory = new(async token =>
+            {
+                await Task.Delay(Timeout.Infinite, token);
+                throw new InvalidOperationException("unreachable");
+            });
+            DatabaseHealthCheck check = CreateCheck(factory);
+
+            HealthCheckResult result = await check.CheckHealthAsync(new HealthCheckContext(), TestContext.Current.CancellationToken);
+
+            result.Status.Should().Be(HealthStatus.Unhealthy);
+        }
+
+        [DatabaseFact]
+        public async Task CheckHealthAsync_WithReachableDatabase_OpensThroughTheFactoryAndReturnsHealthy()
+        {
+            SqlConnection? opened = null;
+            FakeConnectionFactory factory = new(async token =>
+            {
+                opened = new SqlConnection(TestDatabaseHelper.GetConnectionString());
+                await opened.OpenAsync(token);
+                return opened;
+            });
+            DatabaseHealthCheck check = CreateCheck(factory);
 
             HealthCheckResult result = await check.CheckHealthAsync(new HealthCheckContext(), TestContext.Current.CancellationToken);
 
             result.Status.Should().Be(HealthStatus.Healthy);
+            factory.OpenCalls.Should().Be(1);
+            opened!.State.Should().Be(ConnectionState.Closed, "the check owns and disposes the connection it was given");
         }
 
-        private static DatabaseHealthCheck CreateCheck(string? connectionString)
+        private static DatabaseHealthCheck CreateCheck(string connectionString)
         {
             IConfiguration configuration = new ConfigurationBuilder()
                 .AddInMemoryCollection(new Dictionary<string, string?>
@@ -72,10 +103,27 @@ namespace HotshotLogistics.Tests.Health
                     ["ConnectionStrings:DefaultConnection"] = connectionString
                 })
                 .Build();
+            return CreateCheck(new SqlConnectionFactory(configuration));
+        }
+
+        private static DatabaseHealthCheck CreateCheck(ISqlConnectionFactory factory)
+        {
             return new DatabaseHealthCheck(
-                configuration,
-                Options.Create(new DatabaseHealthCheckOptions { TimeoutSeconds = 2 }),
+                factory,
+                Options.Create(new DatabaseHealthCheckOptions { TimeoutSeconds = 1 }),
                 NullLogger<DatabaseHealthCheck>.Instance);
+        }
+
+        private sealed class FakeConnectionFactory(Func<CancellationToken, Task<SqlConnection>> open)
+            : ISqlConnectionFactory
+        {
+            public int OpenCalls { get; private set; }
+
+            public Task<SqlConnection> OpenConnectionAsync(CancellationToken cancellationToken = default)
+            {
+                OpenCalls++;
+                return open(cancellationToken);
+            }
         }
     }
 }
