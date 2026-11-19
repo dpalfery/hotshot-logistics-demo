@@ -12,6 +12,10 @@ interface MockSocket {
 export interface SignalRMock {
   /** Number of sockets that completed the SignalR handshake and have not closed. */
   openConnections(): number;
+  /** The Authorization header of every negotiate request, in order; undefined when the request had none. */
+  negotiateAuthorizations(): (string | undefined)[];
+  /** The URL of every WebSocket the client opened, in order. */
+  socketUrls(): string[];
   /** Invoke a client method (for example `LocationUpdate`) as the server would. Needs an open connection. */
   invoke(target: string, ...args: unknown[]): void;
 }
@@ -23,19 +27,21 @@ export interface SignalRMock {
  */
 export async function mockSignalR(page: Page): Promise<SignalRMock> {
   const sockets: MockSocket[] = [];
+  const negotiateAuthorizations: (string | undefined)[] = [];
 
   await page.route('**/realtime/negotiate**', async route => {
     // The client sends credentials, so CORS needs the exact origin rather than a wildcard
     const headers = {
       'access-control-allow-origin': route.request().headers()['origin'] ?? '',
       'access-control-allow-credentials': 'true',
-      'access-control-allow-headers': 'x-requested-with, x-signalr-user-agent, content-type',
+      'access-control-allow-headers': 'x-requested-with, x-signalr-user-agent, content-type, authorization',
       'access-control-allow-methods': 'POST, OPTIONS',
     };
     if (route.request().method() === 'OPTIONS') {
       await route.fulfill({ status: 204, headers });
       return;
     }
+    negotiateAuthorizations.push(route.request().headers()['authorization']);
     await route.fulfill({
       status: 200,
       headers,
@@ -69,6 +75,8 @@ export async function mockSignalR(page: Page): Promise<SignalRMock> {
 
   return {
     openConnections: () => open().length,
+    negotiateAuthorizations: () => [...negotiateAuthorizations],
+    socketUrls: () => sockets.map(socket => socket.route.url()),
     invoke(target, ...args) {
       const socket = open().at(-1);
       if (!socket) {

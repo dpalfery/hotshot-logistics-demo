@@ -1,6 +1,12 @@
 import { HubConnectionBuilder, HubConnection, LogLevel } from '@microsoft/signalr';
 import { LocationUpdate, NotificationMessage } from '@/types';
-import { JOB_STATUS_UPDATED_EVENT } from './signalr-events';
+import { apiService } from './api';
+import {
+  DRIVER_STATUS_CHANGED_EVENT,
+  JOB_STATUS_UPDATED_EVENT,
+  JOIN_JOB_TRACKING_METHOD,
+  LEAVE_JOB_TRACKING_METHOD,
+} from './signalr-events';
 
 const SIGNALR_URL = resolveSignalRUrl();
 
@@ -23,7 +29,9 @@ export class SignalRService {
     }
 
     const connection = new HubConnectionBuilder()
-      .withUrl(SIGNALR_URL)
+      // The hub refuses anonymous connections. The client sends this token as the Authorization header on
+      // negotiate and as the access_token query value on the WebSocket, which cannot set headers.
+      .withUrl(SIGNALR_URL, { accessTokenFactory: async () => (await apiService.getAuthToken()) ?? '' })
       .withAutomaticReconnect()
       .configureLogging(LogLevel.Information)
       .build();
@@ -97,36 +105,29 @@ export class SignalRService {
     }
   }
 
-  // Driver availability updates
-  onDriverStatusUpdate(callback: (driverId: number, isAvailable: boolean) => void): void {
+  // Driver status changes; the server sends the driver id and the new status as its number
+  onDriverStatusChanged(callback: (driverId: number, status: number) => void): void {
     if (this.connection) {
-      this.connection.on('DriverStatusUpdate', callback);
+      this.connection.on(DRIVER_STATUS_CHANGED_EVENT, callback);
     }
   }
 
-  offDriverStatusUpdate(callback: (driverId: number, isAvailable: boolean) => void): void {
+  offDriverStatusChanged(callback: (driverId: number, status: number) => void): void {
     if (this.connection) {
-      this.connection.off('DriverStatusUpdate', callback);
+      this.connection.off(DRIVER_STATUS_CHANGED_EVENT, callback);
     }
   }
 
-  // Send location update (for testing or manual updates)
-  async sendLocationUpdate(update: LocationUpdate): Promise<void> {
+  // Join/Leave the group of one job, to receive that job's events
+  async joinJobTracking(jobId: string): Promise<void> {
     if (this.connection && this.isConnected) {
-      await this.connection.invoke('SendLocationUpdate', update);
+      await this.connection.invoke(JOIN_JOB_TRACKING_METHOD, jobId);
     }
   }
 
-  // Join/Leave groups for specific job tracking
-  async joinJobGroup(jobId: string): Promise<void> {
+  async leaveJobTracking(jobId: string): Promise<void> {
     if (this.connection && this.isConnected) {
-      await this.connection.invoke('JoinJobGroup', jobId);
-    }
-  }
-
-  async leaveJobGroup(jobId: string): Promise<void> {
-    if (this.connection && this.isConnected) {
-      await this.connection.invoke('LeaveJobGroup', jobId);
+      await this.connection.invoke(LEAVE_JOB_TRACKING_METHOD, jobId);
     }
   }
 

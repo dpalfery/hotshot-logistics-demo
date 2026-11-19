@@ -110,7 +110,8 @@ class ApiService {
     return response.json();
   }
 
-  private async getAuthToken(): Promise<string | null> {
+  /** The token the API accepts for the signed-in user, or null when nobody is signed in. */
+  async getAuthToken(): Promise<string | null> {
     // Always use test authentication in development
     if (process.env.NODE_ENV === 'development') {
       return 'test-token';

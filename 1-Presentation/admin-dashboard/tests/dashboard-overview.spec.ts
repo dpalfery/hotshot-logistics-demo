@@ -545,6 +545,21 @@ test.describe('Dashboard Overview', () => {
       await expect(page.getByTestId('recent-jobs').getByText('Job 4')).toBeVisible();
     });
 
+    test('should authenticate the live connection, because the server refuses anonymous clients', async ({ page }) => {
+      const signalR = await mockSignalR(page);
+      await page.reload();
+      await expect.poll(() => signalR.openConnections()).toBe(1);
+
+      // The negotiate request carries the token as a header; the WebSocket, which cannot set headers, in the query
+      // (the page connected before the reload as well, so check every attempt rather than a count)
+      const negotiated = signalR.negotiateAuthorizations();
+      expect(negotiated.length).toBeGreaterThan(0);
+      expect(new Set(negotiated)).toEqual(new Set(['Bearer test-token']));
+      const queryTokens = signalR.socketUrls().map(url => new URL(url).searchParams.get('access_token'));
+      expect(queryTokens.length).toBeGreaterThan(0);
+      expect(new Set(queryTokens)).toEqual(new Set(['test-token']));
+    });
+
     test('should tell the user when live updates are unavailable', async ({ page }) => {
       await page.route('**/realtime/negotiate**', route => route.fulfill({ status: 500 }));
       await page.reload();
