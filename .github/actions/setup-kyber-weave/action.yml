@@ -43,13 +43,15 @@ runs:
         fi
         version_output=""
         if ! version_output="$(kyber-weave --version 2>&1)"; then
-          echo "::error::kyber-weave --version failed: ${version_output}"
+          detail="$(printf '%s' "${version_output}" | tr '\n\r' ' ')"
+          echo "::error::kyber-weave --version failed: ${detail}"
           exit 1
         fi
         # --version prints exactly one line: "kyber-weave <version>".
         actual_line="${version_output//$'\r'/}"
         actual_line="${actual_line%$'\n'}"
         if [ "${actual_line}" != "kyber-weave ${expected}" ] && [ "${actual_line}" != "kyber-weave v${expected}" ]; then
-          echo "::error::Installed Kyber-Weave CLI output '${version_output}' does not match pinned version '${expected}'."
+          detail="$(printf '%s' "${version_output}" | tr '\n\r' ' ')"
+          echo "::error::Installed Kyber-Weave CLI output '${detail}' does not match pinned version '${expected}'."
           exit 1
         fi
