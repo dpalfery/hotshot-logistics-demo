@@ -1,4 +1,5 @@
 using System.Data;
+using System.Globalization;
 using HotshotLogistics.Contracts.Repositories;
 using HotshotLogistics.Core.Enums;
 using HotshotLogistics.Domain.DTOs;
@@ -22,19 +23,22 @@ namespace HotshotLogistics.Data.Repositories
         }
 
         /// <inheritdoc />
-        public async Task<JobAssignmentDto?> GetByIdAsync(string id, CancellationToken cancellationToken = default)
+        public override async Task<JobAssignmentDto?> GetByIdAsync(object id,
+            CancellationToken cancellationToken = default)
         {
             const string sql = $@"
             {EntityColumns.JobAssignmentJoined}
             WHERE ja.Id = @Id";
 
-            SqlParameter[] parameters = [new("@Id", SqlDbType.NVarChar) { Value = id }];
+            SqlParameter[] parameters =
+                [new("@Id", SqlDbType.NVarChar) { Value = Convert.ToString(id, CultureInfo.InvariantCulture) }];
             IEnumerable<JobAssignmentDto> assignments = await ExecuteQueryAsync(sql, parameters, cancellationToken);
             return assignments.FirstOrDefault();
         }
 
         /// <inheritdoc />
-        public async Task<IEnumerable<JobAssignmentDto>> GetAllAsync(CancellationToken cancellationToken = default)
+        public override async Task<IEnumerable<JobAssignmentDto>> GetAllAsync(
+            CancellationToken cancellationToken = default)
         {
             const string sql = $@"
             {EntityColumns.JobAssignmentJoined}
@@ -92,11 +96,11 @@ namespace HotshotLogistics.Data.Repositories
             }
 
             jobAssignment.Id = Guid.NewGuid().ToString();
-            return await AddAsync(jobAssignment);
+            return await AddAsync(jobAssignment, cancellationToken);
         }
 
         /// <inheritdoc />
-        public async Task<JobAssignmentDto> UpdateAsync(JobAssignmentDto jobAssignment,
+        public override async Task<JobAssignmentDto> UpdateAsync(JobAssignmentDto jobAssignment,
             CancellationToken cancellationToken = default)
         {
             if (jobAssignment == null)
@@ -104,13 +108,7 @@ namespace HotshotLogistics.Data.Repositories
                 throw new ArgumentNullException(nameof(jobAssignment));
             }
 
-            return await base.UpdateAsync(jobAssignment);
-        }
-
-        /// <inheritdoc />
-        public async Task<bool> DeleteAsync(string id, CancellationToken cancellationToken = default)
-        {
-            return await base.DeleteAsync(id);
+            return await base.UpdateAsync(jobAssignment, cancellationToken);
         }
 
         /// <inheritdoc />

@@ -163,37 +163,18 @@ namespace HotshotLogistics.Data.Repositories
             return rowsAffected > 0;
         }
 
-        // Explicit generic-contract implementations; AddAsync and UpdateAsync refuse a null customer with ArgumentException.
-        async Task<Customer?> IRepository<Customer>.GetByIdAsync(object id, CancellationToken cancellationToken)
-        {
-            return await GetByIdAsync(id, cancellationToken);
-        }
-
-        async Task<IEnumerable<Customer>> IRepository<Customer>.GetAllAsync()
-        {
-            return await GetAllAsync();
-        }
-
-        async Task<Customer> IRepository<Customer>.AddAsync(Customer entity)
+        /// <inheritdoc />
+        public override async Task<Customer> AddAsync(Customer entity, CancellationToken cancellationToken = default)
         {
             Customer customer = entity ?? throw new ArgumentException("Entity must be Customer", nameof(entity));
-            return await AddAsync(customer);
+            return await base.AddAsync(customer, cancellationToken);
         }
 
-        async Task<Customer> IRepository<Customer>.UpdateAsync(Customer entity)
+        /// <inheritdoc />
+        public override async Task<Customer> UpdateAsync(Customer entity, CancellationToken cancellationToken = default)
         {
             Customer customer = entity ?? throw new ArgumentException("Entity must be Customer", nameof(entity));
-            return await UpdateAsync(customer);
-        }
-
-        async Task<bool> IRepository<Customer>.DeleteAsync(object id)
-        {
-            return await DeleteAsync(id);
-        }
-
-        async Task<bool> IRepository<Customer>.ExistsAsync(object id)
-        {
-            return await ExistsAsync(id);
+            return await base.UpdateAsync(customer, cancellationToken);
         }
 
         /// <inheritdoc />

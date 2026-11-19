@@ -5,52 +5,11 @@ using HotshotLogistics.Domain.Entities;
 namespace HotshotLogistics.Contracts.Repositories
 {
     /// <summary>
-    ///     Repository interface for invoice operations.
+    ///     Repository interface for invoice operations. Getting and adding an invoice through the generic contract
+    ///     loads and saves its line items.
     /// </summary>
-    public interface IInvoiceRepository
+    public interface IInvoiceRepository : IRepository<Invoice>
     {
-        /// <summary>
-        ///     Gets an invoice by its identifier.
-        /// </summary>
-        /// <param name="id">The invoice identifier.</param>
-        /// <param name="cancellationToken">The cancellation token.</param>
-        /// <returns>The invoice if found, null otherwise.</returns>
-        Task<Invoice?> GetByIdAsync(string id, CancellationToken cancellationToken = default);
-
-        /// <summary>
-        ///     Gets all invoices.
-        /// </summary>
-        /// <returns>A list of all invoices.</returns>
-        Task<IEnumerable<Invoice>> GetAllAsync();
-
-        /// <summary>
-        ///     Adds a new invoice.
-        /// </summary>
-        /// <param name="invoice">The invoice to add.</param>
-        /// <returns>The added invoice.</returns>
-        Task<Invoice> AddAsync(Invoice invoice);
-
-        /// <summary>
-        ///     Updates an existing invoice.
-        /// </summary>
-        /// <param name="invoice">The invoice to update.</param>
-        /// <returns>The updated invoice.</returns>
-        Task<Invoice> UpdateAsync(Invoice invoice);
-
-        /// <summary>
-        ///     Deletes an invoice by its identifier.
-        /// </summary>
-        /// <param name="id">The invoice identifier.</param>
-        /// <returns>True if the invoice was deleted, false otherwise.</returns>
-        Task<bool> DeleteAsync(string id);
-
-        /// <summary>
-        ///     Checks if an invoice exists by its identifier.
-        /// </summary>
-        /// <param name="id">The invoice identifier.</param>
-        /// <returns>True if the invoice exists, false otherwise.</returns>
-        Task<bool> ExistsAsync(string id);
-
         /// <summary>
         ///     Gets invoices by customer identifier.
         /// </summary>

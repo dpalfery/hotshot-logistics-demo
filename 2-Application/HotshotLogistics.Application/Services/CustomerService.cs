@@ -37,7 +37,7 @@ namespace HotshotLogistics.Application.Services
         /// <inheritdoc />
         public Task<IEnumerable<Customer>> GetCustomersAsync(CancellationToken cancellationToken = default)
         {
-            return _customerRepository.GetAllAsync();
+            return _customerRepository.GetAllAsync(cancellationToken);
         }
 
         /// <inheritdoc />
@@ -49,7 +49,7 @@ namespace HotshotLogistics.Application.Services
         /// <inheritdoc />
         public Task<Customer> CreateCustomerAsync(Customer customer, CancellationToken cancellationToken = default)
         {
-            return _customerRepository.AddAsync(customer);
+            return _customerRepository.AddAsync(customer, cancellationToken);
         }
 
         /// <inheritdoc />
@@ -63,13 +63,13 @@ namespace HotshotLogistics.Application.Services
             }
 
             customer.Id = id;
-            return await _customerRepository.UpdateAsync(customer);
+            return await _customerRepository.UpdateAsync(customer, cancellationToken);
         }
 
         /// <inheritdoc />
         public Task<bool> DeleteCustomerAsync(string id, CancellationToken cancellationToken = default)
         {
-            return _customerRepository.DeleteAsync(id);
+            return _customerRepository.DeleteAsync(id, cancellationToken);
         }
 
         /// <inheritdoc />

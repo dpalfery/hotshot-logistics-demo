@@ -45,12 +45,14 @@ write SQL.
 - **Migrations:** FluentMigrator, versioned `[Migration(yyyyMMddHHmmss)]`. Schema design
   is not authored here — it arrives as an approved table-definition contract.
 - **Abstraction:** `IRepository<T>` in `HotshotLogistics.Contracts` is the generic contract
-  (get by id, get all, add, update, delete, exists). `ICustomerRepository` and
-  `IPaymentRepository` extend it. The Job, Driver, JobAssignment, Invoice and
-  LocationTracking contracts stay domain-specific because their signatures differ from it
-  (for example Invoice `GetByIdAsync(string)` also loads line items); converging them is
-  tracked in the [repository-contract todo](../../todo/repository-contract-convergence.md).
-  Every implementation derives from the internal `BaseRepository<T>`, which implements
+  (get by id, get all, add, update, delete, exists); every member takes a `CancellationToken`.
+  Every repository contract (`ICustomerRepository`, `IDriverRepository`, `IInvoiceRepository`,
+  `IJobAssignmentRepository`, `IJobRepository`, `ILocationTrackingRepository`,
+  `IPaymentRepository`) extends it and adds only the members that are not identity operations.
+  A repository whose get, add or update does more than the base (an invoice's line items, a
+  job assignment's joined query, a stamped `CreatedAt`) overrides the base member, so the
+  generic contract and the repository's own callers reach one implementation. Every
+  implementation derives from the internal `BaseRepository<T>`, which implements
   `IRepository<T>`. Implementations are internal to `HotshotLogistics.Data`. Persistence rows
   stay in `HotshotLogistics.Data` and are mapped at the adapter boundary.
 

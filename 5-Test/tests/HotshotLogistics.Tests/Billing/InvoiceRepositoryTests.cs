@@ -111,6 +111,28 @@ namespace HotshotLogistics.Tests.Billing
         }
 
         /// <summary>
+        ///     Tests that adding and getting an invoice through the generic contract saves and loads its line items.
+        /// </summary>
+        /// <returns>A task representing the asynchronous operation.</returns>
+        [DatabaseFact]
+        public async Task GenericContract_AddAndGetById_SavesAndLoadsLineItems()
+        {
+            // Arrange
+            IRepository<Invoice> generic = _invoiceRepository;
+            Invoice invoice = CreateTestInvoice();
+            _cleanup.TrackInvoice(invoice.Id);
+
+            // Act
+            Invoice added = await generic.AddAsync(invoice, TestContext.Current.CancellationToken);
+            Invoice? loaded = await generic.GetByIdAsync(invoice.Id, TestContext.Current.CancellationToken);
+
+            // Assert
+            added.LineItems.Should().ContainSingle().Which.Description.Should().Be("Delivery Service");
+            loaded.Should().NotBeNull();
+            loaded.LineItems.Should().ContainSingle().Which.Description.Should().Be("Delivery Service");
+        }
+
+        /// <summary>
         ///     Tests that UpdateAsync updates an invoice successfully.
         /// </summary>
         /// <returns>A task representing the asynchronous operation.</returns>

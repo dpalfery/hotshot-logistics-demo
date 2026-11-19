@@ -45,17 +45,31 @@ namespace HotshotLogistics.Data.Repositories
         /// <inheritdoc />
         public async Task<Driver> CreateDriverAsync(Driver driver, CancellationToken cancellationToken = default)
         {
-            Driver domainDriver = driver;
-            domainDriver.CreatedAt = DateTime.UtcNow;
-            return await AddAsync(domainDriver);
+            return await AddAsync(driver, cancellationToken);
+        }
+
+        /// <inheritdoc />
+        public override async Task<Driver> AddAsync(Driver driver, CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(driver);
+
+            driver.CreatedAt = DateTime.UtcNow;
+            return await base.AddAsync(driver, cancellationToken);
         }
 
         /// <inheritdoc />
         public async Task<Driver> UpdateDriverAsync(Driver driver, CancellationToken cancellationToken = default)
         {
-            Driver domainDriver = driver;
-            domainDriver.UpdatedAt = DateTime.UtcNow;
-            return await UpdateAsync(domainDriver);
+            return await UpdateAsync(driver, cancellationToken);
+        }
+
+        /// <inheritdoc />
+        public override async Task<Driver> UpdateAsync(Driver driver, CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(driver);
+
+            driver.UpdatedAt = DateTime.UtcNow;
+            return await base.UpdateAsync(driver, cancellationToken);
         }
 
         /// <inheritdoc />

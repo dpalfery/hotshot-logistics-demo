@@ -63,7 +63,7 @@ namespace HotshotLogistics.Tests.Billing
 
             result.Should().BeFalse();
             VerifyCalls(1);
-            _payments.Verify(p => p.UpdateAsync(It.Is<Payment>(x => x.Status == PaymentStatus.Failed)), Times.Once);
+            _payments.Verify(p => p.UpdateAsync(It.Is<Payment>(x => x.Status == PaymentStatus.Failed), It.IsAny<CancellationToken>()), Times.Once);
         }
 
         [Fact]

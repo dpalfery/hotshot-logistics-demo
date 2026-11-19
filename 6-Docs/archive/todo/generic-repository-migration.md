@@ -21,4 +21,4 @@ domain-specific interfaces and existing base repositories should use it, then
 migrate implementations and consumers while preserving behavior. Cover the
 changed contracts and repository behavior with focused tests.
 
-Resolved on 2026-11-19: `IRepository<T>` is in `HotshotLogistics.Contracts`; the two duplicate `IBaseRepository<T>` interfaces are gone; `BaseRepository<T>` implements `IRepository<T>`; `ICustomerRepository` and `IPaymentRepository` extend it with unchanged signatures. The remaining contracts and cancellation tokens are in [repository-contract-convergence](../../todo/repository-contract-convergence.md).
+Resolved on 2026-11-19: `IRepository<T>` is in `HotshotLogistics.Contracts`; the two duplicate `IBaseRepository<T>` interfaces are gone; `BaseRepository<T>` implements `IRepository<T>`; `ICustomerRepository` and `IPaymentRepository` extend it with unchanged signatures. The remaining contracts and cancellation tokens were done in [repository-contract-convergence](repository-contract-convergence.md).

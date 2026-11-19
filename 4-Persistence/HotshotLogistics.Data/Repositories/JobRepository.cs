@@ -30,7 +30,7 @@ namespace HotshotLogistics.Data.Repositories
         /// <inheritdoc />
         public async Task<IEnumerable<Job>> GetJobsAsync(CancellationToken cancellationToken = default)
         {
-            return await GetAllAsync();
+            return await GetAllAsync(cancellationToken);
         }
 
         /// <inheritdoc />
@@ -42,8 +42,16 @@ namespace HotshotLogistics.Data.Repositories
         /// <inheritdoc />
         public async Task<Job> CreateJobAsync(Job job, CancellationToken cancellationToken = default)
         {
+            return await AddAsync(job, cancellationToken);
+        }
+
+        /// <inheritdoc />
+        public override async Task<Job> AddAsync(Job job, CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(job);
+
             job.CreatedAt = DateTime.UtcNow;
-            return await AddAsync(job);
+            return await base.AddAsync(job, cancellationToken);
         }
 
         /// <inheritdoc />
@@ -68,13 +76,13 @@ namespace HotshotLogistics.Data.Repositories
             existingJob.SpecialInstructions = jobDetails.SpecialInstructions;
             existingJob.UpdatedAt = DateTime.UtcNow;
 
-            return await UpdateAsync(existingJob);
+            return await UpdateAsync(existingJob, cancellationToken);
         }
 
         /// <inheritdoc />
         public async Task<bool> DeleteJobAsync(string id, CancellationToken cancellationToken = default)
         {
-            return await DeleteAsync(id);
+            return await DeleteAsync(id, cancellationToken);
         }
 
         /// <inheritdoc />

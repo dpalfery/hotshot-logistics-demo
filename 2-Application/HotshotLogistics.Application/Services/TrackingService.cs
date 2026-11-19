@@ -124,7 +124,7 @@ namespace HotshotLogistics.Application.Services
 
             // Create location tracking record
             LocationTracking locationTracking = LocationTracking.FromLocationUpdate(jobId, driverId, locationUpdate);
-            LocationTracking savedLocation = await _locationTrackingRepository.AddAsync(locationTracking);
+            LocationTracking savedLocation = await _locationTrackingRepository.AddAsync(locationTracking, cancellationToken);
 
             // Update cache with latest location
             string cacheKey = $"location:current:{jobId}";

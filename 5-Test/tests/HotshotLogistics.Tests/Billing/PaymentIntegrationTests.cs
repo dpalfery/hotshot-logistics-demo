@@ -107,8 +107,8 @@ namespace HotshotLogistics.Tests.Billing
 
             // Assert
             result.Should().BeTrue();
-            _mockPaymentRepository.Verify(r => r.AddAsync(It.IsAny<Payment>()), Times.Once);
-            _mockPaymentRepository.Verify(r => r.UpdateAsync(It.IsAny<Payment>()), Times.Once);
+            _mockPaymentRepository.Verify(r => r.AddAsync(It.IsAny<Payment>(), It.IsAny<CancellationToken>()), Times.Once);
+            _mockPaymentRepository.Verify(r => r.UpdateAsync(It.IsAny<Payment>(), It.IsAny<CancellationToken>()), Times.Once);
             _mockInvoiceRepository.Verify(r => r.UpdatePaidAmountAsync(invoiceId, paymentAmount), Times.Once);
             _mockNotificationService.Verify(n => n.SendNotificationAsync(
                 "customer-123",

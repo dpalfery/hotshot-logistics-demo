@@ -25,32 +25,25 @@ namespace HotshotLogistics.Data.Repositories
         }
 
         /// <inheritdoc />
-        public async Task<Invoice?> GetByIdAsync(string id, CancellationToken cancellationToken = default)
+        public override async Task<Invoice?> GetByIdAsync(object id, CancellationToken cancellationToken = default)
         {
             Invoice? invoice = await base.GetByIdAsync(id, cancellationToken);
             if (invoice != null)
             {
                 // Load line items
-                invoice.LineItems = await LoadLineItemsAsync(id, cancellationToken);
+                invoice.LineItems = await LoadLineItemsAsync(invoice.Id, cancellationToken);
             }
 
             return invoice;
         }
 
         /// <inheritdoc />
-        public new async Task<IEnumerable<Invoice>> GetAllAsync()
-        {
-            IEnumerable<Invoice> invoices = await base.GetAllAsync();
-            return invoices;
-        }
-
-        /// <inheritdoc />
-        public new async Task<Invoice> AddAsync(Invoice invoice)
+        public override async Task<Invoice> AddAsync(Invoice invoice, CancellationToken cancellationToken = default)
         {
             ArgumentNullException.ThrowIfNull(invoice);
 
             // Save the invoice first
-            Invoice savedInvoice = await base.AddAsync(invoice);
+            Invoice savedInvoice = await base.AddAsync(invoice, cancellationToken);
 
             // Save line items if any exist
             if (invoice.LineItems.Any())
@@ -59,29 +52,17 @@ namespace HotshotLogistics.Data.Repositories
             }
 
             // Load the saved invoice with line items
-            Invoice? invoiceWithLineItems = await GetByIdAsync(savedInvoice.Id);
+            Invoice? invoiceWithLineItems = await GetByIdAsync(savedInvoice.Id, cancellationToken);
 
             return invoiceWithLineItems ?? savedInvoice;
         }
 
         /// <inheritdoc />
-        public new async Task<Invoice> UpdateAsync(Invoice invoice)
+        public override async Task<Invoice> UpdateAsync(Invoice invoice, CancellationToken cancellationToken = default)
         {
             ArgumentNullException.ThrowIfNull(invoice);
 
-            return await base.UpdateAsync(invoice);
-        }
-
-        /// <inheritdoc />
-        public async Task<bool> DeleteAsync(string id)
-        {
-            return await base.DeleteAsync(id);
-        }
-
-        /// <inheritdoc />
-        public async Task<bool> ExistsAsync(string id)
-        {
-            return await base.ExistsAsync(id);
+            return await base.UpdateAsync(invoice, cancellationToken);
         }
 
         /// <inheritdoc />

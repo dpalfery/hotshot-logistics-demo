@@ -25,20 +25,12 @@ namespace HotshotLogistics.Data.Repositories
         }
 
         /// <inheritdoc />
-        public new async Task<LocationTracking> AddAsync(LocationTracking locationTracking)
+        public override async Task<LocationTracking> AddAsync(LocationTracking locationTracking,
+            CancellationToken cancellationToken = default)
         {
             ArgumentNullException.ThrowIfNull(locationTracking);
 
-            return await base.AddAsync(locationTracking);
-        }
-
-        /// <inheritdoc />
-        public async Task<LocationTracking?> GetByIdAsync(long id)
-        {
-            const string sql = $"SELECT {EntityColumns.LocationTracking} FROM LocationTracking WHERE Id = @Id";
-            SqlParameter[] parameters = [new("@Id", id)];
-            IEnumerable<LocationTracking> results = await ExecuteQueryAsync(sql, parameters);
-            return results.FirstOrDefault();
+            return await base.AddAsync(locationTracking, cancellationToken);
         }
 
         /// <inheritdoc />
@@ -266,15 +258,6 @@ namespace HotshotLogistics.Data.Repositories
             ];
 
             return await ExecuteScalarAsync<double>(sql, parameters);
-        }
-
-        /// <inheritdoc />
-        public async Task<bool> ExistsAsync(long id)
-        {
-            const string sql = "SELECT COUNT(1) FROM LocationTracking WHERE Id = @Id";
-            SqlParameter[] parameters = [new("@Id", id)];
-            int count = await ExecuteScalarAsync<int>(sql, parameters);
-            return count > 0;
         }
 
         /// <inheritdoc />

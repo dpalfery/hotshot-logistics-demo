@@ -27,7 +27,7 @@ namespace HotshotLogistics.Data.Repositories
         protected ISqlConnectionFactory ConnectionFactory { get; }
 
         /// <inheritdoc />
-        public async Task<T?> GetByIdAsync(object id, CancellationToken cancellationToken = default)
+        public virtual async Task<T?> GetByIdAsync(object id, CancellationToken cancellationToken = default)
         {
             string tableName = FormatIdentifier(GetTableName());
             string primaryKeyColumn = FormatIdentifier(GetPrimaryKeyColumnName());
@@ -48,19 +48,19 @@ namespace HotshotLogistics.Data.Repositories
         }
 
         /// <inheritdoc />
-        public async Task<IEnumerable<T>> GetAllAsync()
+        public virtual async Task<IEnumerable<T>> GetAllAsync(CancellationToken cancellationToken = default)
         {
             string tableName = FormatIdentifier(GetTableName());
             string commandText = $"SELECT {GetColumnList()} FROM {tableName}";
 
             List<T> entities = new();
 
-            await using SqlConnection connection = await ConnectionFactory.OpenConnectionAsync();
+            await using SqlConnection connection = await ConnectionFactory.OpenConnectionAsync(cancellationToken);
 
             await using SqlCommand command = new(commandText, connection);
-            await using SqlDataReader reader = await command.ExecuteReaderAsync();
+            await using SqlDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
 
-            while (await reader.ReadAsync())
+            while (await reader.ReadAsync(cancellationToken))
             {
                 entities.Add(MapReaderToEntity(reader));
             }
@@ -69,7 +69,7 @@ namespace HotshotLogistics.Data.Repositories
         }
 
         /// <inheritdoc />
-        public async Task<T> AddAsync(T entity)
+        public virtual async Task<T> AddAsync(T entity, CancellationToken cancellationToken = default)
         {
             const string sqlTemplate = "INSERT INTO {0} ({1}) OUTPUT {3} VALUES ({2})";
 
@@ -79,7 +79,7 @@ namespace HotshotLogistics.Data.Repositories
                 parameters.Select(p => FormatIdentifier(p.ParameterName.TrimStart('@'))));
             string valuePlaceholders = string.Join(", ", parameters.Select(p => p.ParameterName));
 
-            await using SqlConnection connection = await ConnectionFactory.OpenConnectionAsync();
+            await using SqlConnection connection = await ConnectionFactory.OpenConnectionAsync(cancellationToken);
 
             await using SqlCommand command =
                 new(string.Format(CultureInfo.InvariantCulture, sqlTemplate, tableName, columnNames, valuePlaceholders,
@@ -87,8 +87,8 @@ namespace HotshotLogistics.Data.Repositories
                     connection);
             command.Parameters.AddRange(parameters);
 
-            await using SqlDataReader reader = await command.ExecuteReaderAsync();
-            if (await reader.ReadAsync())
+            await using SqlDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
+            if (await reader.ReadAsync(cancellationToken))
             {
                 return MapReaderToEntity(reader);
             }
@@ -97,7 +97,7 @@ namespace HotshotLogistics.Data.Repositories
         }
 
         /// <inheritdoc />
-        public async Task<T> UpdateAsync(T entity)
+        public virtual async Task<T> UpdateAsync(T entity, CancellationToken cancellationToken = default)
         {
             const string sqlTemplate = "UPDATE {0} SET {1} OUTPUT {3} WHERE {2} = @Id";
 
@@ -109,7 +109,7 @@ namespace HotshotLogistics.Data.Repositories
                     StringComparison.OrdinalIgnoreCase))
                 .Select(p => $"{FormatIdentifier(p.ParameterName.TrimStart('@'))} = {p.ParameterName}"));
 
-            await using SqlConnection connection = await ConnectionFactory.OpenConnectionAsync();
+            await using SqlConnection connection = await ConnectionFactory.OpenConnectionAsync(cancellationToken);
 
             await using SqlCommand command =
                 new(string.Format(CultureInfo.InvariantCulture, sqlTemplate, tableName, setClause, primaryKeyColumn,
@@ -117,8 +117,8 @@ namespace HotshotLogistics.Data.Repositories
                     connection);
             command.Parameters.AddRange(parameters);
 
-            await using SqlDataReader reader = await command.ExecuteReaderAsync();
-            if (await reader.ReadAsync())
+            await using SqlDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
+            if (await reader.ReadAsync(cancellationToken))
             {
                 return MapReaderToEntity(reader);
             }
@@ -127,34 +127,34 @@ namespace HotshotLogistics.Data.Repositories
         }
 
         /// <inheritdoc />
-        public async Task<bool> DeleteAsync(object id)
+        public virtual async Task<bool> DeleteAsync(object id, CancellationToken cancellationToken = default)
         {
             string tableName = FormatIdentifier(GetTableName());
             string primaryKeyColumn = FormatIdentifier(GetPrimaryKeyColumnName());
             string commandText = $"DELETE FROM {tableName} WHERE {primaryKeyColumn} = @Id";
 
-            await using SqlConnection connection = await ConnectionFactory.OpenConnectionAsync();
+            await using SqlConnection connection = await ConnectionFactory.OpenConnectionAsync(cancellationToken);
 
             await using SqlCommand command = new(commandText, connection);
             command.Parameters.AddWithValue("@Id", id);
 
-            int rowsAffected = await command.ExecuteNonQueryAsync();
+            int rowsAffected = await command.ExecuteNonQueryAsync(cancellationToken);
             return rowsAffected > 0;
         }
 
         /// <inheritdoc />
-        public async Task<bool> ExistsAsync(object id)
+        public virtual async Task<bool> ExistsAsync(object id, CancellationToken cancellationToken = default)
         {
             string tableName = FormatIdentifier(GetTableName());
             string primaryKeyColumn = FormatIdentifier(GetPrimaryKeyColumnName());
             string commandText = $"SELECT COUNT(1) FROM {tableName} WHERE {primaryKeyColumn} = @Id";
 
-            await using SqlConnection connection = await ConnectionFactory.OpenConnectionAsync();
+            await using SqlConnection connection = await ConnectionFactory.OpenConnectionAsync(cancellationToken);
 
             await using SqlCommand command = new(commandText, connection);
             command.Parameters.AddWithValue("@Id", id);
 
-            object? scalar = await command.ExecuteScalarAsync();
+            object? scalar = await command.ExecuteScalarAsync(cancellationToken);
             int count = scalar is null || scalar == DBNull.Value
                 ? 0
                 : Convert.ToInt32(scalar, CultureInfo.InvariantCulture);

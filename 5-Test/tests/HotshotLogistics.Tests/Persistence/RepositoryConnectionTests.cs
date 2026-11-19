@@ -128,6 +128,80 @@ namespace HotshotLogistics.Tests.Persistence
             factory.Verify(f => f.OpenConnectionAsync(token), Times.Once);
         }
 
+        /// <summary>
+        ///     Gets each repository paired with each member of the generic contract.
+        /// </summary>
+        public static TheoryData<string, string> GenericOperations()
+        {
+            TheoryData<string, string> data = [];
+            string[] repositories =
+            [
+                nameof(CustomerRepository), nameof(DriverRepository), nameof(InvoiceRepository),
+                nameof(JobAssignmentRepository), nameof(JobRepository), nameof(LocationTrackingRepository),
+                nameof(PaymentRepository)
+            ];
+            string[] members = ["GetById", "GetAll", "Add", "Update", "Delete", "Exists"];
+            foreach (string repository in repositories)
+            {
+                foreach (string member in members)
+                {
+                    data.Add(repository, member);
+                }
+            }
+
+            return data;
+        }
+
+        /// <summary>
+        ///     Tests that every member of the generic contract, on every repository, passes the caller's cancellation
+        ///     token to the connection factory.
+        /// </summary>
+        /// <param name="repository">The repository under test.</param>
+        /// <param name="member">The generic contract member under test.</param>
+        /// <returns>A task representing the asynchronous operation.</returns>
+        [Theory]
+        [MemberData(nameof(GenericOperations))]
+        public async Task GenericOperation_WithCancellationToken_PassesTokenToFactory(string repository, string member)
+        {
+            using CancellationTokenSource cancellation = new();
+            CancellationToken token = cancellation.Token;
+            Mock<ISqlConnectionFactory> factory = new();
+            factory.Setup(f => f.OpenConnectionAsync(token)).ThrowsAsync(new TimeoutException());
+            ISqlConnectionFactory fake = factory.Object;
+
+            Task call = repository switch
+            {
+                nameof(CustomerRepository) => CallGeneric(new CustomerRepository(fake), member, new Customer(), token),
+                nameof(DriverRepository) => CallGeneric(new DriverRepository(fake), member, new Driver(), token),
+                nameof(InvoiceRepository) => CallGeneric(new InvoiceRepository(fake), member, new Invoice(), token),
+                nameof(JobAssignmentRepository) => CallGeneric(
+                    new JobAssignmentRepository(fake), member, new JobAssignmentDto(), token),
+                nameof(JobRepository) => CallGeneric(new JobRepository(fake), member, new Job(), token),
+                nameof(LocationTrackingRepository) => CallGeneric(
+                    new LocationTrackingRepository(fake), member, new LocationTracking("test-job", 1, 0m, 0m), token),
+                nameof(PaymentRepository) => CallGeneric(new PaymentRepository(fake), member, new Payment(), token),
+                _ => throw new ArgumentOutOfRangeException(nameof(repository), repository, null)
+            };
+
+            await Assert.ThrowsAsync<TimeoutException>(() => call);
+            factory.Verify(f => f.OpenConnectionAsync(token), Times.Once);
+        }
+
+        private static Task CallGeneric<T>(IRepository<T> repository, string member, T entity, CancellationToken token)
+            where T : class
+        {
+            return member switch
+            {
+                "GetById" => repository.GetByIdAsync("test-id", token),
+                "GetAll" => repository.GetAllAsync(token),
+                "Add" => repository.AddAsync(entity, token),
+                "Update" => repository.UpdateAsync(entity, token),
+                "Delete" => repository.DeleteAsync("test-id", token),
+                "Exists" => repository.ExistsAsync("test-id", token),
+                _ => throw new ArgumentOutOfRangeException(nameof(member), member, null)
+            };
+        }
+
         private static Task Run(string repository, ISqlConnectionFactory factory)
         {
             return repository switch

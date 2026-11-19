@@ -9,22 +9,8 @@ namespace HotshotLogistics.Contracts.Repositories
     /// <summary>
     ///     Interface for location tracking repository operations.
     /// </summary>
-    public interface ILocationTrackingRepository
+    public interface ILocationTrackingRepository : IRepository<LocationTracking>
     {
-        /// <summary>
-        ///     Adds a new location tracking record.
-        /// </summary>
-        /// <param name="locationTracking">The location tracking record to add.</param>
-        /// <returns>The added location tracking record.</returns>
-        Task<LocationTracking> AddAsync(LocationTracking locationTracking);
-
-        /// <summary>
-        ///     Gets a location tracking record by its identifier.
-        /// </summary>
-        /// <param name="id">The location tracking record identifier.</param>
-        /// <returns>The location tracking record, or null if not found.</returns>
-        Task<LocationTracking?> GetByIdAsync(long id);
-
         /// <summary>
         ///     Gets all location tracking records for a specific job.
         /// </summary>
@@ -119,13 +105,6 @@ namespace HotshotLogistics.Contracts.Repositories
         /// <param name="endTime">The end time.</param>
         /// <returns>The total distance traveled in miles.</returns>
         Task<double> GetTotalDistanceByDriverIdAsync(int driverId, DateTime startTime, DateTime endTime);
-
-        /// <summary>
-        ///     Checks if a location tracking record exists.
-        /// </summary>
-        /// <param name="id">The location tracking record identifier.</param>
-        /// <returns>True if the record exists, false otherwise.</returns>
-        Task<bool> ExistsAsync(long id);
 
         /// <summary>
         ///     Gets the count of location tracking records for a job.

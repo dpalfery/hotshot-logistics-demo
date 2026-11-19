@@ -157,7 +157,7 @@ namespace HotshotLogistics.Application.Services
             invoice.CalculateTotals();
 
             // Save invoice
-            Invoice createdInvoice = await _invoiceRepository.AddAsync(invoice);
+            Invoice createdInvoice = await _invoiceRepository.AddAsync(invoice, cancellationToken);
 
             // Send notification to customer
             try
@@ -232,7 +232,7 @@ namespace HotshotLogistics.Application.Services
                 Status = PaymentStatus.Processing
             };
 
-            await _paymentRepository.AddAsync(payment);
+            await _paymentRepository.AddAsync(payment, cancellationToken);
 
             try
             {
@@ -281,7 +281,7 @@ namespace HotshotLogistics.Application.Services
 
                 // Update payment with successful result
                 payment.MarkAsCompleted(result.TransactionId, result.Message);
-                await _paymentRepository.UpdateAsync(payment);
+                await _paymentRepository.UpdateAsync(payment, cancellationToken);
 
                 // Update invoice with payment
                 bool success =
@@ -323,7 +323,7 @@ namespace HotshotLogistics.Application.Services
                 // Deliberately broad: whatever went wrong, the payment record must leave Processing.
                 // Update payment with failed status
                 payment.MarkAsFailed(ex.Message);
-                await _paymentRepository.UpdateAsync(payment);
+                await _paymentRepository.UpdateAsync(payment, cancellationToken);
 
                 _logger.LogError(ex, "Payment processing failed for invoice: {InvoiceId}", invoiceId);
                 return false;
@@ -427,7 +427,7 @@ namespace HotshotLogistics.Application.Services
             invoice.CalculateTotals();
 
             // Save invoice
-            Invoice createdInvoice = await _invoiceRepository.AddAsync(invoice);
+            Invoice createdInvoice = await _invoiceRepository.AddAsync(invoice, cancellationToken);
 
             _logger.LogInformation("Custom invoice created successfully: {InvoiceNumber} for customer: {CustomerId}",
                 invoiceNumber, customerId);
@@ -461,7 +461,7 @@ namespace HotshotLogistics.Application.Services
                 // Update invoice status to sent
                 invoice.Status = InvoiceStatus.Sent;
                 invoice.UpdatedAt = DateTime.UtcNow;
-                await _invoiceRepository.UpdateAsync(invoice);
+                await _invoiceRepository.UpdateAsync(invoice, cancellationToken);
 
                 // Send notification to customer
                 await _notificationService.SendNotificationAsync(
@@ -553,7 +553,7 @@ namespace HotshotLogistics.Application.Services
                     });
 
                     invoice.CalculateTotals();
-                    await _invoiceRepository.UpdateAsync(invoice);
+                    await _invoiceRepository.UpdateAsync(invoice, cancellationToken);
                     feesApplied++;
 
                     _logger.LogInformation("Applied late fee of ${LateFee:F2} to invoice {InvoiceNumber}",

@@ -28,6 +28,20 @@ namespace HotshotLogistics.Tests.Persistence
         ];
 
         /// <summary>
+        ///     Gets each repository contract with the entity type its generic contract covers.
+        /// </summary>
+        public static TheoryData<Type, Type> Contracts =>
+        [
+            (typeof(ICustomerRepository), typeof(Customer)),
+            (typeof(IDriverRepository), typeof(Driver)),
+            (typeof(IInvoiceRepository), typeof(Invoice)),
+            (typeof(IJobAssignmentRepository), typeof(JobAssignmentDto)),
+            (typeof(IJobRepository), typeof(Job)),
+            (typeof(ILocationTrackingRepository), typeof(LocationTracking)),
+            (typeof(IPaymentRepository), typeof(Payment))
+        ];
+
+        /// <summary>
         ///     Tests that every repository implementation provides the generic contract for its entity.
         /// </summary>
         /// <param name="repository">The repository implementation.</param>
@@ -40,13 +54,27 @@ namespace HotshotLogistics.Tests.Persistence
         }
 
         /// <summary>
-        ///     Tests that the customer and payment contracts extend the generic contract, so consumers can depend on it.
+        ///     Tests that every repository contract extends the generic contract, so consumers can depend on it.
+        /// </summary>
+        /// <param name="contract">The repository contract.</param>
+        /// <param name="entity">The entity type.</param>
+        [Theory]
+        [MemberData(nameof(Contracts))]
+        public void RepositoryContract_ExtendsGenericContractForItsEntity(Type contract, Type entity)
+        {
+            contract.Should().Implement(typeof(IRepository<>).MakeGenericType(entity));
+        }
+
+        /// <summary>
+        ///     Tests that every member of the generic contract takes a cancellation token, so callers can cancel any call.
         /// </summary>
         [Fact]
-        public void CustomerAndPaymentRepositories_ExtendGenericContract()
+        public void GenericContract_EveryMemberTakesACancellationToken()
         {
-            typeof(ICustomerRepository).Should().Implement<IRepository<Customer>>();
-            typeof(IPaymentRepository).Should().Implement<IRepository<Payment>>();
+            typeof(IRepository<>).GetMethods()
+                .Where(method => method.GetParameters().All(p => p.ParameterType != typeof(CancellationToken)))
+                .Select(method => method.Name)
+                .Should().BeEmpty();
         }
 
         /// <summary>
