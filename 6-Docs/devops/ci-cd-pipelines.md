@@ -24,14 +24,14 @@ in [deployment architecture](deployment-architecture.md) for deployment drift st
 | Workflow files under `.github/workflows/` | 2 (`ci.yml`, `release.yml`) |
 | Shared CI helper module & tests | Yes — [`7-Deployment/ci/ci_helpers.py`](../../7-Deployment/ci/ci_helpers.py) & [`test_ci_helpers.py`](../../7-Deployment/ci/test_ci_helpers.py) |
 | Dependabot configuration | 1 — [`.github/dependabot.yml`](../../.github/dependabot.yml) |
-| `.github/actions/` directory | No |
+| Composite actions under `.github/actions/` | 1 — [`.github/actions/setup-kyber-weave/action.yml`](../../.github/actions/setup-kyber-weave/action.yml) |
 | Reusable workflows (`workflow_call`) | No |
 
 ## Pipeline inventory at a glance
 
 | File | Workflow `name:` | Triggers | Target / Effect |
 |---|---|---|---|
-| [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) | `CI` | `pull_request`, `push` (`main`), `schedule` (`0 0 * * 1`), `workflow_dispatch` | Validation only (solution build/tests, dashboard lint/build/e2e, docs gate, CodeQL, TruffleHog, offline `terraform validate`) |
+| [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) | `CI` | `pull_request`, `push` (`main`), `schedule` (`0 0 * * 1`), `workflow_dispatch` | Validation only (solution build/tests, dashboard lint/build/e2e, docs & Kyber-Weave ontology/skill gates, CodeQL, TruffleHog, offline `terraform validate`) |
 | [`.github/workflows/release.yml`](../../.github/workflows/release.yml) | `Release` | `workflow_run` (`CI` completed on `main` push), `push` tags (`v*`), `workflow_dispatch` (`dev` \| `staging` \| `prod`, `skip_terraform`) | Azure infrastructure (`terraform` plan + apply) and API deploy + FluentMigrator migrations (`deploy-api`) |
 
 ## The workflow chain
@@ -51,14 +51,15 @@ flowchart TD
     BE["backend (.NET build, format, NuGet audit, SQL Server 2022 tests)"]
     FE["dashboard (lint, tsc, build)"]
     E2E["dashboard-e2e (Chromium Playwright)"]
-    DOC["docs-gate (unittest + check-docs)"]
+    DOC["docs-gate (unittest + check-docs + kyber-weave docs validate)"]
+    SKG["skill-gate (kyber-weave skill validate, lint, scan SARIF)"]
     CQL["codeql (csharp / javascript-typescript)"]
     SEC["secret-scanning (TruffleHog verified)"]
     TFV["terraform-validate (offline)"]
     SUM["ci-summary (CI Summary — required branch gate)"]
 
-    CHG --> BE & FE & E2E & DOC & CQL & TFV
-    BE & FE & E2E & DOC & CQL & SEC & TFV --> SUM
+    CHG --> BE & FE & E2E & DOC & SKG & CQL & TFV
+    BE & FE & E2E & DOC & SKG & CQL & SEC & TFV --> SUM
   end
 
   subgraph rel_wf["release.yml (Release)"]
@@ -85,24 +86,25 @@ flowchart TD
 `workflow_dispatch`.
 
 **Permissions & concurrency:** workflow-level `contents: read`; `codeql` elevates
-`security-events: write` and `actions: read` at the job level. Concurrency group
-`ci-${{ github.workflow }}-${{ github.ref }}` sets `cancel-in-progress: true` only on
-`pull_request`.
+`security-events: write` and `actions: read`, and `skill-gate` elevates `security-events: write`
+(for SARIF upload). Concurrency group `ci-${{ github.workflow }}-${{ github.ref }}` sets
+`cancel-in-progress: true` only on `pull_request`.
 
 **Environment defaults:** `DOTNET_VERSION: "10.0.x"`, `NODE_VERSION: "22"`, `DOTNET_NOLOGO: "true"`,
 `DOTNET_CLI_TELEMETRY_OPTOUT: "1"`.
 
 | Job | Runs when | What it does |
 |---|---|---|
-| `changes` | Always | Diffs `BASE_SHA..HEAD` on `pull_request` (falling back to running all jobs if fetch/diff fails, or on non-PR triggers, or if `ci.yml`, `.github/codeql/`, or `7-Deployment/ci/` changed) and emits `backend`, `dashboard`, `docs`, `terraform`, and `codeql` matrix outputs. |
+| `changes` | Always | Diffs `BASE_SHA..HEAD` on `pull_request` (falling back to running all jobs if fetch/diff fails, or on non-PR triggers, or if `ci.yml`, `.github/actions/`, `.github/codeql/`, or `7-Deployment/ci/` changed) and emits `backend`, `dashboard`, `docs`, `skills`, `terraform`, and `codeql` matrix outputs. |
 | `backend` | `changes.outputs.backend == 'true'` | Installs .NET `10.0.x`, caches `~/.nuget/packages`, restores `HotshotLogistics.sln`, verifies `dotnet format whitespace` and `dotnet format style --severity warn`, checks `dotnet list HotshotLogistics.sln package --vulnerable --include-transitive --format json` via `ci_helpers.py check-nuget-json`, builds Release (`-nr:false -p:UseSharedCompilation=false`), starts an ephemeral `mcr.microsoft.com/mssql/server:2022-latest` Docker container with a masked per-run `openssl rand` SA password, provisions `hotshot_logistics_test` via `HotshotLogistics.DbSetup` (`--non-interactive`), runs `MigrationRunner`, exports `ConnectionStrings__DefaultConnection`, runs all 4 test projects (`HotshotLogistics.Tests`, `HotshotLogistics.IntegrationTests`, `HotshotLogistics.Api.Tests`, `HotshotLogistics.DbSetup.Tests`), and removes the container under `if: always()`. |
 | `dashboard` | `changes.outputs.dashboard == 'true'` | Installs Node `22` with npm cache, runs `npm ci --no-audit --no-fund`, ESLint (`npm run lint`), TypeScript typecheck (`tsc --noEmit`), and `npm run build` in `1-Presentation/admin-dashboard`. |
 | `dashboard-e2e` | `changes.outputs.dashboard == 'true'` | Installs Node `22`, restores cached Playwright Chromium browsers (`~/.cache/ms-playwright`), installs OS dependencies on cache miss, and runs `npx --no-install playwright test --project=chromium` (uploading `playwright-report/` on failure). |
-| `docs-gate` | `changes.outputs.docs == 'true'` | Runs `python3 -m unittest discover -s 7-Deployment/ci -v` and `python3 7-Deployment/ci/ci_helpers.py check-docs --root .` over `AGENTS.md` and non-archive `6-Docs/**/*.md` (checking balanced-parenthesis local links and exact `6-Docs/todo/README.md` indexing). |
+| `docs-gate` | `changes.outputs.docs == 'true'` | Checks out full history (`fetch-depth: 0`), installs pinned Kyber-Weave CLI (`v0.1.8-rc.27`) via [`.github/actions/setup-kyber-weave/action.yml`](../../.github/actions/setup-kyber-weave/action.yml), runs `python3 -m unittest discover -s 7-Deployment/ci -v` and `python3 7-Deployment/ci/ci_helpers.py check-docs --root .`, and runs `kyber-weave docs validate . --merge-ready --base "${BASE}" --format table` to enforce frontmatter ontology (`KW-DOC-SPEC-*`) and merge-ready lifecycle rules (`KW-DOC-LIFECYCLE-003`/`004`). |
+| `skill-gate` | `changes.outputs.skills == 'true'` | Installs pinned Kyber-Weave CLI (`v0.1.8-rc.27`) via [`.github/actions/setup-kyber-weave/action.yml`](../../.github/actions/setup-kyber-weave/action.yml), runs `kyber-weave skill validate`, `skill lint --min-desc-score 70`, and `skill scan --fail-on critical --format sarif` across `.agents/skills`, stamps per-directory SARIF categories with `jq`, and uploads results via `github/codeql-action/upload-sarif`. Job permissions: `contents: read`, `security-events: write`. |
 | `codeql` | `changes.outputs.codeql != '[]'` | Runs `github/codeql-action/{init,autobuild,analyze}` across `csharp` and/or `javascript-typescript`. Job permissions: `actions: read`, `contents: read`, `security-events: write`. |
-| `secret-scanning` | Always | Checks out with `fetch-depth: 0`, fetches `refs/pull/<n>/head` if `HEAD_SHA` is missing on a pull request, and runs `trufflesecurity/trufflehog` (`--results=verified`). |
+| `secret-scanning` | Always | Checks out with `fetch-depth: 0`, ensures `BASE_SHA`/`HEAD_SHA` are fetched with merge-parent (`HEAD^1..HEAD^2`) or full-repo fallback, and runs `trufflesecurity/trufflehog` (`--results=verified`). |
 | `terraform-validate` | `changes.outputs.terraform == 'true'` | Runs `terraform init -backend=false -input=false` and `terraform validate` in `7-Deployment/Azure-deploy/solution/HotshotLogistics` with no Azure credentials. |
-| `ci-summary` | `always()` | Summarizes all upstream job results into `$GITHUB_STEP_SUMMARY` and fails if any dependency reported `failure` or `cancelled`. This is the single required status check enforced on `main`. |
+| `ci-summary` | `always()` | Summarizes all 9 upstream jobs (`changes`, `backend`, `dashboard`, `dashboard-e2e`, `docs-gate`, `skill-gate`, `codeql`, `secret-scanning`, `terraform-validate`) into `$GITHUB_STEP_SUMMARY` and fails if any dependency reported `failure` or `cancelled`. This is the single required status check enforced on `main`. |
 
 ## `release.yml` — Release
 
@@ -152,8 +154,8 @@ Against the [GitHub Actions coding standard](../standards/github-actions/README.
   `actions/upload-artifact`, `github/codeql-action/*`, `trufflesecurity/trufflehog`,
   `hashicorp/setup-terraform`, `azure/login`, `azure/webapps-deploy`).
 - **Least-privilege permissions (DR6 resolved):** `ci.yml` defaults to `contents: read` and
-  grants `security-events: write` only to `codeql`; `release.yml` declares `id-token: write` and
-  `contents: read` only, with `release-gate` narrowed to `contents: read`.
+  grants `security-events: write` only to `codeql` and `skill-gate`; `release.yml` declares
+  `id-token: write` and `contents: read` only, with `release-gate` narrowed to `contents: read`.
 - **Secret handling (DR14, DR15, and artifact safety resolved):** No `hotshot.tfvars` file is
   written with secrets (`TF_VAR_*` env vars only), `CONNECTION_STRING` is masked and passed by
   `env:`, ephemeral CI SQL passwords are generated at runtime and masked, and `tfplan` is consumed
