@@ -37,15 +37,22 @@ write SQL.
   Framework are out of scope — no `QueryAsync`, no `DbContext`, no `DbSet`, no
   `SaveChangesAsync`, and no LINQ to Entities. Schema changes use FluentMigrator, not
   Entity Framework migrations.
-- **Connections:** The target is `ISqlConnectionFactory`, which creates and opens
-  connections; its introduction is tracked in the [connection-factory todo](../../todo/sql-connection-factory.md).
-  Never `new SqlConnection(...)` at a call site.
+- **Connections:** Repositories get an open connection from `ISqlConnectionFactory`
+  (`HotshotLogistics.Contracts`; implemented by the internal `SqlConnectionFactory` in
+  `HotshotLogistics.Data`). The caller owns the connection and disposes it with
+  `await using`. Never `new SqlConnection(...)` in a repository. Migration and
+  provisioning code (`MigrationRunner`, DbSetup) sits outside the factory.
 - **Migrations:** FluentMigrator, versioned `[Migration(yyyyMMddHHmmss)]`. Schema design
   is not authored here — it arrives as an approved table-definition contract.
-- **Abstraction:** The target is `IRepository<T>` in `HotshotLogistics.Contracts`; its adoption
-  is tracked in the [generic-repository todo](../../todo/generic-repository-migration.md).
-  Implementations are internal to `HotshotLogistics.Data`. Persistence rows stay in
-  `HotshotLogistics.Data` and are mapped at the adapter boundary.
+- **Abstraction:** `IRepository<T>` in `HotshotLogistics.Contracts` is the generic contract
+  (get by id, get all, add, update, delete, exists). `ICustomerRepository` and
+  `IPaymentRepository` extend it. The Job, Driver, JobAssignment, Invoice and
+  LocationTracking contracts stay domain-specific because their signatures differ from it
+  (for example Invoice `GetByIdAsync(string)` also loads line items); converging them is
+  tracked in the [repository-contract todo](../../todo/repository-contract-convergence.md).
+  Every implementation derives from the internal `BaseRepository<T>`, which implements
+  `IRepository<T>`. Implementations are internal to `HotshotLogistics.Data`. Persistence rows
+  stay in `HotshotLogistics.Data` and are mapped at the adapter boundary.
 
 ### Hard rules
 

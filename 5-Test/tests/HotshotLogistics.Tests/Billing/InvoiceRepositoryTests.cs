@@ -2,7 +2,10 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
+using System.Globalization;
+using System.Text.RegularExpressions;
 using FluentAssertions;
+using HotshotLogistics.Data;
 using HotshotLogistics.Domain.Entities;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
@@ -47,7 +50,7 @@ namespace HotshotLogistics.Tests.Billing
                 });
 
             _configuration = configBuilder.Build();
-            _invoiceRepository = new InvoiceRepository(_configuration);
+            _invoiceRepository = new InvoiceRepository(new SqlConnectionFactory(_configuration));
         }
 
         /// <inheritdoc />
@@ -309,6 +312,77 @@ namespace HotshotLogistics.Tests.Billing
         }
 
         /// <summary>
+        ///     Tests that numbers allocated one after another strictly increase.
+        /// </summary>
+        /// <returns>A task representing the asynchronous operation.</returns>
+        [DatabaseFact]
+        public async Task GetNextInvoiceNumberAsync_CalledTwice_ReturnsIncreasingNumbers()
+        {
+            // Act
+            string first = await _invoiceRepository.GetNextInvoiceNumberAsync();
+            string second = await _invoiceRepository.GetNextInvoiceNumberAsync();
+
+            // Assert
+            int.Parse(second.AsSpan(3), CultureInfo.InvariantCulture)
+                .Should().BeGreaterThan(int.Parse(first.AsSpan(3), CultureInfo.InvariantCulture));
+        }
+
+        /// <summary>
+        ///     Tests that concurrent allocations never hand out the same invoice number.
+        /// </summary>
+        /// <returns>A task representing the asynchronous operation.</returns>
+        [DatabaseFact]
+        public async Task GetNextInvoiceNumberAsync_ConcurrentCalls_ReturnsUniqueNumbers()
+        {
+            // Act
+            string[] numbers = await Task.WhenAll(
+                Enumerable.Range(0, 50).Select(_ => Task.Run(() => _invoiceRepository.GetNextInvoiceNumberAsync())));
+
+            // Assert
+            numbers.Should().OnlyHaveUniqueItems();
+            numbers.Should().OnlyContain(n => Regex.IsMatch(n, @"^INV\d{6}$"));
+        }
+
+        /// <summary>
+        ///     Tests that a new number is above every sequential number already stored.
+        /// </summary>
+        /// <returns>A task representing the asynchronous operation.</returns>
+        [DatabaseFact]
+        public async Task GetNextInvoiceNumberAsync_ReturnsNumberAboveEveryStoredSequentialNumber()
+        {
+            // Arrange
+            int highestStored = await GetHighestStoredSequentialInvoiceNumberAsync();
+
+            // Act
+            string next = await _invoiceRepository.GetNextInvoiceNumberAsync();
+
+            // Assert
+            int.Parse(next.AsSpan(3), CultureInfo.InvariantCulture).Should().BeGreaterThan(highestStored);
+        }
+
+        /// <summary>
+        ///     Tests that concurrent invoice generation for one job stores a distinct number on every invoice.
+        /// </summary>
+        /// <returns>A task representing the asynchronous operation.</returns>
+        [DatabaseFact]
+        public async Task GenerateInvoiceAsync_ConcurrentCalls_StoreUniqueInvoiceNumbers()
+        {
+            // Arrange
+            string jobId = await CreateTestJobAsync();
+
+            // Act
+            Invoice[] invoices = await Task.WhenAll(
+                Enumerable.Range(0, 10).Select(_ => Task.Run(() => _invoiceRepository.GenerateInvoiceAsync(jobId))));
+            foreach (Invoice invoice in invoices)
+            {
+                _cleanup.TrackInvoice(invoice.Id);
+            }
+
+            // Assert
+            invoices.Select(i => i.InvoiceNumber).Should().OnlyHaveUniqueItems();
+        }
+
+        /// <summary>
         ///     Tests that GetOutstandingBalanceAsync returns correct outstanding balance for customer.
         /// </summary>
         /// <returns>A task representing the asynchronous operation.</returns>
@@ -439,14 +513,9 @@ namespace HotshotLogistics.Tests.Billing
             // Arrange
             string jobId = await CreateTestJobAsync();
 
-            // Act: the next INV + 6 digit number is read and then inserted without a lock, so generators in
-            // other test processes are queued behind a machine-wide lock to avoid a duplicate number.
-            Invoice result;
-            await using (await AcquireGenerateInvoiceLockAsync())
-            {
-                result = await _invoiceRepository.GenerateInvoiceAsync(jobId);
-                _cleanup.TrackInvoice(result.Id);
-            }
+            // Act
+            Invoice result = await _invoiceRepository.GenerateInvoiceAsync(jobId);
+            _cleanup.TrackInvoice(result.Id);
 
             // Assert
             result.Should().NotBeNull();
@@ -477,22 +546,18 @@ namespace HotshotLogistics.Tests.Billing
             return $"{_tag}-j{number}";
         }
 
-        private static async Task<FileStream> AcquireGenerateInvoiceLockAsync()
+        private static async Task<int> GetHighestStoredSequentialInvoiceNumberAsync()
         {
-            // An exclusive open of a shared file is the machine-wide lock (advisory, released on dispose or exit).
-            string path = Path.Combine(Path.GetTempPath(), "hotshot-logistics-generate-invoice.lock");
-            DateTime giveUp = DateTime.UtcNow.AddMinutes(2);
-            while (true)
-            {
-                try
-                {
-                    return new FileStream(path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
-                }
-                catch (IOException) when (DateTime.UtcNow < giveUp)
-                {
-                    await Task.Delay(50);
-                }
-            }
+            const string sql = @"
+                SELECT ISNULL(MAX(CAST(SUBSTRING(InvoiceNumber, 4, 6) AS INT)), 0)
+                FROM Invoices
+                WHERE LEN(InvoiceNumber) = 9
+                  AND InvoiceNumber LIKE 'INV[0-9][0-9][0-9][0-9][0-9][0-9]'";
+
+            await using SqlConnection connection = new(TestDatabaseHelper.GetConnectionString());
+            await connection.OpenAsync();
+            await using SqlCommand command = new(sql, connection);
+            return (int)(await command.ExecuteScalarAsync())!;
         }
 
         private string NextInvoiceNumber()

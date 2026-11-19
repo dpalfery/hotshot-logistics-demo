@@ -4,10 +4,8 @@
 
 using System.Text;
 using HotshotLogistics.Contracts.Repositories;
-using HotshotLogistics.Core.Repositories;
 using HotshotLogistics.Domain.Entities;
 using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.Configuration;
 
 namespace HotshotLogistics.Data.Repositories
 #pragma warning disable SA1202 // False positive - public members are correctly ordered before protected members
@@ -20,9 +18,9 @@ namespace HotshotLogistics.Data.Repositories
         /// <summary>
         ///     Initializes a new instance of the <see cref="LocationTrackingRepository" /> class.
         /// </summary>
-        /// <param name="configuration">The application configuration.</param>
-        public LocationTrackingRepository(IConfiguration configuration)
-            : base(configuration)
+        /// <param name="connectionFactory">The factory that opens database connections.</param>
+        public LocationTrackingRepository(ISqlConnectionFactory connectionFactory)
+            : base(connectionFactory)
         {
         }
 
@@ -37,7 +35,7 @@ namespace HotshotLogistics.Data.Repositories
         /// <inheritdoc />
         public async Task<LocationTracking?> GetByIdAsync(long id)
         {
-            const string sql = "SELECT * FROM LocationTracking WHERE Id = @Id";
+            const string sql = $"SELECT {EntityColumns.LocationTracking} FROM LocationTracking WHERE Id = @Id";
             SqlParameter[] parameters = [new("@Id", id)];
             IEnumerable<LocationTracking> results = await ExecuteQueryAsync(sql, parameters);
             return results.FirstOrDefault();
@@ -46,8 +44,8 @@ namespace HotshotLogistics.Data.Repositories
         /// <inheritdoc />
         public async Task<IEnumerable<LocationTracking>> GetByJobIdAsync(string jobId)
         {
-            const string sql = @"
-                SELECT * FROM LocationTracking
+            const string sql = $@"
+                SELECT {EntityColumns.LocationTracking} FROM LocationTracking
                 WHERE JobId = @JobId
                 ORDER BY Timestamp ASC";
 
@@ -59,8 +57,8 @@ namespace HotshotLogistics.Data.Repositories
         /// <inheritdoc />
         public async Task<IEnumerable<LocationTracking>> GetByDriverIdAsync(int driverId)
         {
-            const string sql = @"
-                SELECT * FROM LocationTracking
+            const string sql = $@"
+                SELECT {EntityColumns.LocationTracking} FROM LocationTracking
                 WHERE DriverId = @DriverId
                 ORDER BY Timestamp DESC";
 
@@ -73,8 +71,8 @@ namespace HotshotLogistics.Data.Repositories
         public async Task<IEnumerable<LocationTracking>> GetByJobIdAndTimeRangeAsync(string jobId, DateTime startTime,
             DateTime endTime)
         {
-            const string sql = @"
-                SELECT * FROM LocationTracking
+            const string sql = $@"
+                SELECT {EntityColumns.LocationTracking} FROM LocationTracking
                 WHERE JobId = @JobId
                 AND Timestamp BETWEEN @StartTime AND @EndTime
                 ORDER BY Timestamp ASC";
@@ -94,8 +92,8 @@ namespace HotshotLogistics.Data.Repositories
         public async Task<IEnumerable<LocationTracking>> GetByDriverIdAndTimeRangeAsync(int driverId,
             DateTime startTime, DateTime endTime)
         {
-            const string sql = @"
-                SELECT * FROM LocationTracking
+            const string sql = $@"
+                SELECT {EntityColumns.LocationTracking} FROM LocationTracking
                 WHERE DriverId = @DriverId
                 AND Timestamp BETWEEN @StartTime AND @EndTime
                 ORDER BY Timestamp ASC";
@@ -189,7 +187,7 @@ namespace HotshotLogistics.Data.Repositories
             }
 
             string sql = $@"
-                SELECT * FROM LocationTracking
+                SELECT {EntityColumns.LocationTracking} FROM LocationTracking
                 {whereClause}
                 ORDER BY Timestamp DESC";
 
@@ -302,8 +300,7 @@ namespace HotshotLogistics.Data.Repositories
 
             int insertedCount = 0;
 
-            await using SqlConnection connection = new(ConnectionString);
-            await connection.OpenAsync();
+            await using SqlConnection connection = await ConnectionFactory.OpenConnectionAsync();
 
             await using SqlTransaction transaction = connection.BeginTransaction();
             try
@@ -329,6 +326,12 @@ namespace HotshotLogistics.Data.Repositories
             }
 
             return insertedCount;
+        }
+
+        /// <inheritdoc />
+        protected override string GetColumnList()
+        {
+            return EntityColumns.LocationTracking;
         }
 
         /// <inheritdoc />

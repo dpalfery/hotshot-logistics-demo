@@ -6,50 +6,8 @@ namespace HotshotLogistics.Contracts.Repositories
     /// <summary>
     ///     Repository interface for customer data access operations.
     /// </summary>
-    public interface ICustomerRepository
+    public interface ICustomerRepository : IRepository<Customer>
     {
-        /// <summary>
-        ///     Gets a customer by their identifier.
-        /// </summary>
-        /// <param name="id">The customer identifier.</param>
-        /// <param name="cancellationToken">The cancellation token.</param>
-        /// <returns>The customer if found, null otherwise.</returns>
-        Task<Customer?> GetByIdAsync(object id, CancellationToken cancellationToken = default);
-
-        /// <summary>
-        ///     Gets all customers.
-        /// </summary>
-        /// <returns>A list of all customers.</returns>
-        Task<IEnumerable<Customer>> GetAllAsync();
-
-        /// <summary>
-        ///     Adds a new customer.
-        /// </summary>
-        /// <param name="entity">The customer to add.</param>
-        /// <returns>The added customer.</returns>
-        Task<Customer> AddAsync(Customer entity);
-
-        /// <summary>
-        ///     Updates an existing customer.
-        /// </summary>
-        /// <param name="entity">The customer to update.</param>
-        /// <returns>The updated customer.</returns>
-        Task<Customer> UpdateAsync(Customer entity);
-
-        /// <summary>
-        ///     Deletes a customer by their identifier.
-        /// </summary>
-        /// <param name="id">The customer identifier.</param>
-        /// <returns>True if the customer was deleted, false otherwise.</returns>
-        Task<bool> DeleteAsync(object id);
-
-        /// <summary>
-        ///     Checks if a customer exists by their identifier.
-        /// </summary>
-        /// <param name="id">The customer identifier.</param>
-        /// <returns>True if the customer exists, false otherwise.</returns>
-        Task<bool> ExistsAsync(object id);
-
         /// <summary>
         ///     Gets a customer by their tax identification number.
         /// </summary>

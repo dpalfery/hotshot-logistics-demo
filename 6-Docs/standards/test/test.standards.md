@@ -131,6 +131,4 @@ free-text ids, not references to rely on.
 - `Tests` and `IntegrationTests` each have their own `TestDatabaseHelper`/`DatabaseTestFixture`/
   `IntegrationTestBase`, with different behaviour. They run in separate processes, so their collections
   do not serialise against each other; only unique ids and scoped assertions keep them safe.
-- `GetNextInvoiceNumberAsync` is MAX()+1 without a lock: concurrent `GenerateInvoiceAsync` calls can
-  collide on the unique number (application issue; the test takes a file lock).
 - `GetAgingReportAsync_ReturnsAgingReportData` asserts only non-null: the report inner-joins `Customers`.

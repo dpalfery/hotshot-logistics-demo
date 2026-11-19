@@ -1,3 +1,4 @@
+using System.Reflection;
 using HotshotLogistics.Application.Services;
 using HotshotLogistics.Domain.Entities;
 using NetArchTest.Rules;
@@ -35,6 +36,32 @@ namespace HotshotLogistics.Tests.Utils.Infrastructure
                 .GetResult();
 
             Assert.True(result.IsSuccessful, string.Join(',', result.FailingTypeNames ?? Array.Empty<string>()));
+        }
+
+        [Fact]
+        public void Data_should_not_depend_on_application()
+        {
+            Assembly data = typeof(DriverRepository).Assembly;
+
+            TestResult result = Types.InAssembly(data)
+                .ShouldNot()
+                .HaveDependencyOn(s_application)
+                .GetResult();
+
+            Assert.True(result.IsSuccessful, string.Join(',', result.FailingTypeNames ?? Array.Empty<string>()));
+            Assert.DoesNotContain(data.GetReferencedAssemblies(), a => a.Name == s_application);
+        }
+
+        [Fact]
+        public void Contracts_should_contain_interfaces_only()
+        {
+            IEnumerable<Type> nonInterfaces = Types.InAssembly(typeof(IJobRepository).Assembly)
+                .That().AreNotInterfaces()
+                .GetTypes();
+
+            Assert.True(
+                !nonInterfaces.Any(),
+                "Shared DTOs belong in HotshotLogistics.Domain.DTOs: " + string.Join(',', nonInterfaces.Select(t => t.Name)));
         }
 
         [Fact]

@@ -5,10 +5,8 @@
 using System.Data;
 using HotshotLogistics.Contracts.Repositories;
 using HotshotLogistics.Core.Enums;
-using HotshotLogistics.Core.Repositories;
 using HotshotLogistics.Domain.Entities;
 using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.Configuration;
 
 namespace HotshotLogistics.Data.Repositories
 {
@@ -20,9 +18,9 @@ namespace HotshotLogistics.Data.Repositories
         /// <summary>
         ///     Initializes a new instance of the <see cref="PaymentRepository" /> class.
         /// </summary>
-        /// <param name="configuration">The configuration.</param>
-        public PaymentRepository(IConfiguration configuration)
-            : base(configuration)
+        /// <param name="connectionFactory">The factory that opens database connections.</param>
+        public PaymentRepository(ISqlConnectionFactory connectionFactory)
+            : base(connectionFactory)
         {
         }
 
@@ -41,7 +39,7 @@ namespace HotshotLogistics.Data.Repositories
                 new("@InvoiceId", SqlDbType.NVarChar, 50) { Value = invoiceId }
             ];
 
-            return await ExecuteQueryAsync(sql, parameters);
+            return await ExecuteQueryAsync(sql, parameters, cancellationToken);
         }
 
         /// <inheritdoc />
@@ -58,7 +56,7 @@ namespace HotshotLogistics.Data.Repositories
                 new("@TransactionId", SqlDbType.NVarChar, 100) { Value = transactionId }
             ];
 
-            return (await ExecuteQueryAsync(sql, parameters)).FirstOrDefault();
+            return (await ExecuteQueryAsync(sql, parameters, cancellationToken)).FirstOrDefault();
         }
 
         /// <inheritdoc />
@@ -76,7 +74,7 @@ namespace HotshotLogistics.Data.Repositories
                 new("@Status", SqlDbType.Int) { Value = (int)status }
             ];
 
-            return await ExecuteQueryAsync(sql, parameters);
+            return await ExecuteQueryAsync(sql, parameters, cancellationToken);
         }
 
         /// <inheritdoc />
@@ -99,8 +97,14 @@ namespace HotshotLogistics.Data.Repositories
                 new("@UpdatedAt", SqlDbType.DateTime2) { Value = DateTime.UtcNow }
             ];
 
-            int result = await ExecuteNonQueryAsync(sql, parameters);
+            int result = await ExecuteNonQueryAsync(sql, parameters, cancellationToken);
             return result > 0;
+        }
+
+        /// <inheritdoc />
+        protected override string GetColumnList()
+        {
+            return EntityColumns.Payment;
         }
 
         /// <inheritdoc />

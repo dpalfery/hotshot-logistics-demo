@@ -1,41 +1,39 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
+using HotshotLogistics.Contracts.Repositories;
 using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.Configuration;
 
-namespace HotshotLogistics.Core.Repositories
+namespace HotshotLogistics.Data.Repositories
 {
     /// <summary>
     ///     Base repository implementation using native ADO.NET.
     /// </summary>
     /// <typeparam name="T">The entity type.</typeparam>
-    public abstract class BaseRepository<T> : IBaseRepository<T> where T : class
+    internal abstract partial class BaseRepository<T> : IRepository<T>
+        where T : class
     {
         /// <summary>
         ///     Initializes a new instance of the <see cref="BaseRepository{T}" /> class.
         /// </summary>
-        /// <param name="configuration">The application configuration.</param>
-        protected BaseRepository(IConfiguration configuration)
+        /// <param name="connectionFactory">The factory that opens database connections.</param>
+        protected BaseRepository(ISqlConnectionFactory connectionFactory)
         {
-            ConnectionString = configuration.GetConnectionString("DefaultConnection")
-                               ?? throw new ArgumentNullException(nameof(configuration),
-                                   "Connection string 'DefaultConnection' is required");
+            ConnectionFactory = connectionFactory ?? throw new ArgumentNullException(nameof(connectionFactory));
         }
 
         /// <summary>
-        ///     Gets the connection string for database operations.
+        ///     Gets the factory that opens database connections.
         /// </summary>
-        protected string ConnectionString { get; }
+        protected ISqlConnectionFactory ConnectionFactory { get; }
 
         /// <inheritdoc />
         public async Task<T?> GetByIdAsync(object id, CancellationToken cancellationToken = default)
         {
             string tableName = FormatIdentifier(GetTableName());
             string primaryKeyColumn = FormatIdentifier(GetPrimaryKeyColumnName());
-            string commandText = $"SELECT * FROM {tableName} WHERE {primaryKeyColumn} = @Id";
+            string commandText = $"SELECT {GetColumnList()} FROM {tableName} WHERE {primaryKeyColumn} = @Id";
 
-            await using SqlConnection connection = new(ConnectionString);
-            await connection.OpenAsync(cancellationToken);
+            await using SqlConnection connection = await ConnectionFactory.OpenConnectionAsync(cancellationToken);
 
             await using SqlCommand command = new(commandText, connection);
             command.Parameters.AddWithValue("@Id", id);
@@ -53,12 +51,11 @@ namespace HotshotLogistics.Core.Repositories
         public async Task<IEnumerable<T>> GetAllAsync()
         {
             string tableName = FormatIdentifier(GetTableName());
-            string commandText = $"SELECT * FROM {tableName}";
+            string commandText = $"SELECT {GetColumnList()} FROM {tableName}";
 
             List<T> entities = new();
 
-            await using SqlConnection connection = new(ConnectionString);
-            await connection.OpenAsync();
+            await using SqlConnection connection = await ConnectionFactory.OpenConnectionAsync();
 
             await using SqlCommand command = new(commandText, connection);
             await using SqlDataReader reader = await command.ExecuteReaderAsync();
@@ -74,7 +71,7 @@ namespace HotshotLogistics.Core.Repositories
         /// <inheritdoc />
         public async Task<T> AddAsync(T entity)
         {
-            const string sqlTemplate = "INSERT INTO {0} ({1}) OUTPUT INSERTED.* VALUES ({2})";
+            const string sqlTemplate = "INSERT INTO {0} ({1}) OUTPUT {3} VALUES ({2})";
 
             string tableName = FormatIdentifier(GetTableName());
             SqlParameter[] parameters = GetInsertParameters(entity);
@@ -82,11 +79,11 @@ namespace HotshotLogistics.Core.Repositories
                 parameters.Select(p => FormatIdentifier(p.ParameterName.TrimStart('@'))));
             string valuePlaceholders = string.Join(", ", parameters.Select(p => p.ParameterName));
 
-            await using SqlConnection connection = new(ConnectionString);
-            await connection.OpenAsync();
+            await using SqlConnection connection = await ConnectionFactory.OpenConnectionAsync();
 
             await using SqlCommand command =
-                new(string.Format(CultureInfo.InvariantCulture, sqlTemplate, tableName, columnNames, valuePlaceholders),
+                new(string.Format(CultureInfo.InvariantCulture, sqlTemplate, tableName, columnNames, valuePlaceholders,
+                    GetOutputColumns()),
                     connection);
             command.Parameters.AddRange(parameters);
 
@@ -102,7 +99,7 @@ namespace HotshotLogistics.Core.Repositories
         /// <inheritdoc />
         public async Task<T> UpdateAsync(T entity)
         {
-            const string sqlTemplate = "UPDATE {0} SET {1} OUTPUT INSERTED.* WHERE {2} = @Id";
+            const string sqlTemplate = "UPDATE {0} SET {1} OUTPUT {3} WHERE {2} = @Id";
 
             string tableName = FormatIdentifier(GetTableName());
             SqlParameter[] parameters = GetUpdateParameters(entity);
@@ -112,11 +109,11 @@ namespace HotshotLogistics.Core.Repositories
                     StringComparison.OrdinalIgnoreCase))
                 .Select(p => $"{FormatIdentifier(p.ParameterName.TrimStart('@'))} = {p.ParameterName}"));
 
-            await using SqlConnection connection = new(ConnectionString);
-            await connection.OpenAsync();
+            await using SqlConnection connection = await ConnectionFactory.OpenConnectionAsync();
 
             await using SqlCommand command =
-                new(string.Format(CultureInfo.InvariantCulture, sqlTemplate, tableName, setClause, primaryKeyColumn),
+                new(string.Format(CultureInfo.InvariantCulture, sqlTemplate, tableName, setClause, primaryKeyColumn,
+                    GetOutputColumns()),
                     connection);
             command.Parameters.AddRange(parameters);
 
@@ -136,8 +133,7 @@ namespace HotshotLogistics.Core.Repositories
             string primaryKeyColumn = FormatIdentifier(GetPrimaryKeyColumnName());
             string commandText = $"DELETE FROM {tableName} WHERE {primaryKeyColumn} = @Id";
 
-            await using SqlConnection connection = new(ConnectionString);
-            await connection.OpenAsync();
+            await using SqlConnection connection = await ConnectionFactory.OpenConnectionAsync();
 
             await using SqlCommand command = new(commandText, connection);
             command.Parameters.AddWithValue("@Id", id);
@@ -153,8 +149,7 @@ namespace HotshotLogistics.Core.Repositories
             string primaryKeyColumn = FormatIdentifier(GetPrimaryKeyColumnName());
             string commandText = $"SELECT COUNT(1) FROM {tableName} WHERE {primaryKeyColumn} = @Id";
 
-            await using SqlConnection connection = new(ConnectionString);
-            await connection.OpenAsync();
+            await using SqlConnection connection = await ConnectionFactory.OpenConnectionAsync();
 
             await using SqlCommand command = new(commandText, connection);
             command.Parameters.AddWithValue("@Id", id);
@@ -172,6 +167,13 @@ namespace HotshotLogistics.Core.Repositories
         /// </summary>
         /// <returns>The table name.</returns>
         protected abstract string GetTableName();
+
+        /// <summary>
+        ///     Gets the comma-separated column names the entity mapper reads. Every query that returns entities
+        ///     lists these columns instead of selecting all of them.
+        /// </summary>
+        /// <returns>The column names.</returns>
+        protected abstract string GetColumnList();
 
         /// <summary>
         ///     Gets the primary key column name.
@@ -205,13 +207,14 @@ namespace HotshotLogistics.Core.Repositories
         /// </summary>
         /// <param name="sql">The SQL query.</param>
         /// <param name="parameters">The query parameters.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>A list of entities.</returns>
-        protected async Task<IEnumerable<T>> ExecuteQueryAsync(string sql, SqlParameter[]? parameters = null)
+        protected async Task<IEnumerable<T>> ExecuteQueryAsync(string sql, SqlParameter[]? parameters = null,
+            CancellationToken cancellationToken = default)
         {
             List<T> entities = new();
 
-            await using SqlConnection connection = new(ConnectionString);
-            await connection.OpenAsync();
+            await using SqlConnection connection = await ConnectionFactory.OpenConnectionAsync(cancellationToken);
 
             await using SqlCommand command = new(sql, connection);
             if (parameters != null)
@@ -219,8 +222,8 @@ namespace HotshotLogistics.Core.Repositories
                 command.Parameters.AddRange(parameters);
             }
 
-            await using SqlDataReader reader = await command.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
+            await using SqlDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
             {
                 entities.Add(MapReaderToEntity(reader));
             }
@@ -233,11 +236,12 @@ namespace HotshotLogistics.Core.Repositories
         /// </summary>
         /// <param name="sql">The SQL command.</param>
         /// <param name="parameters">The command parameters.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>The number of affected rows.</returns>
-        protected async Task<int> ExecuteNonQueryAsync(string sql, SqlParameter[]? parameters = null)
+        protected async Task<int> ExecuteNonQueryAsync(string sql, SqlParameter[]? parameters = null,
+            CancellationToken cancellationToken = default)
         {
-            await using SqlConnection connection = new(ConnectionString);
-            await connection.OpenAsync();
+            await using SqlConnection connection = await ConnectionFactory.OpenConnectionAsync(cancellationToken);
 
             await using SqlCommand command = new(sql, connection);
             if (parameters != null)
@@ -245,7 +249,7 @@ namespace HotshotLogistics.Core.Repositories
                 command.Parameters.AddRange(parameters);
             }
 
-            return await command.ExecuteNonQueryAsync();
+            return await command.ExecuteNonQueryAsync(cancellationToken);
         }
 
         /// <summary>
@@ -254,11 +258,12 @@ namespace HotshotLogistics.Core.Repositories
         /// <typeparam name="TResult">The type of the result.</typeparam>
         /// <param name="sql">The SQL query.</param>
         /// <param name="parameters">The query parameters.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>The scalar result.</returns>
-        protected async Task<TResult> ExecuteScalarAsync<TResult>(string sql, SqlParameter[]? parameters = null)
+        protected async Task<TResult> ExecuteScalarAsync<TResult>(string sql, SqlParameter[]? parameters = null,
+            CancellationToken cancellationToken = default)
         {
-            await using SqlConnection connection = new(ConnectionString);
-            await connection.OpenAsync();
+            await using SqlConnection connection = await ConnectionFactory.OpenConnectionAsync(cancellationToken);
 
             await using SqlCommand command = new(sql, connection);
             if (parameters != null)
@@ -266,7 +271,7 @@ namespace HotshotLogistics.Core.Repositories
                 command.Parameters.AddRange(parameters);
             }
 
-            object? result = await command.ExecuteScalarAsync();
+            object? result = await command.ExecuteScalarAsync(cancellationToken);
             if (result is null || result == DBNull.Value)
             {
                 return default!;
@@ -280,6 +285,9 @@ namespace HotshotLogistics.Core.Repositories
             return (TResult)Convert.ChangeType(result, typeof(TResult), CultureInfo.InvariantCulture);
         }
 
+        [GeneratedRegex("^[A-Za-z_][A-Za-z0-9_]*$", RegexOptions.CultureInvariant)]
+        private static partial Regex SafeIdentifierRegex();
+
         private static string FormatIdentifier(string identifier)
         {
             if (string.IsNullOrWhiteSpace(identifier))
@@ -287,7 +295,7 @@ namespace HotshotLogistics.Core.Repositories
                 throw new ArgumentException("Identifier cannot be null or whitespace.", nameof(identifier));
             }
 
-            if (!BaseRepositoryHelper.SafeIdentifierRegex.IsMatch(identifier))
+            if (!SafeIdentifierRegex().IsMatch(identifier))
             {
                 throw new ArgumentException($"Identifier '{identifier}' contains invalid characters.",
                     nameof(identifier));
@@ -295,11 +303,11 @@ namespace HotshotLogistics.Core.Repositories
 
             return $"[{identifier}]";
         }
-    }
 
-    internal static class BaseRepositoryHelper
-    {
-        internal static readonly Regex SafeIdentifierRegex =
-            new("^[A-Za-z_][A-Za-z0-9_]*$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+        private string GetOutputColumns()
+        {
+            return string.Join(", ", GetColumnList().Split(',', StringSplitOptions.TrimEntries)
+                .Select(column => $"INSERTED.{FormatIdentifier(column)}"));
+        }
     }
 }
