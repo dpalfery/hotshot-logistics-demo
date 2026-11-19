@@ -46,16 +46,10 @@ runs:
           echo "::error::kyber-weave --version failed: ${version_output}"
           exit 1
         fi
-        matched=false
-        while IFS= read -r token; do
-          [ -n "${token}" ] || continue
-          token="${token#v}"
-          if [ "${token}" = "${expected}" ]; then
-            matched=true
-            break
-          fi
-        done < <(printf '%s\n' "${version_output}" | tr ' \t' '\n')
-        if [ "${matched}" != "true" ]; then
+        # --version prints exactly one line: "kyber-weave <version>".
+        actual_line="${version_output//$'\r'/}"
+        actual_line="${actual_line%$'\n'}"
+        if [ "${actual_line}" != "kyber-weave ${expected}" ] && [ "${actual_line}" != "kyber-weave v${expected}" ]; then
           echo "::error::Installed Kyber-Weave CLI output '${version_output}' does not match pinned version '${expected}'."
           exit 1
         fi
