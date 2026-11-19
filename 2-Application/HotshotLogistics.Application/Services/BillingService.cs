@@ -5,6 +5,7 @@
 using HotshotLogistics.Contracts.Repositories;
 using HotshotLogistics.Contracts.Services;
 using HotshotLogistics.Core.Enums;
+using HotshotLogistics.Domain.DTOs;
 using HotshotLogistics.Domain.Entities;
 using HotshotLogistics.Domain.ValueObjects;
 using Microsoft.Extensions.Logging;

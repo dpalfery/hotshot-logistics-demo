@@ -28,6 +28,5 @@ Add one document per todo and list it here, ordered by priority (`P1` high, `P2`
 | [Remove Data dependency on Application](persistence-application-dependency.md) | P2 | Open | Api | Remove `HotshotLogistics.Data` project reference to `HotshotLogistics.Application`. |
 | [Introduce a SQL connection factory](sql-connection-factory.md) | P2 | Open | Api | Plan a factory and migrate direct repository connection creation. |
 | [Migrate to the generic repository contract](generic-repository-migration.md) | P2 | Open | Api | Design and adopt `IRepository<T>` while preserving repository behavior. |
-| [Align C# contract model placement](contracts-model-placement.md) | P3 | Open | Api | Move the nine non-interface classes in `HotshotLogistics.Contracts` to `HotshotLogistics.Domain.DTOs`. |
 | [Adopt sealed record HTTP DTOs](api-platform-hardening.md) | P3 | Open | Api | Migrate controller request/response DTOs to `sealed record` types. |
 | [Add frontend unit-test tooling](frontend-unit-test-tooling.md) | P3 | Open | admin-dashboard | Add Vitest and React Testing Library for frontend unit and component tests. |

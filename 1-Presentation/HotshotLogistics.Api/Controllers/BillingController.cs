@@ -3,9 +3,9 @@
 // </copyright>
 
 using HotshotLogistics.Application.Authorization;
-using HotshotLogistics.Contracts.Repositories;
 using HotshotLogistics.Contracts.Services;
 using HotshotLogistics.Core.Enums;
+using HotshotLogistics.Domain.DTOs;
 using HotshotLogistics.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

@@ -38,6 +38,18 @@ namespace HotshotLogistics.Tests.Utils.Infrastructure
         }
 
         [Fact]
+        public void Contracts_should_contain_interfaces_only()
+        {
+            IEnumerable<Type> nonInterfaces = Types.InAssembly(typeof(IJobRepository).Assembly)
+                .That().AreNotInterfaces()
+                .GetTypes();
+
+            Assert.True(
+                !nonInterfaces.Any(),
+                "Shared DTOs belong in HotshotLogistics.Domain.DTOs: " + string.Join(',', nonInterfaces.Select(t => t.Name)));
+        }
+
+        [Fact]
         public void Repositories_should_be_internal()
         {
             TestResult result = Types.InAssembly(typeof(DriverRepository).Assembly)

@@ -2,7 +2,7 @@
 id: todos/contracts-model-placement
 title: Align C# contract model placement
 doc-type: todo
-status: current
+status: resolved
 component: Api
 owner: unassigned
 last-reviewed: 2026-11-19
@@ -29,3 +29,5 @@ These nine classes move to `HotshotLogistics.Domain.DTOs`. The DTOs already in
 Plan a separate migration to align contract and shared DTO placement with the
 C# standard. Review each affected type and its consumers, approve any new
 project and dependency changes, and preserve behavior with focused tests.
+
+Resolved on 2026-11-19: the nine classes moved to `HotshotLogistics.Domain.DTOs` (one type per file, names unchanged) and every consumer was updated. `ArchitectureTests.Contracts_should_contain_interfaces_only` keeps `HotshotLogistics.Contracts` interface-only.

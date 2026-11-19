@@ -4,6 +4,7 @@
 
 using HotshotLogistics.Contracts.Services;
 using HotshotLogistics.Core.Enums;
+using HotshotLogistics.Domain.DTOs;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 

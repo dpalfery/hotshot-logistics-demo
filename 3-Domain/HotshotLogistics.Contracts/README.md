@@ -1,6 +1,7 @@
 # HotshotLogistics.Contracts
 
-Interfaces and DTOs shared between layers.
+Interfaces shared between layers. This project contains interfaces only; shared DTOs
+live in `HotshotLogistics.Domain.DTOs`.
 These contracts define the boundaries between layers in accordance with Clean
 Architecture. The Application and Infrastructure projects reference these
 interfaces so that dependencies flow inward.
