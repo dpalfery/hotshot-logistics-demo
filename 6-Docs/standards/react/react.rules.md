@@ -14,8 +14,8 @@ technology: react
 
 - Prefer the repository's design-system components when they exist; do not re-implement a
   button, dialog or field the system already provides.
-- Implement the error and loading states of every asynchronous view. A spinner that never
-  resolves and a blank panel are both defects.
+- Implement every state of each asynchronous view that **Data states** below lists. A spinner
+  that never resolves and a blank panel are both defects.
 
 ## Security and data handling
 
