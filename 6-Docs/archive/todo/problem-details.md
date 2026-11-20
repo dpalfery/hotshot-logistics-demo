@@ -11,7 +11,7 @@ last-reviewed: 2026-11-19
 
 # Standardize API ProblemDetails responses
 
-The [C# coding standard](../../standards/csharp/README.md#errors) calls for `AddProblemDetails()`, `UseExceptionHandler()`, and consistent `ProblemDetails` / `ValidationProblem` responses, whereas controllers currently return mixed plain strings, anonymous objects, and middleware-generated errors.
+The [C# coding standard](../../standards/csharp/csharp.standards.md#errors) calls for `AddProblemDetails()`, `UseExceptionHandler()`, and consistent `ProblemDetails` / `ValidationProblem` responses, whereas controllers currently return mixed plain strings, anonymous objects, and middleware-generated errors.
 
 ## Resolution
 

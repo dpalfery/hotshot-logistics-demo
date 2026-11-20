@@ -11,7 +11,7 @@ last-reviewed: 2026-11-19
 
 # Make invoice number generation concurrency-safe
 
-`InvoiceRepository.GetNextInvoiceNumberAsync()` (`4-Persistence/HotshotLogistics.Data/Repositories/InvoiceRepository.cs:294-306`) computes the next `INV######` identifier using `SELECT ISNULL(MAX(...), 0) + 1` without a database sequence, lock, or transaction. Concurrent `GenerateInvoiceAsync` calls (or parallel test runs, as noted in the [test coding standard](../../standards/test/README.md#known-gaps)) can generate duplicate invoice numbers and collide on the unique constraint.
+`InvoiceRepository.GetNextInvoiceNumberAsync()` (`4-Persistence/HotshotLogistics.Data/Repositories/InvoiceRepository.cs:294-306`) computes the next `INV######` identifier using `SELECT ISNULL(MAX(...), 0) + 1` without a database sequence, lock, or transaction. Concurrent `GenerateInvoiceAsync` calls (or parallel test runs, as noted in the [test coding standard](../../standards/test/test.standards.md#known-gaps)) can generate duplicate invoice numbers and collide on the unique constraint.
 
 ## Next action
 

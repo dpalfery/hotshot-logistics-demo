@@ -3,9 +3,9 @@ description: Download, SHA-256 verify, and install the Kyber-Weave CLI for CI ga
 
 inputs:
   version:
-    description: Pinned Kyber-Weave release tag (defaults to v0.1.8-rc.27).
+    description: Pinned Kyber-Weave release tag (defaults to v0.1.8-rc.30).
     required: false
-    default: "v0.1.8-rc.27"
+    default: "v0.1.8-rc.30"
 
 runs:
   using: composite
@@ -14,8 +14,8 @@ runs:
       shell: bash
       env:
         KW_VERSION: ${{ inputs.version }}
-        # Pinned to commit 32aee4396c5407e3de876e39eb3c673739175d6b (tag v0.1.8-rc.27).
-        INSTALLER_SHA256: "131a218ed81c4509157e2b7e050ed0fc074d4c07a6ceaa9a5d10295023c6a5de"
+        # Pinned to commit b2c79502180836b75d6875cd56caf9822e05e10e (tag v0.1.8-rc.30).
+        INSTALLER_SHA256: "146c6e7077258f318c321e288efa1c01f1d55a01fb072228971aeab29f8fc0b7"
       run: |
         set -euo pipefail
         if [ -z "${KW_VERSION}" ]; then
@@ -24,7 +24,7 @@ runs:
         fi
         installer="${RUNNER_TEMP}/kyber-weave-install.sh"
         curl -fsSL -o "${installer}" \
-          https://raw.githubusercontent.com/dpalfery/kyber-weave/32aee4396c5407e3de876e39eb3c673739175d6b/scripts/install.sh
+          https://raw.githubusercontent.com/dpalfery/kyber-weave/b2c79502180836b75d6875cd56caf9822e05e10e/scripts/install.sh
         printf '%s  %s\n' "${INSTALLER_SHA256}" "${installer}" | sha256sum -c -
         bash "${installer}" --no-mcp --no-arbiter --no-kyberdash --version "${KW_VERSION}"
         echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"

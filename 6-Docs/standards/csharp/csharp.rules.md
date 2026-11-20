@@ -5,9 +5,16 @@ doc-type: rule
 status: draft
 owner: unassigned
 last-reviewed: 2026-11-19
+technology: csharp
 ---
 
 # csharp rules
+
+## Scope
+
+- A repository, SQL or migration change is written to the `data-access-layer` standard,
+  not to this one. When a task needs a schema change it does not name, finish the C# part
+  and report the need as an open item, naming the table and columns.
 
 ## HTTP endpoints
 

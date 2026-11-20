@@ -5,10 +5,22 @@ doc-type: rule
 status: draft
 owner: unassigned
 last-reviewed: 2026-11-19
+technology: react
 ---
 
 # react rules
 
+## Components
+
+- Prefer the repository's design-system components when they exist; do not re-implement a
+  button, dialog or field the system already provides.
+- Implement every state of each asynchronous view that **Data states** below lists. A spinner
+  that never resolves and a blank panel are both defects.
+
+## Security and data handling
+
+- Never render an untrusted value through a DOM-injection escape hatch. Content from the
+  server or a user is text unless the standard says otherwise.
 ## Data states
 
 - Every view backed by a request renders four distinct states: loading, error, empty and data.

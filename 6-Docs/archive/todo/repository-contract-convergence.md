@@ -17,7 +17,7 @@ inheriting it would have added overloads that behave differently from their own 
 
 ## Resolution
 
-Resolved 2026-11-19; the [data access standard](../../standards/data-access-layer/README.md)
+Resolved 2026-11-19; the [data access standard](../../standards/data-access-layer/data-access-layer.standards.md)
 states the resulting contract.
 
 - Every member of `IRepository<T>` takes a `CancellationToken`, and the services pass theirs to `AddAsync`,

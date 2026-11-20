@@ -37,7 +37,7 @@ Values that must never be stored in plain text include:
 10. Implement authentication and authorization controls.
 11. Protect against Cross-Site Request Forgery (CSRF) attacks where relevant.
 12. Persist and regularly rotate Data Protection API keys used for encryption.
-13. Use layered security controls appropriate to the service, including rate limiting where required; see the [C# coding standard](standards/csharp/README.md#http-pipeline) for implementation guidance.
+13. Use layered security controls appropriate to the service, including rate limiting where required; see the [C# coding standard](standards/csharp/csharp.standards.md#http-pipeline) for implementation guidance.
 
 ## Secret Management
 

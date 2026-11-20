@@ -10,7 +10,7 @@ last-reviewed: 2026-11-19
 
 # Stop exposing entities and mutable shared DTOs from controller actions
 
-The [C# coding standard](../standards/csharp/README.md#stack) says never to return a domain entity or persistence
+The [C# coding standard](../standards/csharp/csharp.standards.md#stack) says never to return a domain entity or persistence
 row from an action and to use `sealed record` request and response bodies. The controller-defined types are done (see
 [sealed record DTOs](../archive/todo/api-platform-hardening.md)), but:
 

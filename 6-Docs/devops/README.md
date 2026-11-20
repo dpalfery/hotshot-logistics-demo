@@ -65,7 +65,7 @@ architecture document holds the DR1 evidence.
 ## Related documentation
 
 - [Documentation index](../README.md)
-- [CI/CD coding standard](../standards/github-actions/README.md)
+- [CI/CD coding standard](../standards/github-actions/github-actions.standards.md)
 - [Security guidelines](../security.md)
 - [Documentation standard](../documentation-standard.md) and
   [documentation ontology](../documentation-ontology.md)

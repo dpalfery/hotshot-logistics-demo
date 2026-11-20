@@ -11,7 +11,7 @@ last-reviewed: 2026-11-19
 
 # Define metrics and tracing
 
-The [C# coding standard](../../standards/csharp/README.md#safety) calls for application metrics, distributed tracing via OpenTelemetry, and Application Insights export. The API currently has no metrics/tracing registration or exporter.
+The [C# coding standard](../../standards/csharp/csharp.standards.md#safety) calls for application metrics, distributed tracing via OpenTelemetry, and Application Insights export. The API currently has no metrics/tracing registration or exporter.
 
 ## Resolution
 

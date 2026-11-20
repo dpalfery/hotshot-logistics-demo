@@ -142,18 +142,18 @@ review:
   #   artifacts path (not `--no-build`), so a failing run's missing-symbol errors reach the test gate too.
   #   `dashboard-e2e`: 1-Presentation/admin-dashboard/scripts/task-e2e.sh runs the changed Playwright specs
   #   and the specs covering a changed component by naming convention (chromium only).
-  task-gates:
+  technology-gates:
     # No separate solution build per task: run-task-tests.sh builds what the task's tests need into the
     # same artifacts path and reports compile errors, so a second full build only added about a minute a run.
-    csharp-dev:
+    csharp:
       - &task-tests
         id: tests
         include: ["**/*.cs"]
         run: [bash, 5-Test/run-task-tests.sh, "{tests}", ".agent_scratchpad/{task}/artifacts"]
         timeout: 600
-    dal-dev:
+    data-access-layer:
       - *task-tests
-    test-dev:
+    test:
       - *task-tests
       - &task-e2e
         id: dashboard-e2e
@@ -161,7 +161,7 @@ review:
         # "$@" is the expanded {changed}. No working-directory: the schema refuses it together with {changed}.
         run: [bash, 1-Presentation/admin-dashboard/scripts/task-e2e.sh, "{changed}"]
         timeout: 420
-    react-dev:
+    react:
       - &task-lint
         id: dashboard-lint
         include: ["1-Presentation/admin-dashboard/**"]
@@ -183,10 +183,7 @@ review:
         run: [sh, -c, "(test -d 1-Presentation/admin-dashboard/node_modules || (cd 1-Presentation/admin-dashboard && npm ci --no-audit --no-fund)) && 1-Presentation/admin-dashboard/node_modules/.bin/tsc --noEmit --pretty false -p 1-Presentation/admin-dashboard && cd 1-Presentation/admin-dashboard && npm run build"]
         timeout: 300
       - *task-e2e
-    typescript-dev:
-      - *task-lint
-      - *task-typecheck
-      - *task-build-dashboard
-      - *task-e2e
+    sql:
+      - *task-tests
 
 onboarding: done
