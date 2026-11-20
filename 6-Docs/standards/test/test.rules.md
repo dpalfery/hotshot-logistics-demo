@@ -5,6 +5,7 @@ doc-type: rule
 status: draft
 owner: unassigned
 last-reviewed: 2026-11-19
+technology: test
 ---
 
 # test rules
