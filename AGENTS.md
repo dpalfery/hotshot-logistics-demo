@@ -17,7 +17,7 @@
 
 ## Local verification environment
 
-DB-backed tests need SQL Server (`7-Deployment/dev-env/dev-env-up.sh`; `dev-env-down.sh` stops it); the dashboard builds with `npm ci && npm run build`. See [Test coding standard](6-Docs/standards/test/README.md) and [DbSetup onboarding](6-Docs/dbsetup/onboarding.md).
+DB-backed tests need SQL Server (`7-Deployment/dev-env/dev-env-up.sh`; `dev-env-down.sh` stops it); the dashboard builds with `npm ci && npm run build`. See [Test coding standard](6-Docs/standards/test/test.standards.md) and [DbSetup onboarding](6-Docs/dbsetup/onboarding.md).
 
 <!-- CODEGRAPH_START -->
 ## CodeGraph

@@ -146,7 +146,7 @@ Configures weekly Monday 09:00 updates for two ecosystems (`nuget` at `/`, limit
 
 ## Standard-conformance and drift alignment
 
-Against the [GitHub Actions coding standard](../standards/github-actions/README.md):
+Against the [GitHub Actions coding standard](../standards/github-actions/github-actions.standards.md):
 
 - **Third-party action pinning (DR6 resolved):** Every external `uses:` reference across
   `ci.yml` and `release.yml` is pinned to a full 40-character commit SHA with a version comment

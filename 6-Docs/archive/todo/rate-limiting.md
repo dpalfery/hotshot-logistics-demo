@@ -11,7 +11,7 @@ last-reviewed: 2026-11-19
 
 # Add API rate limiting
 
-The [C# coding standard](../../standards/csharp/README.md#http-pipeline) calls for rate-limiting public endpoints, but the API currently has no `AddRateLimiter()` or `UseRateLimiter()` configuration.
+The [C# coding standard](../../standards/csharp/csharp.standards.md#http-pipeline) calls for rate-limiting public endpoints, but the API currently has no `AddRateLimiter()` or `UseRateLimiter()` configuration.
 
 ## Resolution
 

@@ -11,7 +11,7 @@ last-reviewed: 2026-11-19
 
 # Add API health checks
 
-The [C# coding standard](../../standards/csharp/README.md#http-pipeline) calls for `/health` checks for database, queue, and API dependencies, plus readiness/liveness integration. The API currently has no `AddHealthChecks()` or `MapHealthChecks()` registration.
+The [C# coding standard](../../standards/csharp/csharp.standards.md#http-pipeline) calls for `/health` checks for database, queue, and API dependencies, plus readiness/liveness integration. The API currently has no `AddHealthChecks()` or `MapHealthChecks()` registration.
 
 ## Resolution
 
