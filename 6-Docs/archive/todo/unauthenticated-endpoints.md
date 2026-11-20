@@ -11,7 +11,7 @@ last-reviewed: 2026-11-19
 
 # Review endpoints that are unauthenticated or unreachable by their callers
 
-Found while adding rate limiting (see [rate limiting](../archive/todo/rate-limiting.md)); changing it alters who can call
+Found while adding rate limiting (see [rate limiting](./rate-limiting.md)); changing it alters who can call
 the API, so it needs an owner decision.
 
 - `TrackingController` had no `[Authorize]`. Every action, including `start`, `stop`, `location` updates and
