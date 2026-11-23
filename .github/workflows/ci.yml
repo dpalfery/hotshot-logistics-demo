@@ -503,7 +503,7 @@ jobs:
 
       - name: Run TruffleHog (Pull Request)
         if: github.event_name == 'pull_request' && steps.pr_commits.outputs.mode == 'range'
-        uses: trufflesecurity/trufflehog@3bd2b5887eb0efb8fa18bfd1d296032924e4ffdc # v3.99.9
+        uses: trufflesecurity/trufflehog@d232362a64a09a9e7d58267b8f5acef00ae90e23 # v3.100.0
         with:
           path: ./
           base: ${{ steps.pr_commits.outputs.base }}
@@ -512,7 +512,7 @@ jobs:
 
       - name: Run TruffleHog (Push/Schedule/Dispatch or Fallback)
         if: github.event_name != 'pull_request' || steps.pr_commits.outputs.mode != 'range'
-        uses: trufflesecurity/trufflehog@3bd2b5887eb0efb8fa18bfd1d296032924e4ffdc # v3.99.9
+        uses: trufflesecurity/trufflehog@d232362a64a09a9e7d58267b8f5acef00ae90e23 # v3.100.0
         with:
           path: ./
           extra_args: --results=verified
