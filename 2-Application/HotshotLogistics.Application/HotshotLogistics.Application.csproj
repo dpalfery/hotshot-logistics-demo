@@ -9,7 +9,7 @@
   <ItemGroup>
     <PackageReference Include="FluentValidation" Version="12.2.0" />
     <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.2.0" />
-    <PackageReference Include="Microsoft.Azure.SignalR.Management" Version="1.33.1" />
+    <PackageReference Include="Microsoft.Azure.SignalR.Management" Version="1.34.0" />
     <PackageReference Include="Microsoft.Graph" Version="6.10.0" />
     <PackageReference Include="Microsoft.Identity.Web.GraphServiceClient" Version="4.18.0" />
     <PackageReference Include="Polly" Version="8.9.1" />
